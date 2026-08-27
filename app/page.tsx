@@ -35,12 +35,22 @@ export default function Home() {
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [activeNav, setActiveNav] = useState('new');
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('全部素材');
   const [notice, setNotice] = useState('');
   const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
   const frame = frames.find((item) => item.id === frameId) ?? frames[0];
-  const visibleArtworks = useMemo(() => libraryItems.filter((item) => `${item.name}${item.tag}${item.tone}`.includes(search.trim())), [libraryItems, search]);
+  const visibleArtworks = useMemo(() => libraryItems.filter((item) => {
+    const matchesSearch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(search.trim());
+    const matchesCategory = category === '全部素材' || item.tag.includes(category);
+    return matchesSearch && matchesCategory;
+  }), [category, libraryItems, search]);
 
   useEffect(() => {
+    fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
+      if (!manifest?.items || !Array.isArray(manifest.items)) return;
+      const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
+      setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
+    }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
       const uploads = rows.map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
@@ -90,7 +100,7 @@ export default function Home() {
             <button key={id} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
               <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
               <span>{label}</span>
-              <em>{count}</em>
+              <em>{id === 'gallery' ? libraryItems.length : count}</em>
             </button>
           ))}
         </nav>
@@ -147,14 +157,14 @@ export default function Home() {
                 <kbd>⌘ K</kbd>
               </label>
               <div className="filter-chips">
-                <button className="selected">全部素材</button><button>新中式</button><button>植物花卉</button><button>抽象肌理</button>
+                {['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}
               </div>
             </div>
 
             <div className="gallery-grid">
               {visibleArtworks.map((item) => (
                 <button key={item.id} className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => setSelectedId(item.id)}>
-                  <div className="art-thumb"><img src={item.file} alt={item.name} />
+                  <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
                     <span className="asset-state">已入库</span>
                     {selectedId === item.id && <span className="selected-check">✓</span>}
                   </div>
@@ -232,8 +242,8 @@ function SecondaryView({ view, libraryItems, frameId, onSelectFrame, onCreate }:
         <button className="frame-upload-card"><b>＋</b><strong>录入新框架模板</strong><small>上传正面产品图，并标注框型、框色、底座与滑轮</small></button>
       </div>}
       {view === 'gallery' && <>
-        <div className="library-stats"><div><span>全部素材</span><strong>{128 + Math.max(0, libraryItems.length - artworks.length)}</strong><small>含 {libraryItems.length} 张演示画芯</small></div><div><span>本月新增</span><strong>24</strong><small>较上月 +18%</small></div><div><span>已用于新品</span><strong>46</strong><small>36% 使用率</small></div><div><span>待整理</span><strong>07</strong><small>缺少标签或来源</small></div></div>
-        <div className="gallery-wide-grid">{libraryItems.map((item) => <article key={item.id}><img src={item.file} alt={item.name} /><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div><button>•••</button></article>)}<button className="frame-upload-card"><b>＋</b><strong>上传并收纳素材</strong><small>支持批量录入名称、标签、色系与来源</small></button></div>
+        <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
+        <div className="gallery-wide-grid">{libraryItems.map((item) => <article key={item.id}><img src={item.file} alt={item.name} loading="lazy" /><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div><button>•••</button></article>)}<button className="frame-upload-card"><b>＋</b><strong>上传并收纳素材</strong><small>支持批量录入名称、标签、色系与来源</small></button></div>
       </>}
       {view === 'jobs' && <div className="job-board">
         <div className="job-column"><h3>等待样图确认 <span>2</span></h3><JobCard name="浅绿云雾山影新品" image="/demo/浅绿云雾山影.png" state="第一张主图待确认" progress="1 / 33" /><JobCard name="暖白花枝新品" image="/demo/暖白花枝.jpg" state="框架结构待复核" progress="0 / 33" /></div>
