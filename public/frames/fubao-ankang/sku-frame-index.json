@@ -1,0 +1,309 @@
+{
+  "seriesId": "fubao-ankang-cabinet",
+  "seriesName": "福报安康双门抽屉玄关柜",
+  "sourceRoot": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku",
+  "skuCount": 30,
+  "defaultSkuId": "fubao-80-200",
+  "items": [
+    {
+      "id": "fubao-30-30-80-200",
+      "name": "30+30+80-200",
+      "widthSpec": "30+30+80",
+      "totalWidth": 140.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_30_80-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+30+80-200.jpg"
+    },
+    {
+      "id": "fubao-30-30-80-220",
+      "name": "30+30+80-220",
+      "widthSpec": "30+30+80",
+      "totalWidth": 140.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_30_80-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+30+80-220.jpg"
+    },
+    {
+      "id": "fubao-30-30-80-230",
+      "name": "30+30+80-230",
+      "widthSpec": "30+30+80",
+      "totalWidth": 140.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_30_80-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+30+80-230.jpg"
+    },
+    {
+      "id": "fubao-30-60-200",
+      "name": "30+60-200",
+      "widthSpec": "30+60",
+      "totalWidth": 90.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60-200.jpg"
+    },
+    {
+      "id": "fubao-30-60-220",
+      "name": "30+60-220",
+      "widthSpec": "30+60",
+      "totalWidth": 90.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60-220.jpg"
+    },
+    {
+      "id": "fubao-30-60-230",
+      "name": "30+60-230",
+      "widthSpec": "30+60",
+      "totalWidth": 90.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60-230.jpg"
+    },
+    {
+      "id": "fubao-30-60-60-30-200",
+      "name": "30+60+60+30-200",
+      "widthSpec": "30+60+60+30",
+      "totalWidth": 180.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60_60_30-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60+60+30-200.jpg"
+    },
+    {
+      "id": "fubao-30-60-60-30-220",
+      "name": "30+60+60+30-220",
+      "widthSpec": "30+60+60+30",
+      "totalWidth": 180.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60_60_30-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60+60+30-220.jpg"
+    },
+    {
+      "id": "fubao-30-60-60-30-230",
+      "name": "30+60+60+30-230",
+      "widthSpec": "30+60+60+30",
+      "totalWidth": 180.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_60_60_30-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+60+60+30-230.jpg"
+    },
+    {
+      "id": "fubao-30-80-200",
+      "name": "30+80-200",
+      "widthSpec": "30+80",
+      "totalWidth": 110.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_80-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+80-200.jpg"
+    },
+    {
+      "id": "fubao-30-80-220",
+      "name": "30+80-220",
+      "widthSpec": "30+80",
+      "totalWidth": 110.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_80-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+80-220.jpg"
+    },
+    {
+      "id": "fubao-30-80-230",
+      "name": "30+80-230",
+      "widthSpec": "30+80",
+      "totalWidth": 110.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/30_80-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\30+80-230.jpg"
+    },
+    {
+      "id": "fubao-40-40-80-200",
+      "name": "40+40+80-200",
+      "widthSpec": "40+40+80",
+      "totalWidth": 160.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_40_80-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+40+80-200.jpg"
+    },
+    {
+      "id": "fubao-40-40-80-220",
+      "name": "40+40+80-220",
+      "widthSpec": "40+40+80",
+      "totalWidth": 160.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_40_80-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+40+80-220.jpg"
+    },
+    {
+      "id": "fubao-40-40-80-230",
+      "name": "40+40+80-230",
+      "widthSpec": "40+40+80",
+      "totalWidth": 160.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_40_80-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+40+80-230.jpg"
+    },
+    {
+      "id": "fubao-40-60-200",
+      "name": "40+60-200",
+      "widthSpec": "40+60",
+      "totalWidth": 100.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_60-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+60-200.jpg"
+    },
+    {
+      "id": "fubao-40-60-220",
+      "name": "40+60-220",
+      "widthSpec": "40+60",
+      "totalWidth": 100.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_60-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+60-220.jpg"
+    },
+    {
+      "id": "fubao-40-60-230",
+      "name": "40+60-230",
+      "widthSpec": "40+60",
+      "totalWidth": 100.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_60-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+60-230.jpg"
+    },
+    {
+      "id": "fubao-40-80-200",
+      "name": "40+80-200",
+      "widthSpec": "40+80",
+      "totalWidth": 120.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_80-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+80-200.jpg"
+    },
+    {
+      "id": "fubao-40-80-220",
+      "name": "40+80-220",
+      "widthSpec": "40+80",
+      "totalWidth": 120.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_80-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+80-220.jpg"
+    },
+    {
+      "id": "fubao-40-80-230",
+      "name": "40+80-230",
+      "widthSpec": "40+80",
+      "totalWidth": 120.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/40_80-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\40+80-230.jpg"
+    },
+    {
+      "id": "fubao-60-200",
+      "name": "60-200",
+      "widthSpec": "60",
+      "totalWidth": 60.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60-200.jpg"
+    },
+    {
+      "id": "fubao-60-220",
+      "name": "60-220",
+      "widthSpec": "60",
+      "totalWidth": 60.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60-220.jpg"
+    },
+    {
+      "id": "fubao-60-230",
+      "name": "60-230",
+      "widthSpec": "60",
+      "totalWidth": 60.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60-230.jpg"
+    },
+    {
+      "id": "fubao-60-30-60-200",
+      "name": "60+30+60-200",
+      "widthSpec": "60+30+60",
+      "totalWidth": 150.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60_30_60-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60+30+60-200.jpg"
+    },
+    {
+      "id": "fubao-60-30-60-220",
+      "name": "60+30+60-220",
+      "widthSpec": "60+30+60",
+      "totalWidth": 150.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60_30_60-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60+30+60-220.jpg"
+    },
+    {
+      "id": "fubao-60-30-60-230",
+      "name": "60+30+60-230",
+      "widthSpec": "60+30+60",
+      "totalWidth": 150.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/60_30_60-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\60+30+60-230.jpg"
+    },
+    {
+      "id": "fubao-80-200",
+      "name": "80-200",
+      "widthSpec": "80",
+      "totalWidth": 80.0,
+      "height": 200,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/80-200.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\80-200.jpg"
+    },
+    {
+      "id": "fubao-80-220",
+      "name": "80-220",
+      "widthSpec": "80",
+      "totalWidth": 80.0,
+      "height": 220,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/80-220.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\80-220.jpg"
+    },
+    {
+      "id": "fubao-80-230",
+      "name": "80-230",
+      "widthSpec": "80",
+      "totalWidth": 80.0,
+      "height": 230,
+      "depth": 30,
+      "thumb": "/frames/fubao-ankang/80-230.jpg",
+      "sourcePath": "D:\\屏风素材\\福报安康双门抽屉玄关柜\\sku\\80-230.jpg"
+    }
+  ]
+}

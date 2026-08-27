@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+type SkuFrame = { id: string; name: string; widthSpec: string; totalWidth: number; height: number; depth: number; thumb: string; sourcePath: string };
+type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; sku?: SkuFrame };
+
 const artworks = [
   { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水留白', ratio: '1:1', tone: '雾绿' },
   { id: 'floral', name: '暖白花枝', file: '/demo/暖白花枝.jpg', tag: '花鸟新中式', ratio: '1:1', tone: '暖白' },
@@ -10,7 +13,7 @@ const artworks = [
   { id: 'blue', name: '雾蓝极简单花', file: '/demo/雾蓝极简单花.png', tag: '极简花卉', ratio: '1:1', tone: '雾蓝' },
 ];
 
-const frames = [
+const frames: FrameOption[] = [
   { id: 'ruyi-walnut', name: '如意葫芦款', tone: '胡桃木色', color: '#3a2a22', profile: 'classic' },
   { id: 'ruyi-natural', name: '如意葫芦款', tone: '原木色', color: '#d5ad72', profile: 'classic' },
   { id: 'straight-warm', name: '极简直边款', tone: '暖白色', color: '#d8d0bd', profile: 'slim' },
@@ -22,7 +25,7 @@ const frames = [
 const navItems = [
   ['new', '新品项目', '08'],
   ['gallery', '图库收纳', '128'],
-  ['frames', '框架库', '06'],
+  ['frames', '框架库', '07'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
 ];
@@ -31,6 +34,8 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const [libraryItems, setLibraryItems] = useState(artworks);
+  const [skuFrames, setSkuFrames] = useState<SkuFrame[]>([]);
+  const [selectedSkuId, setSelectedSkuId] = useState('fubao-80-200');
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [activeNav, setActiveNav] = useState('new');
@@ -38,7 +43,10 @@ export default function Home() {
   const [category, setCategory] = useState('全部素材');
   const [notice, setNotice] = useState('');
   const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
-  const frame = frames.find((item) => item.id === frameId) ?? frames[0];
+  const selectedSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
+  const frame: FrameOption = frameId.startsWith('fubao-') && selectedSku
+    ? { id: selectedSku.id, name: '福报安康玄关柜', tone: `组合宽${selectedSku.widthSpec} · 高${selectedSku.height}cm`, color: '#432d24', profile: 'cabinet', file: selectedSku.thumb, sku: selectedSku }
+    : frames.find((item) => item.id === frameId) ?? frames[0];
   const visibleArtworks = useMemo(() => libraryItems.filter((item) => {
     const matchesSearch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(search.trim());
     const matchesCategory = category === '全部素材' || item.tag.includes(category);
@@ -46,6 +54,9 @@ export default function Home() {
   }), [category, libraryItems, search]);
 
   useEffect(() => {
+    fetch('/frames/fubao-ankang/sku-frame-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
+      if (Array.isArray(manifest?.items)) setSkuFrames(manifest.items);
+    }).catch(() => undefined);
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
@@ -180,18 +191,21 @@ export default function Home() {
             <div className="compose-heading"><div><p>新品预览</p><h2>画芯 × 框架</h2></div><span className="draft-badge">草稿</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
-                <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
-                <div className="screen-base"><i /><b /><i /></div>
-              </div>
+              {frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><span>SKU首帧框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
+                  <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
+                  <div className="screen-base"><i /><b /><i /></div>
+                </div>}
               <span className="preview-scale">预览比例 1:2.6</span>
             </div>
 
             <div className="selection-summary">
               <div className="summary-art"><img src={selected.file} alt="" /><span><small>当前画芯</small><strong>{selected.name}</strong></span><button>更换</button></div>
               <div className="frame-picker"><div className="row-label"><span>框架型号</span><b>{frame.name} · {frame.tone}</b></div>
-                <div className="frame-options">{frames.map((item) => <button key={item.id} aria-label={`${item.name}${item.tone}`} className={frameId === item.id ? 'selected' : ''} onClick={() => setFrameId(item.id)}><i style={{ '--swatch': item.color } as React.CSSProperties}><span /></i><em>{item.name}<small>{item.tone}</small></em>{frameId === item.id && <b>✓</b>}</button>)}</div>
-                <button className="add-frame"><span>＋</span> 从框架库选择或上传新模板</button>
+                <div className="frame-options">
+                  {selectedSku && <button aria-label="福报安康玄关柜SKU框架" className={frameId.startsWith('fubao-') ? 'selected cabinet-option' : 'cabinet-option'} onClick={() => setFrameId(selectedSku.id)}><img src={selectedSku.thumb} alt="" /><em>福报安康玄关柜<small>宽{selectedSku.widthSpec} · 高{selectedSku.height}cm</small></em>{frameId.startsWith('fubao-') && <b>✓</b>}</button>}
+                  {frames.map((item) => <button key={item.id} aria-label={`${item.name}${item.tone}`} className={frameId === item.id ? 'selected' : ''} onClick={() => setFrameId(item.id)}><i style={{ '--swatch': item.color } as React.CSSProperties}><span /></i><em>{item.name}<small>{item.tone}</small></em>{frameId === item.id && <b>✓</b>}</button>)}
+                </div>
+                <button className="add-frame" onClick={() => setActiveNav('frames')}><span>＋</span> 进入框架库选择尺寸或上传新模板</button>
               </div>
             </div>
 
@@ -208,7 +222,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} frameId={frameId} onSelectFrame={setFrameId} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} frameId={frameId} onSelectFrame={setFrameId} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); setFrameId(id); }} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -222,7 +236,9 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, frameId, onSelectFrame, onCreate }: { view: string; libraryItems: typeof artworks; frameId: string; onSelectFrame: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, frameId, onSelectFrame, skuFrames, selectedSkuId, onSelectSku, onCreate }: { view: string; libraryItems: typeof artworks; frameId: string; onSelectFrame: (id: string) => void; skuFrames: SkuFrame[]; selectedSkuId: string; onSelectSku: (id: string) => void; onCreate: () => void }) {
+  const [skuHeight, setSkuHeight] = useState(200);
+  const chosenSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
   const headings: Record<string, [string, string]> = {
     gallery: ['图库收纳', '统一管理画芯、场景参考与已用素材'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
@@ -233,14 +249,28 @@ function SecondaryView({ view, libraryItems, frameId, onSelectFrame, onCreate }:
   return (
     <section className="secondary-view">
       <header className="secondary-head"><div><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2><span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>
-      {view === 'frames' && <div className="frame-library-grid">
-        {frames.map((item, index) => <button key={item.id} className={frameId === item.id ? 'frame-library-card selected' : 'frame-library-card'} onClick={() => onSelectFrame(item.id)}>
-          <div className="frame-stage"><div className={`mini-screen profile-${item.profile}`} style={{ '--frame-color': item.color } as React.CSSProperties}><span /></div></div>
-          <div><small>FRAME {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><p><i style={{ background: item.color }} />{item.tone}<em>{item.profile === 'classic' ? '滑轮底座' : item.profile === 'wide' ? '加宽立柱' : item.profile === 'joinery' ? '榫卯装饰' : '窄边框体'}</em></p></div>
-          <span>{frameId === item.id ? '已选择 ✓' : '选择此框架'}</span>
-        </button>)}
-        <button className="frame-upload-card"><b>＋</b><strong>录入新框架模板</strong><small>上传正面产品图，并标注框型、框色、底座与滑轮</small></button>
-      </div>}
+      {view === 'frames' && <>
+        <section className="sku-series-panel">
+          <div className="sku-series-preview">{chosenSku ? <img src={chosenSku.thumb} alt={`${chosenSku.name}尺寸首帧`} /> : <span>正在载入SKU...</span>}<b>真实SKU首帧</b></div>
+          <div className="sku-series-config">
+            <p className="eyebrow">CABINET FRAME SERIES · 30 SKU</p>
+            <h3>福报安康双门抽屉玄关柜</h3>
+            <p className="sku-intro">先选择高度和柜体组合宽度。所选SKU原图会作为新品生成的首帧框架，柜门、抽屉、格栅、福字雕花和场景结构保持不变。</p>
+            <div className="height-tabs"><span>选择高度</span>{[200, 220, 230].map((height) => <button key={height} className={skuHeight === height ? 'selected' : ''} onClick={() => setSkuHeight(height)}>{height}cm</button>)}</div>
+            <div className="sku-size-grid">{skuFrames.filter((item) => item.height === skuHeight).map((item) => <button key={item.id} className={selectedSkuId === item.id ? 'selected' : ''} onClick={() => onSelectSku(item.id)}><strong>{item.widthSpec}</strong><small>总宽 {item.totalWidth}cm</small>{selectedSkuId === item.id && <b>✓</b>}</button>)}</div>
+            {chosenSku && <div className="chosen-sku"><span><small>当前首帧尺寸</small><strong>组合宽 {chosenSku.widthSpec}cm（总宽{chosenSku.totalWidth}cm）× 高 {chosenSku.height}cm × 深 {chosenSku.depth}cm</strong></span><button onClick={onCreate}>使用此尺寸创建新品 →</button></div>}
+          </div>
+        </section>
+        <div className="frame-subheading"><div><p className="eyebrow">OTHER FRAME SERIES</p><h3>其他屏风框架</h3></div><span>也可继续选择已有的滑轮屏风框型</span></div>
+        <div className="frame-library-grid">
+          {frames.map((item, index) => <button key={item.id} className={frameId === item.id ? 'frame-library-card selected' : 'frame-library-card'} onClick={() => onSelectFrame(item.id)}>
+            <div className="frame-stage"><div className={`mini-screen profile-${item.profile}`} style={{ '--frame-color': item.color } as React.CSSProperties}><span /></div></div>
+            <div><small>FRAME {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><p><i style={{ background: item.color }} />{item.tone}<em>{item.profile === 'classic' ? '滑轮底座' : item.profile === 'wide' ? '加宽立柱' : item.profile === 'joinery' ? '榫卯装饰' : '窄边框体'}</em></p></div>
+            <span>{frameId === item.id ? '已选择 ✓' : '选择此框架'}</span>
+          </button>)}
+          <button className="frame-upload-card"><b>＋</b><strong>录入新框架模板</strong><small>上传正面产品图，并标注框型、框色、底座与滑轮</small></button>
+        </div>
+      </>}
       {view === 'gallery' && <>
         <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
         <div className="gallery-wide-grid">{libraryItems.map((item) => <article key={item.id}><img src={item.file} alt={item.name} loading="lazy" /><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div><button>•••</button></article>)}<button className="frame-upload-card"><b>＋</b><strong>上传并收纳素材</strong><small>支持批量录入名称、标签、色系与来源</small></button></div>
