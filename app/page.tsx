@@ -22,6 +22,15 @@ const frames: FrameOption[] = [
   { id: 'simple-gray', name: '简约滑轮款', tone: '简约灰色', color: '#66645f', profile: 'slim' },
 ];
 
+const blankCabinetFrame: FrameOption = {
+  id: 'fubao-blank-80-200',
+  name: '福报安康空框柜',
+  tone: '胡桃木色 · 80×200cm',
+  color: '#432d24',
+  profile: 'cabinet',
+  file: '/frames/fubao-ankang/空框白底_80-200.png',
+};
+
 const navItems = [
   ['new', '新品项目', '08'],
   ['gallery', '图库收纳', '128'],
@@ -39,11 +48,14 @@ export default function Home() {
   const [selectedSkuId, setSelectedSkuId] = useState('fubao-80-200');
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
+  const [previewReady, setPreviewReady] = useState(false);
   const [activeNav, setActiveNav] = useState('new');
   const [notice, setNotice] = useState('');
   const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
   const selectedSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
-  const frame: FrameOption = frameId.startsWith('fubao-') && selectedSku
+  const frame: FrameOption = frameId === blankCabinetFrame.id
+    ? blankCabinetFrame
+    : frameId.startsWith('fubao-') && selectedSku
     ? { id: selectedSku.id, name: '福报安康玄关柜', tone: `组合宽${selectedSku.widthSpec} · 高${selectedSku.height}cm`, color: '#432d24', profile: 'cabinet', file: selectedSku.thumb, sku: selectedSku }
     : frames.find((item) => item.id === frameId) ?? frames[0];
   const homeArtworks = homeSampleIds.map((id) => libraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
@@ -75,9 +87,24 @@ export default function Home() {
   }, [libraryItems]);
 
   async function createProduct() {
+    if (!previewReady) {
+      setNotice('请先确认组合并查看效果图。');
+      window.setTimeout(() => setNotice(''), 3000);
+      return;
+    }
     const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frame.tone}` }) }).catch(() => null);
     setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已保存，第一张样图任务已建立。` : `“${selected.name} · ${frame.name}”已进入样图确认阶段。`);
     window.setTimeout(() => setNotice(''), 3600);
+  }
+
+  function selectArtwork(id: string) {
+    setSelectedId(id);
+    setPreviewReady(false);
+  }
+
+  function selectFrame(id: string) {
+    setFrameId(id);
+    setPreviewReady(false);
   }
 
   async function uploadAsset(file: File | undefined) {
@@ -94,7 +121,7 @@ export default function Home() {
     const row = await response.json();
     const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, tag: '我的上传', ratio: '原图', tone: '未标注' };
     setLibraryItems((current) => [uploaded, ...current]);
-    setSelectedId(uploaded.id);
+    selectArtwork(uploaded.id);
     setNotice(`“${uploaded.name}”已收纳到图库。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
@@ -148,62 +175,69 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="workflow-steps" aria-label="新品制作进度">
-          {[
-            ['01', '选择画芯', '从图库挑选图案'],
-            ['02', '拼接框架', '确认框色与比例'],
-            ['03', '生成素材', '主图 · 尺寸图 · 详情页'],
-            ['04', 'QA 与交付', '审批样图后批量导出'],
-          ].map(([number, title, desc], index) => (
-            <div key={number} className={`step ${index === 0 ? 'current' : ''}`}>
-              <span>{number}</span><div><strong>{title}</strong><small>{desc}</small></div>{index < 3 && <i />}
-            </div>
-          ))}
-        </div>
-
         <div className={`content-grid ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <section className="library-panel">
-            <div className="section-heading">
-              <div><p>第一步 · 图库</p><h2>随机推荐3张图案</h2></div>
-              <button className="upload-button" onClick={() => setActiveNav('gallery')}>更多图案 <span>→</span></button>
-            </div>
+            <section className="choice-section artwork-choice-section">
+              <div className="section-heading">
+                <div><p>ARTWORK OPTIONS</p><h2>图案选项</h2></div>
+                <button className="upload-button" onClick={() => setActiveNav('gallery')}>更多图案 <span>→</span></button>
+              </div>
 
-            <p className="home-gallery-note">每次进入首页自动换一组。点击图案即可选中，或进入二级图库搜索全部素材。</p>
-            <div className="gallery-grid home-gallery-grid">
-              {(homeArtworks.length ? homeArtworks : libraryItems.slice(0, 3)).map((item) => (
-                <button key={item.id} className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => setSelectedId(item.id)}>
-                  <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
-                    <span className="asset-state">已入库</span>
-                    {selectedId === item.id && <span className="selected-check">✓</span>}
-                  </div>
-                  <div className="art-meta"><strong>{item.name}</strong><p><span>{item.tag}</span><span>{item.tone}</span></p></div>
-                  <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
+              <p className="home-gallery-note">随机展示3张图案。点击即可选择，也可以进入完整图库搜索。</p>
+              <div className="gallery-grid home-gallery-grid">
+                {(homeArtworks.length ? homeArtworks : libraryItems.slice(0, 3)).map((item) => (
+                  <button key={item.id} className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => selectArtwork(item.id)}>
+                    <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
+                      <span className="asset-state">已入库</span>
+                      {selectedId === item.id && <span className="selected-check">✓</span>}
+                    </div>
+                    <div className="art-meta"><strong>{item.name}</strong><p><span>{item.tag}</span><span>{item.tone}</span></p></div>
+                    <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
+                  </button>
+                ))}
+              </div>
+              <div className="home-library-footer"><span>图库已收纳 {libraryItems.length} 张图案</span><button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></div>
+            </section>
+
+            <section className="choice-section frame-choice-section">
+              <div className="section-heading">
+                <div><p>FRAME OPTIONS</p><h2>框架选项</h2></div>
+                <button className="upload-button" onClick={() => setActiveNav('frames')}>更多框架 <span>→</span></button>
+              </div>
+              <p className="home-gallery-note">选择一种框型或柜体空框。更换选项后，需要重新确认组合预览。</p>
+              <div className="home-frame-grid">
+                <button className={frameId === blankCabinetFrame.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(blankCabinetFrame.id)}>
+                  <span className="home-frame-thumb image-frame-thumb"><img src={blankCabinetFrame.file} alt="福报安康空框柜白底框架" /></span>
+                  <span><strong>{blankCabinetFrame.name}</strong><small>{blankCabinetFrame.tone}</small></span>
+                  {frameId === blankCabinetFrame.id && <b>✓</b>}
                 </button>
-              ))}
-            </div>
-            <div className="home-library-footer"><span>图库已收纳 {libraryItems.length} 张图案</span><button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></div>
+                {frames.map((item) => (
+                  <button key={item.id} className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
+                    <span className="home-frame-thumb"><i style={{ '--swatch': item.color } as React.CSSProperties}><em /></i></span>
+                    <span><strong>{item.name}</strong><small>{item.tone}</small></span>
+                    {frameId === item.id && <b>✓</b>}
+                  </button>
+                ))}
+              </div>
+            </section>
           </section>
 
           <aside className="compose-panel">
-            <div className="compose-heading"><div><p>新品预览</p><h2>画芯 × 框架</h2></div><span className="draft-badge">草稿</span></div>
+            <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><span>SKU首帧框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
+              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} />{frame.id === blankCabinetFrame.id && <div className="cabinet-art-overlay"><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div>}<span>空框组合预览</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
                   <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
                   <div className="screen-base"><i /><b /><i /></div>
                 </div>}
-              <span className="preview-scale">预览比例 1:2.6</span>
+              {previewReady && <span className="preview-scale">预览比例 1:2.6</span>}
             </div>
 
+            <button className="combine-button" onClick={() => setPreviewReady(true)}>{previewReady ? '重新确认组合预览' : '确认组合并查看效果'} <span>→</span></button>
+
             <div className="selection-summary">
-              <div className="summary-art"><img src={selected.file} alt="" /><span><small>当前画芯</small><strong>{selected.name}</strong></span><button>更换</button></div>
-              <div className="frame-picker"><div className="row-label"><span>框架型号</span><b>{frame.name} · {frame.tone}</b></div>
-                <div className="frame-options">
-                  {selectedSku && <button aria-label="福报安康玄关柜SKU框架" className={frameId.startsWith('fubao-') ? 'selected cabinet-option' : 'cabinet-option'} onClick={() => setFrameId(selectedSku.id)}><img src={selectedSku.thumb} alt="" /><em>福报安康玄关柜<small>宽{selectedSku.widthSpec} · 高{selectedSku.height}cm</small></em>{frameId.startsWith('fubao-') && <b>✓</b>}</button>}
-                  {frames.map((item) => <button key={item.id} aria-label={`${item.name}${item.tone}`} className={frameId === item.id ? 'selected' : ''} onClick={() => setFrameId(item.id)}><i style={{ '--swatch': item.color } as React.CSSProperties}><span /></i><em>{item.name}<small>{item.tone}</small></em>{frameId === item.id && <b>✓</b>}</button>)}
-                </div>
-                <button className="add-frame" onClick={() => setActiveNav('frames')}><span>＋</span> 进入框架库选择尺寸或上传新模板</button>
-              </div>
+              <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
+              <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}</span><span><small>已选框架</small><strong>{frame.name} · {frame.tone}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
             </div>
 
             <section className="output-plan">
@@ -214,12 +248,12 @@ export default function Home() {
                 <label><input type="checkbox" defaultChecked /><span><i className="detail-icon" /><strong>全新详情页</strong><small>790px 长图、切片与 QA 图</small></span></label>
               </div>
             </section>
-            <button className="create-cta" onClick={createProduct}>创建新品并生成第一张样图 <span>→</span></button>
+            <button className="create-cta" disabled={!previewReady} onClick={createProduct}>创建新品并生成第一张样图 <span>→</span></button>
             <p className="approval-note"><span>i</span> 样图确认前不会启动批量生成，原图始终保留。</p>
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={setSelectedId} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={setFrameId} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); setFrameId(id); }} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={selectFrame} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); selectFrame(id); }} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
