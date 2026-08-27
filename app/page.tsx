@@ -34,24 +34,19 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const [libraryItems, setLibraryItems] = useState(artworks);
+  const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
   const [skuFrames, setSkuFrames] = useState<SkuFrame[]>([]);
   const [selectedSkuId, setSelectedSkuId] = useState('fubao-80-200');
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [activeNav, setActiveNav] = useState('new');
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('全部素材');
   const [notice, setNotice] = useState('');
   const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
   const selectedSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
   const frame: FrameOption = frameId.startsWith('fubao-') && selectedSku
     ? { id: selectedSku.id, name: '福报安康玄关柜', tone: `组合宽${selectedSku.widthSpec} · 高${selectedSku.height}cm`, color: '#432d24', profile: 'cabinet', file: selectedSku.thumb, sku: selectedSku }
     : frames.find((item) => item.id === frameId) ?? frames[0];
-  const visibleArtworks = useMemo(() => libraryItems.filter((item) => {
-    const matchesSearch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(search.trim());
-    const matchesCategory = category === '全部素材' || item.tag.includes(category);
-    return matchesSearch && matchesCategory;
-  }), [category, libraryItems, search]);
+  const homeArtworks = homeSampleIds.map((id) => libraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
     fetch('/frames/fubao-ankang/sku-frame-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
@@ -68,6 +63,16 @@ export default function Home() {
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
     }).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (libraryItems.length < 3) return;
+    const pool = [...libraryItems];
+    for (let index = pool.length - 1; index > 0; index--) {
+      const swap = Math.floor(Math.random() * (index + 1));
+      [pool[index], pool[swap]] = [pool[swap], pool[index]];
+    }
+    setHomeSampleIds(pool.slice(0, 3).map((item) => item.id));
+  }, [libraryItems]);
 
   async function createProduct() {
     const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frame.tone}` }) }).catch(() => null);
@@ -159,21 +164,13 @@ export default function Home() {
         <div className={`content-grid ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <section className="library-panel">
             <div className="section-heading">
-              <div><p>第一步</p><h2>从图库选择画芯</h2></div>
-              <label className="upload-button"><span>＋</span> 上传新图片<input type="file" accept="image/png,image/jpeg" onChange={(event) => uploadAsset(event.target.files?.[0])} /></label>
-            </div>
-            <div className="library-toolbar">
-              <label className="search-box"><span aria-hidden="true" />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索图案、标签或色系" />
-                <kbd>⌘ K</kbd>
-              </label>
-              <div className="filter-chips">
-                {['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>{item}</button>)}
-              </div>
+              <div><p>第一步 · 图库</p><h2>随机推荐3张图案</h2></div>
+              <button className="upload-button" onClick={() => setActiveNav('gallery')}>更多图案 <span>→</span></button>
             </div>
 
-            <div className="gallery-grid">
-              {visibleArtworks.map((item) => (
+            <p className="home-gallery-note">每次进入首页自动换一组。点击图案即可选中，或进入二级图库搜索全部素材。</p>
+            <div className="gallery-grid home-gallery-grid">
+              {(homeArtworks.length ? homeArtworks : libraryItems.slice(0, 3)).map((item) => (
                 <button key={item.id} className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => setSelectedId(item.id)}>
                   <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
                     <span className="asset-state">已入库</span>
@@ -183,8 +180,8 @@ export default function Home() {
                   <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
                 </button>
               ))}
-              <button className="add-card"><span>＋</span><strong>收纳更多画芯</strong><small>JPG / PNG，单张不超过 20 MB</small></button>
             </div>
+            <div className="home-library-footer"><span>图库已收纳 {libraryItems.length} 张图案</span><button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></div>
           </section>
 
           <aside className="compose-panel">
@@ -222,7 +219,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} frameId={frameId} onSelectFrame={setFrameId} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); setFrameId(id); }} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={setSelectedId} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={setFrameId} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); setFrameId(id); }} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -236,9 +233,16 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, frameId, onSelectFrame, skuFrames, selectedSkuId, onSelectSku, onCreate }: { view: string; libraryItems: typeof artworks; frameId: string; onSelectFrame: (id: string) => void; skuFrames: SkuFrame[]; selectedSkuId: string; onSelectSku: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onUploadArtwork, frameId, onSelectFrame, skuFrames, selectedSkuId, onSelectSku, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onUploadArtwork: (file: File | undefined) => void; frameId: string; onSelectFrame: (id: string) => void; skuFrames: SkuFrame[]; selectedSkuId: string; onSelectSku: (id: string) => void; onCreate: () => void }) {
   const [skuHeight, setSkuHeight] = useState(200);
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const chosenSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
+  const filteredGallery = useMemo(() => libraryItems.filter((item) => {
+    const searchMatch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(gallerySearch.trim());
+    const categoryMatch = galleryCategory === '全部素材' || item.tag.includes(galleryCategory);
+    return searchMatch && categoryMatch;
+  }), [galleryCategory, gallerySearch, libraryItems]);
   const headings: Record<string, [string, string]> = {
     gallery: ['图库收纳', '统一管理画芯、场景参考与已用素材'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
@@ -273,7 +277,9 @@ function SecondaryView({ view, libraryItems, frameId, onSelectFrame, skuFrames, 
       </>}
       {view === 'gallery' && <>
         <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
-        <div className="gallery-wide-grid">{libraryItems.map((item) => <article key={item.id}><img src={item.file} alt={item.name} loading="lazy" /><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div><button>•••</button></article>)}<button className="frame-upload-card"><b>＋</b><strong>上传并收纳素材</strong><small>支持批量录入名称、标签、色系与来源</small></button></div>
+        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips">{['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item}</button>)}</div><label className="upload-button"><span>＋</span> 上传图片<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
+        <div className="gallery-wide-grid selectable-gallery">{filteredGallery.map((item) => <button key={item.id} className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button>)}</div>
+        <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>
       </>}
       {view === 'jobs' && <div className="job-board">
         <div className="job-column"><h3>等待样图确认 <span>2</span></h3><JobCard name="浅绿云雾山影新品" image="/demo/浅绿云雾山影.png" state="第一张主图待确认" progress="1 / 33" /><JobCard name="暖白花枝新品" image="/demo/暖白花枝.jpg" state="框架结构待复核" progress="0 / 33" /></div>
