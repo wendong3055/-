@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-type SkuFrame = { id: string; name: string; widthSpec: string; totalWidth: number; height: number; depth: number; thumb: string; sourcePath: string };
-type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; sku?: SkuFrame };
+type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number };
 
 const artworks = [
   { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水留白', ratio: '1:1', tone: '雾绿' },
@@ -22,19 +21,15 @@ const frames: FrameOption[] = [
   { id: 'simple-gray', name: '简约滑轮款', tone: '简约灰色', color: '#66645f', profile: 'slim' },
 ];
 
-const blankCabinetFrame: FrameOption = {
-  id: 'fubao-blank-80-200',
-  name: '福报安康空框柜',
-  tone: '胡桃木色 · 80×200cm',
-  color: '#432d24',
-  profile: 'cabinet',
-  file: '/frames/fubao-ankang/空框白底_80-200.png',
-};
+const cabinetFrameStyles: FrameOption[] = [
+  { id: 'fubao-ankang', name: '福报安康双门抽屉玄关柜', tone: '标准合并框架 · 80×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/福报安康_80-200.png', variantCount: 30 },
+  { id: 'qingyun-zhishang', name: '青云直上玄关柜', tone: '标准合并框架 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/青云直上_60-200.png', variantCount: 1 },
+];
 
 const navItems = [
   ['new', '新品项目', '08'],
   ['gallery', '图库收纳', '128'],
-  ['frames', '框架库', '07'],
+  ['frames', '框架库', '08'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
 ];
@@ -44,26 +39,16 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 export default function Home() {
   const [libraryItems, setLibraryItems] = useState(artworks);
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
-  const [skuFrames, setSkuFrames] = useState<SkuFrame[]>([]);
-  const [selectedSkuId, setSelectedSkuId] = useState('fubao-80-200');
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [previewReady, setPreviewReady] = useState(false);
   const [activeNav, setActiveNav] = useState('new');
   const [notice, setNotice] = useState('');
   const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
-  const selectedSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
-  const frame: FrameOption = frameId === blankCabinetFrame.id
-    ? blankCabinetFrame
-    : frameId.startsWith('fubao-') && selectedSku
-    ? { id: selectedSku.id, name: '福报安康玄关柜', tone: `组合宽${selectedSku.widthSpec} · 高${selectedSku.height}cm`, color: '#432d24', profile: 'cabinet', file: selectedSku.thumb, sku: selectedSku }
-    : frames.find((item) => item.id === frameId) ?? frames[0];
+  const frame: FrameOption = cabinetFrameStyles.find((item) => item.id === frameId) ?? frames.find((item) => item.id === frameId) ?? frames[0];
   const homeArtworks = homeSampleIds.map((id) => libraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
-    fetch('/frames/fubao-ankang/sku-frame-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
-      if (Array.isArray(manifest?.items)) setSkuFrames(manifest.items);
-    }).catch(() => undefined);
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
@@ -206,11 +191,11 @@ export default function Home() {
               </div>
               <p className="home-gallery-note">选择一种框型或柜体空框。更换选项后，需要重新确认组合预览。</p>
               <div className="home-frame-grid">
-                <button className={frameId === blankCabinetFrame.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(blankCabinetFrame.id)}>
-                  <span className="home-frame-thumb image-frame-thumb"><img src={blankCabinetFrame.file} alt="福报安康空框柜白底框架" /></span>
-                  <span><strong>{blankCabinetFrame.name}</strong><small>{blankCabinetFrame.tone}</small></span>
-                  {frameId === blankCabinetFrame.id && <b>✓</b>}
-                </button>
+                {cabinetFrameStyles.map((item) => <button key={item.id} className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
+                  <span className="home-frame-thumb image-frame-thumb"><img src={item.file} alt={`${item.name}标准合并框架`} /></span>
+                  <span><strong>{item.name}</strong><small>{item.tone}</small></span>
+                  {frameId === item.id && <b>✓</b>}
+                </button>)}
                 {frames.map((item) => (
                   <button key={item.id} className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
                     <span className="home-frame-thumb"><i style={{ '--swatch': item.color } as React.CSSProperties}><em /></i></span>
@@ -226,7 +211,7 @@ export default function Home() {
             <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} />{frame.id === blankCabinetFrame.id && <div className="cabinet-art-overlay"><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div>}<span>空框组合预览</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
+              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><div className="cabinet-art-overlay"><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
                   <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
                   <div className="screen-base"><i /><b /><i /></div>
                 </div>}
@@ -253,7 +238,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={selectFrame} skuFrames={skuFrames} selectedSkuId={selectedSkuId} onSelectSku={(id) => { setSelectedSkuId(id); selectFrame(id); }} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={selectFrame} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -267,11 +252,9 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onUploadArtwork, frameId, onSelectFrame, skuFrames, selectedSkuId, onSelectSku, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onUploadArtwork: (file: File | undefined) => void; frameId: string; onSelectFrame: (id: string) => void; skuFrames: SkuFrame[]; selectedSkuId: string; onSelectSku: (id: string) => void; onCreate: () => void }) {
-  const [skuHeight, setSkuHeight] = useState(200);
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onUploadArtwork, frameId, onSelectFrame, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onUploadArtwork: (file: File | undefined) => void; frameId: string; onSelectFrame: (id: string) => void; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
-  const chosenSku = skuFrames.find((item) => item.id === selectedSkuId) ?? skuFrames[0];
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
     const searchMatch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(gallerySearch.trim());
     const categoryMatch = galleryCategory === '全部素材' || item.tag.includes(galleryCategory);
@@ -288,16 +271,15 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
     <section className="secondary-view">
       <header className="secondary-head"><div><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2><span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>
       {view === 'frames' && <>
-        <section className="sku-series-panel">
-          <div className="sku-series-preview">{chosenSku ? <img src={chosenSku.thumb} alt={`${chosenSku.name}尺寸首帧`} /> : <span>正在载入SKU...</span>}<b>真实SKU首帧</b></div>
-          <div className="sku-series-config">
-            <p className="eyebrow">CABINET FRAME SERIES · 30 SKU</p>
-            <h3>福报安康双门抽屉玄关柜</h3>
-            <p className="sku-intro">先选择高度和柜体组合宽度。所选SKU原图会作为新品生成的首帧框架，柜门、抽屉、格栅、福字雕花和场景结构保持不变。</p>
-            <div className="height-tabs"><span>选择高度</span>{[200, 220, 230].map((height) => <button key={height} className={skuHeight === height ? 'selected' : ''} onClick={() => setSkuHeight(height)}>{height}cm</button>)}</div>
-            <div className="sku-size-grid">{skuFrames.filter((item) => item.height === skuHeight).map((item) => <button key={item.id} className={selectedSkuId === item.id ? 'selected' : ''} onClick={() => onSelectSku(item.id)}><strong>{item.widthSpec}</strong><small>总宽 {item.totalWidth}cm</small>{selectedSkuId === item.id && <b>✓</b>}</button>)}</div>
-            {chosenSku && <div className="chosen-sku"><span><small>当前首帧尺寸</small><strong>组合宽 {chosenSku.widthSpec}cm（总宽{chosenSku.totalWidth}cm）× 高 {chosenSku.height}cm × 深 {chosenSku.depth}cm</strong></span><button onClick={onCreate}>使用此尺寸创建新品 →</button></div>}
+        <section className="cabinet-style-section">
+          <div className="frame-subheading"><div><p className="eyebrow">ONE STYLE · ONE COMBINE FRAME</p><h3>玄关柜款式</h3></div><span>每个款式只提供一个标准空框用于合并</span></div>
+          <div className="cabinet-style-grid">
+            {cabinetFrameStyles.map((item) => <button key={item.id} className={frameId === item.id ? 'cabinet-style-card selected' : 'cabinet-style-card'} onClick={() => onSelectFrame(item.id)}>
+              <div><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
+              <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部</i></span>
+            </button>)}
           </div>
+          <div className="style-choice-bar"><span>选择款式后直接返回新品页与图案组合，尺寸变体在生成阶段调用。</span><button onClick={onCreate}>使用已选款式创建新品 →</button></div>
         </section>
         <div className="frame-subheading"><div><p className="eyebrow">OTHER FRAME SERIES</p><h3>其他屏风框架</h3></div><span>也可继续选择已有的滑轮屏风框型</span></div>
         <div className="frame-library-grid">
