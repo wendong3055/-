@@ -203,20 +203,29 @@ export default function Home() {
     setGeneratedPreviewUrl('');
     setGeneratedPreviewId('');
     setPreviewError('');
-    const response = await fetch('/api/generate-preview', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        artworkUrl: selected.file,
-        artworkName: selected.name,
-        frameUrl: frame.file || null,
-        frameName: frame.name,
-        frameProfile: frame.profile,
-        colorId: frameColor.id,
-        colorName: frameColor.name,
-        colorHex: frameColor.color,
-      }),
-    }).catch(() => null);
+    const response = await (async () => {
+      try {
+        const artworkResponse = await fetch(selected.file);
+        if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
+        const form = new FormData();
+        form.set('artwork', await artworkResponse.blob(), `${selected.name}.png`);
+        if (frame.file) {
+          const frameResponse = await fetch(frame.file);
+          if (!frameResponse.ok) throw new Error('所选框架暂时无法读取。');
+          form.set('frame', await frameResponse.blob(), `${frame.name}.png`);
+        }
+        form.set('artworkName', selected.name);
+        form.set('frameName', frame.name);
+        form.set('frameProfile', frame.profile);
+        form.set('colorId', frameColor.id);
+        form.set('colorName', frameColor.name);
+        form.set('colorHex', frameColor.color);
+        return await fetch('/api/generate-preview', { method: 'POST', body: form });
+      } catch (error) {
+        setPreviewError(error instanceof Error ? error.message : '所选图片暂时无法读取。');
+        return null;
+      }
+    })();
     const result = await response?.json().catch(() => null);
     setPreviewGenerating(false);
     if (!response?.ok || !result?.url) {
