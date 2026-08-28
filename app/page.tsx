@@ -110,6 +110,7 @@ export default function Home() {
   const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
   const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
+  const sizeOutputCount = frame.variantCount ?? sizeMatrix.length;
   const homeArtworks = homeSampleIds.map((id) => visibleLibraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
@@ -178,7 +179,7 @@ export default function Home() {
       window.setTimeout(() => setNotice(''), 3000);
       return;
     }
-    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}` }) }).catch(() => null);
+    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}`, sizeCount: sizeOutputCount }) }).catch(() => null);
     setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已保存，第一张样图任务已建立。` : `“${selected.name} · ${frame.name}”已进入样图确认阶段。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
@@ -459,7 +460,7 @@ export default function Home() {
               <div className="row-label"><span>生成内容</span><b>按已确认标准</b></div>
               <div className="output-items">
                 <label><input type="checkbox" defaultChecked /><span><i className="cover-icon" /><strong>新品主图</strong><small>场景图与电商白底图</small></span></label>
-                <label><input type="checkbox" defaultChecked /><span><i className="size-icon" /><strong>单尺寸图</strong><small>20 个规格，每尺寸一张</small></span></label>
+                <label><input type="checkbox" defaultChecked /><span><i className="size-icon" /><strong>单尺寸图</strong><small>{sizeOutputCount} 个规格，每尺寸一张</small></span></label>
                 <label><input type="checkbox" defaultChecked /><span><i className="detail-icon" /><strong>全新详情页</strong><small>790px 长图、切片与 QA 图</small></span></label>
               </div>
             </section>
@@ -470,11 +471,6 @@ export default function Home() {
 
         {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
-        <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
-          <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
-          <div className="matrix-popover"><b>20</b><span>单尺寸图</span><small>{sizeMatrix.length} 个规格已锁定</small></div>
-          <div><span>底座进深</span><strong>30 cm</strong><small>手工测量允许 1–3 cm 误差</small></div>
-        </footer>
       </section>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
