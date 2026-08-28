@@ -5,6 +5,27 @@ import { useEffect, useMemo, useState } from 'react';
 type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string } };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string };
 
+function frameVariantCount(tags: string | undefined) {
+  const matched = tags?.match(/规格数量:(\d+)/);
+  return matched ? Number(matched[1]) : 1;
+}
+
+function frameFolderName(files: File[]) {
+  const relativePath = (files[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
+  return relativePath?.split('/').filter(Boolean)[0] || files[0].name.replace(/\.[^.]+$/, '');
+}
+
+function representativeFrame(files: File[]) {
+  const keywords = ['空框结构样图', '空框', '样图', '标准'];
+  return [...files].sort((left, right) => {
+    const leftName = left.name.replace(/\.[^.]+$/, '');
+    const rightName = right.name.replace(/\.[^.]+$/, '');
+    const leftRank = keywords.findIndex((keyword) => leftName.includes(keyword));
+    const rightRank = keywords.findIndex((keyword) => rightName.includes(keyword));
+    return (leftRank < 0 ? keywords.length : leftRank) - (rightRank < 0 ? keywords.length : rightRank) || leftName.localeCompare(rightName, 'zh-CN');
+  })[0];
+}
+
 const frameColors: FrameColorOption[] = [
   { id: 'natural', name: '原木', color: '#c69d62', texture: '/materials/frame-colors/natural.png' },
   { id: 'redwood', name: '红木色', color: '#6d211f', texture: '/materials/frame-colors/redwood.png' },
@@ -53,6 +74,7 @@ export default function Home() {
   const [libraryItems, setLibraryItems] = useState(artworks);
   const [uploadedFrames, setUploadedFrames] = useState<FrameOption[]>([]);
   const [frameUploading, setFrameUploading] = useState(false);
+  const [frameUploadProgress, setFrameUploadProgress] = useState('');
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
@@ -103,8 +125,11 @@ export default function Home() {
     }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
-      const frameUploads = rows.filter((row: { category: string }) => row.category === '框架模板').map((row: { id: string; name: string; url: string }) => ({ id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount: 1 }));
-      const uploads = rows.filter((row: { category: string }) => row.category !== '框架模板').map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
+      const frameUploads = rows.filter((row: { category: string }) => row.category === '框架模板').map((row: { id: string; name: string; url: string; tags?: string }) => {
+        const variantCount = frameVariantCount(row.tags);
+        return { id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: variantCount > 1 ? `文件夹上传 · ${variantCount}张规格图` : '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount };
+      });
+      const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
       setUploadedFrames(frameUploads);
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
     }).catch(() => undefined);
@@ -229,28 +254,58 @@ export default function Home() {
     window.setTimeout(() => setNotice(''), 3600);
   }
 
-  async function uploadFrame(file: File | undefined) {
-    if (!file || frameUploading) return;
+  async function uploadFrame(fileList: FileList | null) {
+    if (!fileList || frameUploading) return;
+    const images = Array.from(fileList).filter((file) => file.type === 'image/png' || file.type === 'image/jpeg' || /\.(png|jpe?g)$/i.test(file.name));
+    if (images.length === 0) {
+      setNotice('所选文件夹里没有可用的 JPG 或 PNG 图片。');
+      window.setTimeout(() => setNotice(''), 3600);
+      return;
+    }
+
     setFrameUploading(true);
-    const form = new FormData();
-    form.set('file', file);
-    form.set('name', file.name.replace(/\.[^.]+$/, ''));
-    form.set('category', '框架模板');
-    form.set('tags', '标准合并框架');
-    const response = await fetch('/api/library', { method: 'POST', body: form }).catch(() => null);
-    if (!response?.ok) {
-      const message = await response?.json().catch(() => null);
-      setNotice(message?.error || '框架上传没有完成，请选择 JPG 或 PNG 图片后重试。');
+    setFrameUploadProgress(`准备上传，共 ${images.length} 张`);
+    const folderName = frameFolderName(images);
+    const representative = representativeFrame(images);
+    const uploadOne = async (file: File, category: '框架模板' | '框架规格原图') => {
+      const form = new FormData();
+      const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      form.set('file', file);
+      form.set('name', category === '框架模板' ? folderName : `${folderName}/${relativePath.split('/').slice(1).join('/') || file.name}`);
+      form.set('category', category);
+      form.set('tags', category === '框架模板' ? `款式文件夹:${folderName};规格数量:${images.length};标准合并框架` : `所属款式:${folderName};规格原图`);
+      return fetch('/api/library', { method: 'POST', body: form }).catch(() => null);
+    };
+
+    const representativeResponse = await uploadOne(representative, '框架模板');
+    if (!representativeResponse?.ok) {
+      const message = await representativeResponse?.json().catch(() => null);
+      setNotice(message?.error || '框架文件夹上传没有完成，请检查图片格式后重试。');
+      setFrameUploadProgress('');
       setFrameUploading(false);
       return;
     }
-    const row = await response.json();
-    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: row.name as string, file: row.url as string, tone: '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount: 1 };
+
+    const row = await representativeResponse.json();
+    let completed = 1;
+    let failed = 0;
+    setFrameUploadProgress(`正在上传 ${completed}/${images.length}`);
+    const remaining = images.filter((file) => file !== representative);
+    for (let index = 0; index < remaining.length; index += 4) {
+      const batch = remaining.slice(index, index + 4);
+      const results = await Promise.all(batch.map((file) => uploadOne(file, '框架规格原图')));
+      completed += results.length;
+      failed += results.filter((response) => !response?.ok).length;
+      setFrameUploadProgress(`正在上传 ${completed}/${images.length}`);
+    }
+
+    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: folderName, file: row.url as string, tone: `文件夹上传 · ${images.length}张规格图`, color: '#432d24', profile: 'cabinet', variantCount: images.length };
     setUploadedFrames((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
     selectFrame(uploaded.id);
+    setFrameUploadProgress('');
     setFrameUploading(false);
-    setNotice(`“${uploaded.name}”已上传到框架库并自动选中。`);
-    window.setTimeout(() => setNotice(''), 3600);
+    setNotice(failed === 0 ? `“${folderName}”整套 ${images.length} 张已保存，框架库只生成一个代表框架。` : `“${folderName}”代表框架已保存；${images.length - failed}/${images.length} 张上传成功，${failed} 张可稍后补传。`);
+    window.setTimeout(() => setNotice(''), 5200);
   }
 
   return (
@@ -394,7 +449,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -408,7 +463,7 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (file: File | undefined) => void; frameUploading: boolean; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameUploadProgress, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (files: FileList | null) => void; frameUploading: boolean; frameUploadProgress: string; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
@@ -451,7 +506,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
             </button>
             <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
           </div>)}
-          <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传框架' : '录入新框架模板'}</strong><small>点击选择本地 JPG 或 PNG，上传后自动加入框架库</small><input type="file" accept="image/png,image/jpeg" disabled={frameUploading} onChange={(event) => { onUploadFrame(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>
+          <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传文件夹' : '选择框架文件夹'}</strong><small>{frameUploading ? frameUploadProgress : '整套 JPG / PNG 一次上传，只生成一个代表框架'}</small><input type="file" accept="image/png,image/jpeg" multiple disabled={frameUploading} {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { onUploadFrame(event.target.files); event.currentTarget.value = ''; }} /></label>
         </div>
       </>}
       {view === 'colors' && <>
