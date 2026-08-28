@@ -38,6 +38,8 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const [libraryItems, setLibraryItems] = useState(artworks);
+  const [uploadedFrames, setUploadedFrames] = useState<FrameOption[]>([]);
+  const [frameUploading, setFrameUploading] = useState(false);
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
@@ -47,7 +49,7 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState('new');
   const [notice, setNotice] = useState('');
   const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
-  const visibleCabinetFrames = useMemo(() => cabinetFrameStyles.filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds]);
+  const visibleCabinetFrames = useMemo(() => [...uploadedFrames, ...cabinetFrameStyles].filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds, uploadedFrames]);
   const visibleScreenFrames = useMemo(() => frames.filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds]);
   const visibleFrameOptions = [...visibleCabinetFrames, ...visibleScreenFrames];
   const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
@@ -69,7 +71,9 @@ export default function Home() {
     }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
-      const uploads = rows.map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
+      const frameUploads = rows.filter((row: { category: string }) => row.category === '框架模板').map((row: { id: string; name: string; url: string }) => ({ id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount: 1 }));
+      const uploads = rows.filter((row: { category: string }) => row.category !== '框架模板').map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
+      setUploadedFrames(frameUploads);
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
     }).catch(() => undefined);
   }, []);
@@ -171,6 +175,30 @@ export default function Home() {
     setLibraryItems((current) => [uploaded, ...current]);
     selectArtwork(uploaded.id);
     setNotice(`“${uploaded.name}”已收纳到图库。`);
+    window.setTimeout(() => setNotice(''), 3600);
+  }
+
+  async function uploadFrame(file: File | undefined) {
+    if (!file || frameUploading) return;
+    setFrameUploading(true);
+    const form = new FormData();
+    form.set('file', file);
+    form.set('name', file.name.replace(/\.[^.]+$/, ''));
+    form.set('category', '框架模板');
+    form.set('tags', '标准合并框架');
+    const response = await fetch('/api/library', { method: 'POST', body: form }).catch(() => null);
+    if (!response?.ok) {
+      const message = await response?.json().catch(() => null);
+      setNotice(message?.error || '框架上传没有完成，请选择 JPG 或 PNG 图片后重试。');
+      setFrameUploading(false);
+      return;
+    }
+    const row = await response.json();
+    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: row.name as string, file: row.url as string, tone: '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount: 1 };
+    setUploadedFrames((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
+    selectFrame(uploaded.id);
+    setFrameUploading(false);
+    setNotice(`“${uploaded.name}”已上传到框架库并自动选中。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
 
@@ -307,7 +335,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -321,7 +349,7 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (file: File | undefined) => void; frameUploading: boolean; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
@@ -363,7 +391,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
             </button>
             <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
           </div>)}
-          <button className="frame-upload-card"><b>＋</b><strong>录入新框架模板</strong><small>上传正面产品图，并标注框型、框色、底座与滑轮</small></button>
+          <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传框架' : '录入新框架模板'}</strong><small>点击选择本地 JPG 或 PNG，上传后自动加入框架库</small><input type="file" accept="image/png,image/jpeg" disabled={frameUploading} onChange={(event) => { onUploadFrame(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>
         </div>
       </>}
       {view === 'gallery' && <>
