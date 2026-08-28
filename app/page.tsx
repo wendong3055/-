@@ -42,13 +42,26 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [previewReady, setPreviewReady] = useState(false);
+  const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
+  const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
   const [notice, setNotice] = useState('');
-  const selected = libraryItems.find((item) => item.id === selectedId) ?? libraryItems[0];
-  const frame: FrameOption = cabinetFrameStyles.find((item) => item.id === frameId) ?? frames.find((item) => item.id === frameId) ?? frames[0];
-  const homeArtworks = homeSampleIds.map((id) => libraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
+  const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
+  const visibleCabinetFrames = useMemo(() => cabinetFrameStyles.filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds]);
+  const visibleScreenFrames = useMemo(() => frames.filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds]);
+  const visibleFrameOptions = [...visibleCabinetFrames, ...visibleScreenFrames];
+  const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
+  const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
+  const homeArtworks = homeSampleIds.map((id) => visibleLibraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
+    try {
+      setHiddenArtworkIds(JSON.parse(window.localStorage.getItem('pingfeng-hidden-artworks') || '[]'));
+      setHiddenFrameIds(JSON.parse(window.localStorage.getItem('pingfeng-hidden-frames') || '[]'));
+    } catch {
+      setHiddenArtworkIds([]);
+      setHiddenFrameIds([]);
+    }
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
@@ -62,14 +75,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (libraryItems.length < 3) return;
-    const pool = [...libraryItems];
+    if (visibleLibraryItems.length === 0) return;
+    const pool = [...visibleLibraryItems];
     for (let index = pool.length - 1; index > 0; index--) {
       const swap = Math.floor(Math.random() * (index + 1));
       [pool[index], pool[swap]] = [pool[swap], pool[index]];
     }
     setHomeSampleIds(pool.slice(0, 3).map((item) => item.id));
-  }, [libraryItems]);
+  }, [visibleLibraryItems]);
+
+  useEffect(() => {
+    if (selected && selected.id !== selectedId) setSelectedId(selected.id);
+  }, [selected, selectedId]);
+
+  useEffect(() => {
+    if (frame && frame.id !== frameId) setFrameId(frame.id);
+  }, [frame, frameId]);
 
   async function createProduct() {
     if (!previewReady) {
@@ -90,6 +111,48 @@ export default function Home() {
   function selectFrame(id: string) {
     setFrameId(id);
     setPreviewReady(false);
+  }
+
+  function removeArtwork(id: string, name: string) {
+    if (visibleLibraryItems.length <= 1) {
+      setNotice('图库至少需要保留一个可选图案。');
+      return;
+    }
+    if (!window.confirm(`确定从工作台选择列表中移除“${name}”吗？原始图片文件不会删除。`)) return;
+    const next = [...new Set([...hiddenArtworkIds, id])];
+    setHiddenArtworkIds(next);
+    window.localStorage.setItem('pingfeng-hidden-artworks', JSON.stringify(next));
+    setPreviewReady(false);
+    setNotice(`“${name}”已从图库选项中移除。`);
+    window.setTimeout(() => setNotice(''), 3200);
+  }
+
+  function removeFrame(id: string, name: string) {
+    if (visibleFrameOptions.length <= 1) {
+      setNotice('框架库至少需要保留一个可选框架。');
+      return;
+    }
+    if (!window.confirm(`确定从工作台选择列表中移除“${name}”吗？原始框架文件不会删除。`)) return;
+    const next = [...new Set([...hiddenFrameIds, id])];
+    setHiddenFrameIds(next);
+    window.localStorage.setItem('pingfeng-hidden-frames', JSON.stringify(next));
+    setPreviewReady(false);
+    setNotice(`“${name}”已从框架选项中移除。`);
+    window.setTimeout(() => setNotice(''), 3200);
+  }
+
+  function restoreArtworks() {
+    setHiddenArtworkIds([]);
+    window.localStorage.removeItem('pingfeng-hidden-artworks');
+    setNotice('已恢复全部图库选项。');
+    window.setTimeout(() => setNotice(''), 2800);
+  }
+
+  function restoreFrames() {
+    setHiddenFrameIds([]);
+    window.localStorage.removeItem('pingfeng-hidden-frames');
+    setNotice('已恢复全部框架选项。');
+    window.setTimeout(() => setNotice(''), 2800);
   }
 
   async function uploadAsset(file: File | undefined) {
@@ -128,7 +191,7 @@ export default function Home() {
             <button key={id} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
               <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
               <span>{label}</span>
-              <em>{id === 'gallery' ? libraryItems.length : count}</em>
+              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : count}</em>
             </button>
           ))}
         </nav>
@@ -170,18 +233,21 @@ export default function Home() {
 
               <p className="home-gallery-note">随机展示3张图案。点击即可选择，也可以进入完整图库搜索。</p>
               <div className="gallery-grid home-gallery-grid">
-                {(homeArtworks.length ? homeArtworks : libraryItems.slice(0, 3)).map((item) => (
-                  <button key={item.id} className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => selectArtwork(item.id)}>
-                    <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
-                      <span className="asset-state">已入库</span>
-                      {selectedId === item.id && <span className="selected-check">✓</span>}
-                    </div>
-                    <div className="art-meta"><strong>{item.name}</strong><p><span>{item.tag}</span><span>{item.tone}</span></p></div>
-                    <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
-                  </button>
+                {(homeArtworks.length ? homeArtworks : visibleLibraryItems.slice(0, 3)).map((item) => (
+                  <div className="option-card-wrap" key={item.id}>
+                    <button className={selectedId === item.id ? 'art-card selected' : 'art-card'} onClick={() => selectArtwork(item.id)}>
+                      <div className="art-thumb"><img src={item.file} alt={item.name} loading="lazy" />
+                        <span className="asset-state">已入库</span>
+                        {selectedId === item.id && <span className="selected-check">✓</span>}
+                      </div>
+                      <div className="art-meta"><strong>{item.name}</strong><p><span>{item.tag}</span><span>{item.tone}</span></p></div>
+                      <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
+                    </button>
+                    <button className="remove-option" onClick={() => removeArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button>
+                  </div>
                 ))}
               </div>
-              <div className="home-library-footer"><span>图库已收纳 {libraryItems.length} 张图案</span><button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></div>
+              <div className="home-library-footer"><span>当前可选 {visibleLibraryItems.length} 张图案</span><span className="footer-actions">{hiddenArtworkIds.length > 0 && <button onClick={restoreArtworks}>恢复已移除</button>}<button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></span></div>
             </section>
 
             <section className="choice-section frame-choice-section">
@@ -191,19 +257,26 @@ export default function Home() {
               </div>
               <p className="home-gallery-note">选择一种框型或柜体空框。更换选项后，需要重新确认组合预览。</p>
               <div className="home-frame-grid">
-                {cabinetFrameStyles.map((item) => <button key={item.id} className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
-                  <span className="home-frame-thumb image-frame-thumb"><img src={item.file} alt={`${item.name}标准合并框架`} /></span>
-                  <span><strong>{item.name}</strong><small>{item.tone}</small></span>
-                  {frameId === item.id && <b>✓</b>}
-                </button>)}
-                {frames.map((item) => (
-                  <button key={item.id} className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
-                    <span className="home-frame-thumb"><i style={{ '--swatch': item.color } as React.CSSProperties}><em /></i></span>
+                {visibleCabinetFrames.map((item) => <div className="option-card-wrap" key={item.id}>
+                  <button className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
+                    <span className="home-frame-thumb image-frame-thumb"><img src={item.file} alt={`${item.name}标准合并框架`} /></span>
                     <span><strong>{item.name}</strong><small>{item.tone}</small></span>
                     {frameId === item.id && <b>✓</b>}
                   </button>
+                  <button className="remove-option" onClick={() => removeFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+                </div>)}
+                {visibleScreenFrames.map((item) => (
+                  <div className="option-card-wrap" key={item.id}>
+                    <button className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
+                      <span className="home-frame-thumb"><i style={{ '--swatch': item.color } as React.CSSProperties}><em /></i></span>
+                      <span><strong>{item.name}</strong><small>{item.tone}</small></span>
+                      {frameId === item.id && <b>✓</b>}
+                    </button>
+                    <button className="remove-option" onClick={() => removeFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+                  </div>
                 ))}
               </div>
+              {hiddenFrameIds.length > 0 && <div className="restore-line"><span>已移除 {hiddenFrameIds.length} 个框架选项</span><button onClick={restoreFrames}>恢复已移除</button></div>}
             </section>
           </section>
 
@@ -238,7 +311,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={libraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onUploadArtwork={uploadAsset} frameId={frameId} onSelectFrame={selectFrame} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -252,7 +325,7 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onUploadArtwork, frameId, onSelectFrame, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onUploadArtwork: (file: File | undefined) => void; frameId: string; onSelectFrame: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
@@ -274,27 +347,33 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
         <section className="cabinet-style-section">
           <div className="frame-subheading"><div><p className="eyebrow">ONE STYLE · ONE COMBINE FRAME</p><h3>玄关柜款式</h3></div><span>每个款式只提供一个标准空框用于合并</span></div>
           <div className="cabinet-style-grid">
-            {cabinetFrameStyles.map((item) => <button key={item.id} className={frameId === item.id ? 'cabinet-style-card selected' : 'cabinet-style-card'} onClick={() => onSelectFrame(item.id)}>
-              <div><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
-              <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部</i></span>
-            </button>)}
+            {frameStyles.map((item) => <div className="option-card-wrap" key={item.id}>
+              <button className={frameId === item.id ? 'cabinet-style-card selected' : 'cabinet-style-card'} onClick={() => onSelectFrame(item.id)}>
+                <div><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
+                <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部</i></span>
+              </button>
+              <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+            </div>)}
           </div>
-          <div className="style-choice-bar"><span>选择款式后直接返回新品页与图案组合，尺寸变体在生成阶段调用。</span><button onClick={onCreate}>使用已选款式创建新品 →</button></div>
+          <div className="style-choice-bar"><span>选择款式后直接返回新品页与图案组合，尺寸变体在生成阶段调用。</span><span className="style-bar-actions">{hiddenFrameCount > 0 && <button className="restore-button" onClick={onRestoreFrames}>恢复已移除</button>}<button onClick={onCreate}>使用已选款式创建新品 →</button></span></div>
         </section>
         <div className="frame-subheading"><div><p className="eyebrow">OTHER FRAME SERIES</p><h3>其他屏风框架</h3></div><span>也可继续选择已有的滑轮屏风框型</span></div>
         <div className="frame-library-grid">
-          {frames.map((item, index) => <button key={item.id} className={frameId === item.id ? 'frame-library-card selected' : 'frame-library-card'} onClick={() => onSelectFrame(item.id)}>
-            <div className="frame-stage"><div className={`mini-screen profile-${item.profile}`} style={{ '--frame-color': item.color } as React.CSSProperties}><span /></div></div>
-            <div><small>FRAME {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><p><i style={{ background: item.color }} />{item.tone}<em>{item.profile === 'classic' ? '滑轮底座' : item.profile === 'wide' ? '加宽立柱' : item.profile === 'joinery' ? '榫卯装饰' : '窄边框体'}</em></p></div>
-            <span>{frameId === item.id ? '已选择 ✓' : '选择此框架'}</span>
-          </button>)}
+          {screenFrames.map((item, index) => <div className="option-card-wrap" key={item.id}>
+            <button className={frameId === item.id ? 'frame-library-card selected' : 'frame-library-card'} onClick={() => onSelectFrame(item.id)}>
+              <div className="frame-stage"><div className={`mini-screen profile-${item.profile}`} style={{ '--frame-color': item.color } as React.CSSProperties}><span /></div></div>
+              <div><small>FRAME {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><p><i style={{ background: item.color }} />{item.tone}<em>{item.profile === 'classic' ? '滑轮底座' : item.profile === 'wide' ? '加宽立柱' : item.profile === 'joinery' ? '榫卯装饰' : '窄边框体'}</em></p></div>
+              <span>{frameId === item.id ? '已选择 ✓' : '选择此框架'}</span>
+            </button>
+            <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+          </div>)}
           <button className="frame-upload-card"><b>＋</b><strong>录入新框架模板</strong><small>上传正面产品图，并标注框型、框色、底座与滑轮</small></button>
         </div>
       </>}
       {view === 'gallery' && <>
         <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
-        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips">{['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item}</button>)}</div><label className="upload-button"><span>＋</span> 上传图片<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
-        <div className="gallery-wide-grid selectable-gallery">{filteredGallery.map((item) => <button key={item.id} className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button>)}</div>
+        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips">{['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item}</button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<label className="upload-button"><span>＋</span> 上传图片<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
+        <div className="gallery-wide-grid selectable-gallery">{filteredGallery.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div>
         <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>
       </>}
       {view === 'jobs' && <div className="job-board">
