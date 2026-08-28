@@ -243,11 +243,10 @@ export default function Home() {
                       <div className="art-meta"><strong>{item.name}</strong><p><span>{item.tag}</span><span>{item.tone}</span></p></div>
                       <div className="art-info"><span>JPG · {item.ratio}</span><span>•••</span></div>
                     </button>
-                    <button className="remove-option" onClick={() => removeArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button>
                   </div>
                 ))}
               </div>
-              <div className="home-library-footer"><span>当前可选 {visibleLibraryItems.length} 张图案</span><span className="footer-actions">{hiddenArtworkIds.length > 0 && <button onClick={restoreArtworks}>恢复已移除</button>}<button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></span></div>
+              <div className="home-library-footer"><span>当前可选 {visibleLibraryItems.length} 张图案</span><button onClick={() => setActiveNav('gallery')}>进入完整图库选择 →</button></div>
             </section>
 
             <section className="choice-section frame-choice-section">
@@ -263,7 +262,6 @@ export default function Home() {
                     <span><strong>{item.name}</strong><small>{item.tone}</small></span>
                     {frameId === item.id && <b>✓</b>}
                   </button>
-                  <button className="remove-option" onClick={() => removeFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
                 </div>)}
                 {visibleScreenFrames.map((item) => (
                   <div className="option-card-wrap" key={item.id}>
@@ -272,11 +270,9 @@ export default function Home() {
                       <span><strong>{item.name}</strong><small>{item.tone}</small></span>
                       {frameId === item.id && <b>✓</b>}
                     </button>
-                    <button className="remove-option" onClick={() => removeFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
                   </div>
                 ))}
               </div>
-              {hiddenFrameIds.length > 0 && <div className="restore-line"><span>已移除 {hiddenFrameIds.length} 个框架选项</span><button onClick={restoreFrames}>恢复已移除</button></div>}
             </section>
           </section>
 
