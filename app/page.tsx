@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string } };
+type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string };
 
 function frameVariantCount(tags: string | undefined) {
@@ -57,6 +57,24 @@ const cabinetFrameStyles: FrameOption[] = [
   { id: 'qingyun-zhishang', name: '青云直上玄关柜', tone: '标准合并框架 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/青云直上_60-200.png', variantCount: 1 },
   { id: 'large-screen-white', name: '大屏风框架', tone: '标准合并框架 · 白色 · 100×190cm', color: '#e8e6df', profile: 'cabinet', file: '/frames/style-previews/大屏风_白100-190.png', variantCount: 1, artworkBox: { left: '32.6%', top: '7.1%', width: '35.4%', height: '75.2%' } },
   { id: 'five-drawer-walnut', name: '五斗柜框架', tone: '标准合并框架 · 胡桃色 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/五斗柜_胡桃60-200.png', variantCount: 1, artworkBox: { left: '35.4%', top: '4.6%', width: '29.2%', height: '50.7%' } },
+  {
+    id: 'fei-he-six-panel',
+    name: '飞鹤六连屏框架',
+    tone: '标准合并框架 · 红木色 · 50×6片×190cm',
+    color: '#713027',
+    profile: 'cabinet',
+    file: '/frames/style-previews/飞鹤六连屏_50x6-190.png',
+    variantCount: 39,
+    artworkBox: { left: '5.9%', top: '14.2%', width: '87.5%', height: '68.5%' },
+    artworkClipPaths: [
+      'polygon(0% 0.3%, 15.5% 0.6%, 15.6% 100%, 0% 99%)',
+      'polygon(18.2% 0.5%, 32.5% 0.1%, 33.1% 99.8%, 18% 99.8%)',
+      'polygon(35.8% 0.6%, 49.5% 1.2%, 50.1% 99.1%, 35.8% 99.7%)',
+      'polygon(52.3% 1.2%, 66% 0.6%, 66.8% 99.6%, 52.4% 99.1%)',
+      'polygon(69.5% 0.4%, 82.7% 0.2%, 83.7% 99.8%, 69.5% 99.6%)',
+      'polygon(85.4% 0.2%, 98.7% 0%, 100% 99%, 84.9% 99.8%)',
+    ],
+  },
 ];
 
 const navItems = [
@@ -414,7 +432,7 @@ export default function Home() {
             <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame" style={{ '--selected-frame-color': frameColor.color, '--selected-frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frameColor.name}首帧`} /><div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架 · {frameColor.name}</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frameColor.color, '--frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>
+              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame" style={{ '--selected-frame-color': frameColor.color, '--selected-frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frameColor.name}首帧`} />{frame.artworkClipPaths?.length ? frame.artworkClipPaths.map((clipPath, index) => <div className="cabinet-art-overlay" style={{ ...frame.artworkBox, clipPath }} key={clipPath}><img src={selected.file} alt={index === 0 ? `${selected.name}连续铺入六连屏后的效果` : ''} /></div>) : <div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div>}<span>款式标准框架 · {frameColor.name}</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frameColor.color, '--frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>
                   <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
                   <div className="screen-base"><i /><b /><i /></div>
                 </div>}
@@ -484,7 +502,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
       <header className="secondary-head"><div><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2><span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>
       {view === 'frames' && <>
         <section className="cabinet-style-section">
-          <div className="frame-subheading"><div><p className="eyebrow">ONE STYLE · ONE COMBINE FRAME</p><h3>玄关柜款式</h3></div><span>每个款式只提供一个标准空框用于合并</span></div>
+          <div className="frame-subheading"><div><p className="eyebrow">ONE STYLE · ONE COMBINE FRAME</p><h3>结构框架款式</h3></div><span>每个款式只提供一个标准空框用于合并</span></div>
           <div className="cabinet-style-grid">
             {frameStyles.map((item) => <div className="option-card-wrap" key={item.id}>
               <button className={frameId === item.id ? 'cabinet-style-card selected' : 'cabinet-style-card'} onClick={() => onSelectFrame(item.id)}>
