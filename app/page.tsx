@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 
 type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
-type FrameColorOption = { id: string; name: string; color: string; texture?: string };
+type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
 
 function frameVariantCount(tags: string | undefined) {
   const matched = tags?.match(/规格数量:(\d+)/);
@@ -33,7 +33,7 @@ const frameColors: FrameColorOption[] = [
   { id: 'pear', name: '黄花梨色', color: '#a95617', texture: '/materials/frame-colors/pear.png' },
   { id: 'walnut', name: '胡桃木色', color: '#402b24', texture: '/materials/frame-colors/walnut.png' },
   { id: 'simple-gray', name: '简约灰', color: '#7b7e80', texture: '/materials/frame-colors/simple-gray.png' },
-  { id: 'warm-white', name: '暖白色', color: '#e9e3d7' },
+  { id: 'warm-white', name: '暖白色', color: '#efeee9', note: '低黄度象牙暖白' },
 ];
 
 const artworks = [
@@ -99,6 +99,10 @@ export default function Home() {
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [frameColorId, setFrameColorId] = useState('walnut');
   const [previewReady, setPreviewReady] = useState(false);
+  const [previewGenerating, setPreviewGenerating] = useState(false);
+  const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState('');
+  const [generatedPreviewId, setGeneratedPreviewId] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
@@ -179,24 +183,66 @@ export default function Home() {
       window.setTimeout(() => setNotice(''), 3000);
       return;
     }
-    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}`, sizeCount: sizeOutputCount }) }).catch(() => null);
+    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}`, sampleAssetId: generatedPreviewId, sizeCount: sizeOutputCount }) }).catch(() => null);
     setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已保存，第一张样图任务已建立。` : `“${selected.name} · ${frame.name}”已进入样图确认阶段。`);
+    window.setTimeout(() => setNotice(''), 3600);
+  }
+
+  function resetPreview() {
+    setPreviewReady(false);
+    setPreviewGenerating(false);
+    setGeneratedPreviewUrl('');
+    setGeneratedPreviewId('');
+    setPreviewError('');
+  }
+
+  async function generatePreview() {
+    if (!selected || !frame || previewGenerating) return;
+    setPreviewReady(false);
+    setPreviewGenerating(true);
+    setGeneratedPreviewUrl('');
+    setGeneratedPreviewId('');
+    setPreviewError('');
+    const response = await fetch('/api/generate-preview', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        artworkUrl: selected.file,
+        artworkName: selected.name,
+        frameUrl: frame.file || null,
+        frameName: frame.name,
+        frameProfile: frame.profile,
+        colorId: frameColor.id,
+        colorName: frameColor.name,
+        colorHex: frameColor.color,
+      }),
+    }).catch(() => null);
+    const result = await response?.json().catch(() => null);
+    setPreviewGenerating(false);
+    if (!response?.ok || !result?.url) {
+      setPreviewError(result?.error || '真实效果图生成没有完成，请稍后重试。');
+      return;
+    }
+    setGeneratedPreviewUrl(result.url);
+    setGeneratedPreviewId(result.id || '');
+    setPreviewReady(true);
+    setNotice(`“${selected.name} · ${frame.name} · ${frameColor.name}”真实效果图已生成。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
 
   function selectArtwork(id: string) {
     setSelectedId(id);
-    setPreviewReady(false);
+    resetPreview();
   }
 
   function selectFrame(id: string) {
     setFrameId(id);
-    setPreviewReady(false);
+    resetPreview();
   }
 
   function selectFrameColor(id: string) {
     setFrameColorId(id);
-    setPreviewReady(false);
+    resetPreview();
   }
 
   async function removeArtwork(id: string, name: string) {
@@ -208,7 +254,7 @@ export default function Home() {
     const next = [...new Set([...hiddenArtworkIds, id])];
     setHiddenArtworkIds(next);
     window.localStorage.setItem('pingfeng-hidden-artworks', JSON.stringify(next));
-    setPreviewReady(false);
+    resetPreview();
     const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'artwork', ids: [id] }) }).catch(() => null);
     if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
     setNotice(response?.ok ? `“${name}”已从图库选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
@@ -224,7 +270,7 @@ export default function Home() {
     const next = [...new Set([...hiddenFrameIds, id])];
     setHiddenFrameIds(next);
     window.localStorage.setItem('pingfeng-hidden-frames', JSON.stringify(next));
-    setPreviewReady(false);
+    resetPreview();
     const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'frame', ids: [id] }) }).catch(() => null);
     if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-frames');
     setNotice(response?.ok ? `“${name}”已从框架选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
@@ -431,17 +477,14 @@ export default function Home() {
           </section>
 
           <aside className="compose-panel">
-            <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
+            <div className="compose-heading"><div><p>AI PRODUCT PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : previewError ? 'draft-badge error' : 'draft-badge'}>{previewGenerating ? '生成中' : previewReady ? '已生成' : previewError ? '需重试' : '待生成'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame" style={{ '--selected-frame-color': frameColor.color, '--selected-frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frameColor.name}首帧`} />{frame.artworkClipPaths?.length ? frame.artworkClipPaths.map((clipPath, index) => <div className="cabinet-art-overlay" style={{ ...frame.artworkBox, clipPath }} key={clipPath}><img src={selected.file} alt={index === 0 ? `${selected.name}连续铺入六连屏后的效果` : ''} /></div>) : <div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div>}<span>款式标准框架 · {frameColor.name}</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frameColor.color, '--frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>
-                  <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
-                  <div className="screen-base"><i /><b /><i /></div>
-                </div>}
-              {previewReady && <span className="preview-scale">预览比例 1:2.6</span>}
+              {previewGenerating ? <div className="preview-generating"><i /><strong>正在生成真实组合效果</strong><small>图案装入框架，同时把木框整体替换为{frameColor.name}</small></div> : previewReady && generatedPreviewUrl ? <figure className="generated-preview"><img src={generatedPreviewUrl} alt={`${selected.name}与${frame.name}${frameColor.name}真实生成效果`} /><figcaption>GPT Image 2 真实生成 · {frameColor.name}</figcaption></figure> : <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>生成前确认组合</strong><small>“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small>{previewError && <em className="preview-error">{previewError}</em>}</div>}
             </div>
 
-            <button className="combine-button" onClick={() => setPreviewReady(true)}>{previewReady ? '重新确认组合预览' : '确认组合并查看效果'} <span>→</span></button>
+            {!previewReady && <button className="combine-button" disabled={previewGenerating} onClick={generatePreview}>{previewGenerating ? '正在调用图像模型生成…' : previewError ? '重新生成真实效果图' : '确认组合并生成效果图'} <span>→</span></button>}
+            {previewReady && <div className="preview-actions"><button onClick={resetPreview}>← 返回重选</button><button onClick={generatePreview}>重新生成</button></div>}
 
             <div className="selection-summary">
               <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
@@ -464,7 +507,7 @@ export default function Home() {
                 <label><input type="checkbox" defaultChecked /><span><i className="detail-icon" /><strong>全新详情页</strong><small>790px 长图、切片与 QA 图</small></span></label>
               </div>
             </section>
-            <button className="create-cta" disabled={!previewReady} onClick={createProduct}>创建新品并生成第一张样图 <span>→</span></button>
+            <button className="create-cta" disabled={!previewReady || previewGenerating} onClick={createProduct}>下一步：创建新品并进入样图任务 <span>→</span></button>
             <p className="approval-note"><span>i</span> 样图确认前不会启动批量生成，原图始终保留。</p>
           </aside>
         </div>
@@ -531,7 +574,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
         <div className="color-library-grid">
           {frameColors.map((item, index) => <button key={item.id} className={frameColorId === item.id ? 'color-library-card selected' : 'color-library-card'} onClick={() => onSelectFrameColor(item.id)}>
             <span className="color-material-preview" style={{ backgroundColor: item.color, backgroundImage: item.texture ? `url(${item.texture})` : 'none' }} />
-            <span><small>COLOR {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><em>{item.texture ? '实拍材质样板' : '标准暖白色板'}</em></span>
+            <span><small>COLOR {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><em>{item.note || (item.texture ? '实拍材质样板' : '标准色板')}</em></span>
             <b>{frameColorId === item.id ? '已选择 ✓' : '选择此颜色'}</b>
           </button>)}
         </div>
