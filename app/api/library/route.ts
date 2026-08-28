@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getChatGPTUser } from '../../chatgpt-auth';
 import { getDb } from '../../../db';
 import { assets } from '../../../db/schema';
+import { classifyArtworkCategory } from '../../../lib/artwork-category';
 
 function ownerId(userId: string | undefined) {
   return userId ?? 'local-preview';
@@ -28,6 +29,8 @@ export async function POST(request: Request) {
 
   const id = crypto.randomUUID();
   const currentOwner = ownerId(user?.userId);
+  const name = String(form.get('name') || file.name.replace(/\.[^.]+$/, ''));
+  const requestedCategory = String(form.get('category') || '未分类');
   const safeName = file.name.replace(/[^\p{L}\p{N}._-]+/gu, '-');
   const objectKey = `${currentOwner}/${id}/${safeName}`;
   await env.FILES.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type } });
@@ -35,8 +38,8 @@ export async function POST(request: Request) {
   const row = {
     id,
     ownerId: currentOwner,
-    name: String(form.get('name') || file.name.replace(/\.[^.]+$/, '')),
-    category: String(form.get('category') || '未分类'),
+    name,
+    category: requestedCategory === '自动分类' ? classifyArtworkCategory(`${name} ${file.name}`) : requestedCategory,
     tags: String(form.get('tags') || ''),
     tone: String(form.get('tone') || ''),
     mimeType: file.type,

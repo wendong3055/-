@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 
 type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string };
@@ -36,11 +37,11 @@ const frameColors: FrameColorOption[] = [
 ];
 
 const artworks = [
-  { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水留白', ratio: '1:1', tone: '雾绿' },
-  { id: 'floral', name: '暖白花枝', file: '/demo/暖白花枝.jpg', tag: '花鸟新中式', ratio: '1:1', tone: '暖白' },
-  { id: 'collage', name: '米白灰绿植物', file: '/demo/米白灰绿植物.jpg', tag: '植物拼贴', ratio: '1:1', tone: '灰绿' },
-  { id: 'abstract', name: '米灰抽象花影', file: '/demo/米灰抽象花影.jpg', tag: '抽象肌理', ratio: '1:1', tone: '米灰' },
-  { id: 'blue', name: '雾蓝极简单花', file: '/demo/雾蓝极简单花.png', tag: '极简花卉', ratio: '1:1', tone: '雾蓝' },
+  { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水风景', ratio: '1:1', tone: '雾绿' },
+  { id: 'floral', name: '暖白花枝', file: '/demo/暖白花枝.jpg', tag: '花卉植物', ratio: '1:1', tone: '暖白' },
+  { id: 'collage', name: '米白灰绿植物', file: '/demo/米白灰绿植物.jpg', tag: '花卉植物', ratio: '1:1', tone: '灰绿' },
+  { id: 'abstract', name: '米灰抽象花影', file: '/demo/米灰抽象花影.jpg', tag: '抽象艺术', ratio: '1:1', tone: '米灰' },
+  { id: 'blue', name: '雾蓝极简单花', file: '/demo/雾蓝极简单花.png', tag: '花卉植物', ratio: '1:1', tone: '雾蓝' },
 ];
 
 const frames: FrameOption[] = [
@@ -138,7 +139,7 @@ export default function Home() {
     }).catch(() => undefined);
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
-      const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
+      const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
       setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
     }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
@@ -147,7 +148,7 @@ export default function Home() {
         const variantCount = frameVariantCount(row.tags);
         return { id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: variantCount > 1 ? `文件夹上传 · ${variantCount}张规格图` : '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount };
       });
-      const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: row.category || '我的上传', ratio: '原图', tone: row.tone || '未标注' }));
+      const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
       setUploadedFrames(frameUploads);
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
     }).catch(() => undefined);
@@ -258,17 +259,17 @@ export default function Home() {
     const form = new FormData();
     form.set('file', file);
     form.set('name', file.name.replace(/\.[^.]+$/, ''));
-    form.set('category', '我的上传');
+    form.set('category', '自动分类');
     const response = await fetch('/api/library', { method: 'POST', body: form }).catch(() => null);
     if (!response?.ok) {
       setNotice('上传没有完成，请检查图片格式或稍后重试。');
       return;
     }
     const row = await response.json();
-    const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, tag: '我的上传', ratio: '原图', tone: '未标注' };
+    const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, tag: classifyArtworkCategory(row.name as string, row.category as string), ratio: '原图', tone: '自动归类' };
     setLibraryItems((current) => [uploaded, ...current]);
     selectArtwork(uploaded.id);
-    setNotice(`“${uploaded.name}”已收纳到图库。`);
+    setNotice(`“${uploaded.name}”已自动归入“${uploaded.tag}”。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
 
@@ -486,9 +487,11 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
     const searchMatch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(gallerySearch.trim());
-    const categoryMatch = galleryCategory === '全部素材' || item.tag.includes(galleryCategory);
+    const categoryMatch = galleryCategory === '全部素材' || item.tag === galleryCategory;
     return searchMatch && categoryMatch;
   }), [galleryCategory, gallerySearch, libraryItems]);
+  const categoryCounts = useMemo(() => Object.fromEntries(artworkCategories.map((category) => [category, libraryItems.filter((item) => item.tag === category).length])), [libraryItems]);
+  const galleryGroups = useMemo(() => artworkCategories.map((category) => ({ category, items: filteredGallery.filter((item) => item.tag === category) })).filter((group) => group.items.length > 0), [filteredGallery]);
   const headings: Record<string, [string, string]> = {
     gallery: ['图库收纳', '统一管理画芯、场景参考与已用素材'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
@@ -539,9 +542,9 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
         <div className="color-choice-bar"><span>已选颜色：<strong>{frameColors.find((item) => item.id === frameColorId)?.name}</strong></span><button onClick={onCreate}>使用所选颜色创建新品 →</button></div>
       </>}
       {view === 'gallery' && <>
-        <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
-        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips">{['全部素材', '山水风景', '花卉植物', '综合图案'].map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item}</button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<label className="upload-button"><span>＋</span> 上传图片<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
-        <div className="gallery-wide-grid selectable-gallery">{filteredGallery.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div>
+        <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>本地图库与上传素材统一归类</small></div><div><span>图库类别</span><strong>{artworkCategories.length}</strong><small>按图案内容分类收纳</small></div><div><span>自动分类</span><strong>开启</strong><small>上传后立即识别类别</small></div><div><span>未识别素材</span><strong>{categoryCounts['综合图案']}</strong><small>统一收纳在综合图案</small></div></div>
+        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、类别、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips"><button className={galleryCategory === '全部素材' ? 'selected' : ''} onClick={() => setGalleryCategory('全部素材')}>全部素材 <b>{libraryItems.length}</b></button>{artworkCategories.map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item} <b>{categoryCounts[item]}</b></button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<label className="upload-button"><span>＋</span> 上传并自动分类<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
+        <div className="gallery-category-stack">{galleryGroups.map((group) => <section className="gallery-category-section" key={group.category}><header><h3>{group.category}</h3><span>{group.items.length} 张</span></header><div className="gallery-wide-grid selectable-gallery">{group.items.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div></section>)}{galleryGroups.length === 0 && <div className="gallery-empty-state"><strong>没有找到符合条件的图案</strong><span>可以更换类别或清空搜索词后再查看。</span></div>}</div>
         <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>
       </>}
       {view === 'jobs' && <div className="job-board">
