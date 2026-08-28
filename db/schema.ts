@@ -35,3 +35,11 @@ export const jobs = sqliteTable('jobs', {
   outputCount: integer('output_count').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('jobs_product_idx').on(table.productId)]);
+
+export const hiddenOptions = sqliteTable('hidden_options', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  kind: text('kind').notNull(),
+  optionId: text('option_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+}, (table) => [index('hidden_options_owner_kind_idx').on(table.ownerId, table.kind)]);

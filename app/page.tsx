@@ -59,13 +59,30 @@ export default function Home() {
   const homeArtworks = homeSampleIds.map((id) => visibleLibraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
-    try {
-      setHiddenArtworkIds(JSON.parse(window.localStorage.getItem('pingfeng-hidden-artworks') || '[]'));
-      setHiddenFrameIds(JSON.parse(window.localStorage.getItem('pingfeng-hidden-frames') || '[]'));
-    } catch {
-      setHiddenArtworkIds([]);
-      setHiddenFrameIds([]);
-    }
+    const readLocalIds = (key: string) => {
+      try {
+        const value = JSON.parse(window.localStorage.getItem(key) || '[]');
+        return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+      } catch {
+        return [];
+      }
+    };
+    const localArtworkIds = readLocalIds('pingfeng-hidden-artworks');
+    const localFrameIds = readLocalIds('pingfeng-hidden-frames');
+    setHiddenArtworkIds(localArtworkIds);
+    setHiddenFrameIds(localFrameIds);
+    fetch('/api/hidden-options').then((response) => response.ok ? response.json() : null).then(async (saved) => {
+      const artworkIds = [...new Set([...(saved?.artworkIds || []), ...localArtworkIds])];
+      const frameIds = [...new Set([...(saved?.frameIds || []), ...localFrameIds])];
+      setHiddenArtworkIds(artworkIds);
+      setHiddenFrameIds(frameIds);
+      const migrations = await Promise.all([
+        localArtworkIds.length ? fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'artwork', ids: localArtworkIds }) }) : null,
+        localFrameIds.length ? fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'frame', ids: localFrameIds }) }) : null,
+      ]);
+      if (!migrations[0] || migrations[0].ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
+      if (!migrations[1] || migrations[1].ok) window.localStorage.removeItem('pingfeng-hidden-frames');
+    }).catch(() => undefined);
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: row.category, ratio: row.collection, tone: row.date }));
@@ -119,7 +136,7 @@ export default function Home() {
     setPreviewReady(false);
   }
 
-  function removeArtwork(id: string, name: string) {
+  async function removeArtwork(id: string, name: string) {
     if (visibleLibraryItems.length <= 1) {
       setNotice('图库至少需要保留一个可选图案。');
       return;
@@ -129,11 +146,13 @@ export default function Home() {
     setHiddenArtworkIds(next);
     window.localStorage.setItem('pingfeng-hidden-artworks', JSON.stringify(next));
     setPreviewReady(false);
-    setNotice(`“${name}”已从图库选项中移除。`);
+    const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'artwork', ids: [id] }) }).catch(() => null);
+    if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
+    setNotice(response?.ok ? `“${name}”已从图库选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
     window.setTimeout(() => setNotice(''), 3200);
   }
 
-  function removeFrame(id: string, name: string) {
+  async function removeFrame(id: string, name: string) {
     if (visibleFrameOptions.length <= 1) {
       setNotice('框架库至少需要保留一个可选框架。');
       return;
@@ -143,18 +162,30 @@ export default function Home() {
     setHiddenFrameIds(next);
     window.localStorage.setItem('pingfeng-hidden-frames', JSON.stringify(next));
     setPreviewReady(false);
-    setNotice(`“${name}”已从框架选项中移除。`);
+    const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'frame', ids: [id] }) }).catch(() => null);
+    if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-frames');
+    setNotice(response?.ok ? `“${name}”已从框架选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
     window.setTimeout(() => setNotice(''), 3200);
   }
 
-  function restoreArtworks() {
+  async function restoreArtworks() {
+    const response = await fetch('/api/hidden-options?kind=artwork', { method: 'DELETE' }).catch(() => null);
+    if (!response?.ok) {
+      setNotice('恢复没有完成，请稍后重试。');
+      return;
+    }
     setHiddenArtworkIds([]);
     window.localStorage.removeItem('pingfeng-hidden-artworks');
     setNotice('已恢复全部图库选项。');
     window.setTimeout(() => setNotice(''), 2800);
   }
 
-  function restoreFrames() {
+  async function restoreFrames() {
+    const response = await fetch('/api/hidden-options?kind=frame', { method: 'DELETE' }).catch(() => null);
+    if (!response?.ok) {
+      setNotice('恢复没有完成，请稍后重试。');
+      return;
+    }
     setHiddenFrameIds([]);
     window.localStorage.removeItem('pingfeng-hidden-frames');
     setNotice('已恢复全部框架选项。');
