@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number };
+type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string } };
 
 const artworks = [
   { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水留白', ratio: '1:1', tone: '雾绿' },
@@ -24,12 +24,14 @@ const frames: FrameOption[] = [
 const cabinetFrameStyles: FrameOption[] = [
   { id: 'fubao-ankang', name: '双门双抽玄关柜框架', tone: '标准合并框架 · 80×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/福报安康_80-200.png', variantCount: 30 },
   { id: 'qingyun-zhishang', name: '青云直上玄关柜', tone: '标准合并框架 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/青云直上_60-200.png', variantCount: 1 },
+  { id: 'large-screen-white', name: '大屏风框架', tone: '标准合并框架 · 白色 · 100×190cm', color: '#e8e6df', profile: 'cabinet', file: '/frames/style-previews/大屏风_白100-190.png', variantCount: 1, artworkBox: { left: '32.6%', top: '7.1%', width: '35.4%', height: '75.2%' } },
+  { id: 'five-drawer-walnut', name: '五斗柜框架', tone: '标准合并框架 · 胡桃色 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/五斗柜_胡桃60-200.png', variantCount: 1, artworkBox: { left: '35.4%', top: '4.6%', width: '29.2%', height: '50.7%' } },
 ];
 
 const navItems = [
   ['new', '新品项目', '08'],
   ['gallery', '图库收纳', '128'],
-  ['frames', '框架库', '08'],
+  ['frames', '框架库', '10'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
 ];
@@ -308,7 +310,7 @@ export default function Home() {
             <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><div className="cabinet-art-overlay"><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
+              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
                   <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
                   <div className="screen-base"><i /><b /><i /></div>
                 </div>}
