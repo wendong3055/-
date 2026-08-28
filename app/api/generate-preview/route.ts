@@ -29,6 +29,14 @@ function decodeBase64(value: string) {
   return output;
 }
 
+function generationErrorMessage(message: string | undefined) {
+  const value = message || '';
+  if (/billing hard limit|insufficient_quota|quota/i.test(value)) return '当前图像生成额度已用完，请补充 OpenAI API 余额或提高项目限额后再重试。';
+  if (/organization verification|verify.*organization/i.test(value)) return '当前 OpenAI 组织尚未完成图像模型验证，请完成验证后再重试。';
+  if (/rate limit/i.test(value)) return '当前生成请求较多，请稍等片刻后重试。';
+  return value || '图像模型暂时没有返回结果，请稍后重试。';
+}
+
 export async function POST(request: Request) {
   const user = await getChatGPTUser();
   const currentOwner = ownerId(user?.userId);
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
     const payload = await generation.json() as { data?: Array<{ b64_json?: string }>; error?: { message?: string } };
     const base64 = payload.data?.[0]?.b64_json;
     if (!generation.ok || !base64) {
-      return NextResponse.json({ error: payload.error?.message || '图像模型暂时没有返回结果，请稍后重试。' }, { status: 502 });
+      return NextResponse.json({ error: generationErrorMessage(payload.error?.message) }, { status: 502 });
     }
 
     const id = crypto.randomUUID();

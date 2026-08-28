@@ -492,8 +492,8 @@ export default function Home() {
               {previewGenerating ? <div className="preview-generating"><i /><strong>正在生成真实组合效果</strong><small>图案装入框架，同时把木框整体替换为{frameColor.name}</small></div> : previewReady && generatedPreviewUrl ? <figure className="generated-preview"><img src={generatedPreviewUrl} alt={`${selected.name}与${frame.name}${frameColor.name}真实生成效果`} /><figcaption>GPT Image 2 真实生成 · {frameColor.name}</figcaption></figure> : <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>生成前确认组合</strong><small>“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small>{previewError && <em className="preview-error">{previewError}</em>}</div>}
             </div>
 
-            {!previewReady && <button className="combine-button" disabled={previewGenerating} onClick={generatePreview}>{previewGenerating ? '正在调用图像模型生成…' : previewError ? '重新生成真实效果图' : '确认组合并生成效果图'} <span>→</span></button>}
-            {previewReady && <div className="preview-actions"><button onClick={resetPreview}>← 返回重选</button><button onClick={generatePreview}>重新生成</button></div>}
+            {!previewReady && !previewError && <button className="combine-button" disabled={previewGenerating} onClick={generatePreview}>{previewGenerating ? '正在调用图像模型生成…' : '确认组合并生成效果图'} <span>→</span></button>}
+            {(previewReady || previewError) && <div className="preview-actions"><button onClick={resetPreview}>← 返回重选</button><button onClick={generatePreview}>{previewError ? '修复额度后重试' : '重新生成'}</button></div>}
 
             <div className="selection-summary">
               <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
