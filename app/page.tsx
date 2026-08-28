@@ -3,6 +3,16 @@
 import { useEffect, useMemo, useState } from 'react';
 
 type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string } };
+type FrameColorOption = { id: string; name: string; color: string; texture?: string };
+
+const frameColors: FrameColorOption[] = [
+  { id: 'natural', name: '原木', color: '#c69d62', texture: '/materials/frame-colors/natural.png' },
+  { id: 'redwood', name: '红木色', color: '#6d211f', texture: '/materials/frame-colors/redwood.png' },
+  { id: 'pear', name: '黄花梨色', color: '#a95617', texture: '/materials/frame-colors/pear.png' },
+  { id: 'walnut', name: '胡桃木色', color: '#402b24', texture: '/materials/frame-colors/walnut.png' },
+  { id: 'simple-gray', name: '简约灰', color: '#7b7e80', texture: '/materials/frame-colors/simple-gray.png' },
+  { id: 'warm-white', name: '暖白色', color: '#e9e3d7' },
+];
 
 const artworks = [
   { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水留白', ratio: '1:1', tone: '雾绿' },
@@ -32,6 +42,7 @@ const navItems = [
   ['new', '新品项目', '08'],
   ['gallery', '图库收纳', '128'],
   ['frames', '框架库', '10'],
+  ['colors', '颜色库', '06'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
 ];
@@ -45,6 +56,7 @@ export default function Home() {
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState('mist');
   const [frameId, setFrameId] = useState('ruyi-walnut');
+  const [frameColorId, setFrameColorId] = useState('walnut');
   const [previewReady, setPreviewReady] = useState(false);
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
@@ -56,6 +68,7 @@ export default function Home() {
   const visibleFrameOptions = [...visibleCabinetFrames, ...visibleScreenFrames];
   const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
+  const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
   const homeArtworks = homeSampleIds.map((id) => visibleLibraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
 
   useEffect(() => {
@@ -121,7 +134,7 @@ export default function Home() {
       window.setTimeout(() => setNotice(''), 3000);
       return;
     }
-    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frame.tone}` }) }).catch(() => null);
+    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}` }) }).catch(() => null);
     setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已保存，第一张样图任务已建立。` : `“${selected.name} · ${frame.name}”已进入样图确认阶段。`);
     window.setTimeout(() => setNotice(''), 3600);
   }
@@ -133,6 +146,11 @@ export default function Home() {
 
   function selectFrame(id: string) {
     setFrameId(id);
+    setPreviewReady(false);
+  }
+
+  function selectFrameColor(id: string) {
+    setFrameColorId(id);
     setPreviewReady(false);
   }
 
@@ -341,7 +359,7 @@ export default function Home() {
             <div className="compose-heading"><div><p>COMBINATION PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : 'draft-badge'}>{previewReady ? '已组合' : '待确认'}</span></div>
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”与“{frame.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame"><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frame.tone}首帧`} /><div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frame.color } as React.CSSProperties}>
+              {!previewReady ? <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>确认后查看组合效果</strong><small>已选择“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small></div> : frame.profile === 'cabinet' && frame.file ? <div className="cabinet-first-frame" style={{ '--selected-frame-color': frameColor.color, '--selected-frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}><img className="cabinet-frame-image" src={frame.file} alt={`${frame.name}${frameColor.name}首帧`} /><div className="cabinet-art-overlay" style={frame.artworkBox}><img src={selected.file} alt={`${selected.name}装入空框后的效果`} /></div><span>款式标准框架 · {frameColor.name}</span></div> : <div className={`screen-product profile-${frame.profile}`} style={{ '--frame-color': frameColor.color, '--frame-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>
                   <div className="screen-frame"><img src={selected.file} alt={`${selected.name}屏风预览`} /></div>
                   <div className="screen-base"><i /><b /><i /></div>
                 </div>}
@@ -352,8 +370,16 @@ export default function Home() {
 
             <div className="selection-summary">
               <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
-              <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frame.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}</span><span><small>已选框架</small><strong>{frame.name} · {frame.tone}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
+              <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frameColor.color, '--summary-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}<em /></span><span><small>已选框架</small><strong>{frame.name} · {frameColor.name}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
             </div>
+
+            <section className="frame-color-picker">
+              <div className="row-label"><span>框架颜色</span><b>{frameColor.name}</b></div>
+              <div className="frame-color-options">
+                {frameColors.map((item) => <button key={item.id} className={frameColorId === item.id ? 'selected' : ''} onClick={() => selectFrameColor(item.id)} aria-label={`选择${item.name}框架颜色`}><i style={{ backgroundColor: item.color, backgroundImage: item.texture ? `url(${item.texture})` : 'none' }} /><strong>{item.name}</strong>{frameColorId === item.id && <b>✓</b>}</button>)}
+              </div>
+              <button className="open-color-library" onClick={() => setActiveNav('colors')}>进入颜色库查看材质 →</button>
+            </section>
 
             <section className="output-plan">
               <div className="row-label"><span>生成内容</span><b>按已确认标准</b></div>
@@ -368,7 +394,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
         <footer className={`spec-strip ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <div><span>尺寸矩阵</span><strong>高 187 / 197 / 207 / 217 cm</strong><strong>长 71 / 81 / 91 / 101 / 111 cm</strong></div>
@@ -382,7 +408,7 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (file: File | undefined) => void; frameUploading: boolean; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (file: File | undefined) => void; frameUploading: boolean; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
@@ -393,6 +419,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   const headings: Record<string, [string, string]> = {
     gallery: ['图库收纳', '统一管理画芯、场景参考与已用素材'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
+    colors: ['颜色库', '独立管理框架材质与六种标准颜色'],
     jobs: ['生成任务', '样图审批通过后，自动推进批量任务'],
     delivery: ['交付中心', '按新品版本汇总主图、尺寸图、详情页与 QA 文件'],
   };
@@ -426,6 +453,17 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
           </div>)}
           <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传框架' : '录入新框架模板'}</strong><small>点击选择本地 JPG 或 PNG，上传后自动加入框架库</small><input type="file" accept="image/png,image/jpeg" disabled={frameUploading} onChange={(event) => { onUploadFrame(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label>
         </div>
+      </>}
+      {view === 'colors' && <>
+        <div className="color-library-intro"><div><p className="eyebrow">FRAME MATERIAL LIBRARY</p><h3>六种标准框架颜色</h3></div><span>颜色独立于框架款式保存，选择后用于组合预览与新品生成。</span></div>
+        <div className="color-library-grid">
+          {frameColors.map((item, index) => <button key={item.id} className={frameColorId === item.id ? 'color-library-card selected' : 'color-library-card'} onClick={() => onSelectFrameColor(item.id)}>
+            <span className="color-material-preview" style={{ backgroundColor: item.color, backgroundImage: item.texture ? `url(${item.texture})` : 'none' }} />
+            <span><small>COLOR {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><em>{item.texture ? '实拍材质样板' : '标准暖白色板'}</em></span>
+            <b>{frameColorId === item.id ? '已选择 ✓' : '选择此颜色'}</b>
+          </button>)}
+        </div>
+        <div className="color-choice-bar"><span>已选颜色：<strong>{frameColors.find((item) => item.id === frameColorId)?.name}</strong></span><button onClick={onCreate}>使用所选颜色创建新品 →</button></div>
       </>}
       {view === 'gallery' && <>
         <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>已合并本地图库与上传素材</small></div><div><span>本地图库</span><strong>267</strong><small>已按文件内容去重</small></div><div><span>来源目录</span><strong>17</strong><small>D:\网页找图</small></div><div><span>待高清处理</span><strong>02</strong><small>超大原图保留在本地</small></div></div>
