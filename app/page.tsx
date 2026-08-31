@@ -147,7 +147,7 @@ export default function Home() {
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
       setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
     }).catch(() => undefined);
-    fetch('/api/library/claim-staged-frames', { method: 'POST' }).catch(() => null).then(() => fetch('/api/library')).then((response) => response.ok ? response.json() : []).then((rows) => {
+    fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
       const frameUploads = rows.filter((row: { category: string }) => row.category === '框架模板').map((row: { id: string; name: string; url: string; tags?: string }) => {
         const variantCount = frameVariantCount(row.tags);
