@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
 import { getChatGPTUser } from '../../../chatgpt-auth';
 
-export async function POST() {
+async function claimStagedFrames() {
   const user = await getChatGPTUser();
   if (!user) {
     return NextResponse.json({ error: '请先登录工作台。' }, { status: 401 });
@@ -20,3 +20,6 @@ export async function POST() {
 
   return NextResponse.json({ moved: result.meta.changes ?? 0 });
 }
+
+export const GET = claimStagedFrames;
+export const POST = claimStagedFrames;
