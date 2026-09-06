@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `sample_asset_id` text;

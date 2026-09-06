@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
+import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
+import { generationLabels, isActiveGeneration } from '../lib/generation-types';
 
 type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
@@ -90,6 +92,13 @@ const navItems = [
 const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 × 111', '197 × 71', '197 × 81', '197 × 91', '197 × 101', '197 × 111', '207 × 71', '207 × 81', '207 × 91', '207 × 101', '207 × 111', '217 × 71', '217 × 81', '217 × 91', '217 × 101', '217 × 111'];
 
 export default function Home() {
+  const generations = useGenerations();
+  const [previewTaskId, setPreviewTaskId] = useState('');
+  const aspectRatio = '16:9';
+  const resolution = '2k';
+  const [instruction, setInstruction] = useState('');
+  const [productSaving, setProductSaving] = useState(false);
+  const submitGuard = useRef(false);
   const [libraryItems, setLibraryItems] = useState(artworks);
   const [uploadedFrames, setUploadedFrames] = useState<FrameOption[]>([]);
   const [frameUploading, setFrameUploading] = useState(false);
@@ -115,7 +124,19 @@ export default function Home() {
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
   const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
   const sizeOutputCount = frame.variantCount ?? sizeMatrix.length;
-  const homeArtworks = homeSampleIds.map((id) => visibleLibraryItems.find((item) => item.id === id)).filter((item): item is typeof artworks[number] => Boolean(item));
+  const homeArtworks = [selected, ...homeSampleIds.filter((id) => id !== selected?.id).map((id) => visibleLibraryItems.find((item) => item.id === id))].filter((item): item is typeof artworks[number] => Boolean(item)).slice(0, 3);
+  const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
+
+  useEffect(() => {
+    if (!previewTask) return;
+    setPreviewGenerating(isActiveGeneration(previewTask.status));
+    if (previewTask.status === 'succeeded' && previewTask.url) {
+      setGeneratedPreviewUrl(previewTask.url);
+      setGeneratedPreviewId(previewTask.assetId || '');
+      setPreviewReady(true);
+      setPreviewError('');
+    } else if (previewTask.error) setPreviewError(previewTask.error);
+  }, [previewTask]);
 
   useEffect(() => {
     const readLocalIds = (key: string) => {
@@ -130,7 +151,8 @@ export default function Home() {
     const localFrameIds = readLocalIds('pingfeng-hidden-frames');
     setHiddenArtworkIds(localArtworkIds);
     setHiddenFrameIds(localFrameIds);
-    fetch('/api/hidden-options').then((response) => response.ok ? response.json() : null).then(async (saved) => {
+    fetch('/api/hidden-options').then((response) => response.ok ? response.json() : null).then(async (data) => {
+      const saved = data as { artworkIds?: string[]; frameIds?: string[] } | null;
       const artworkIds = [...new Set([...(saved?.artworkIds || []), ...localArtworkIds])];
       const frameIds = [...new Set([...(saved?.frameIds || []), ...localFrameIds])];
       setHiddenArtworkIds(artworkIds);
@@ -142,7 +164,8 @@ export default function Home() {
       if (!migrations[0] || migrations[0].ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
       if (!migrations[1] || migrations[1].ok) window.localStorage.removeItem('pingfeng-hidden-frames');
     }).catch(() => undefined);
-    fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((manifest) => {
+    fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((data) => {
+      const manifest = data as { items?: Array<{ id: string; name: string; thumb: string; category: string; collection: string; date: string }> } | null;
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
       setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
@@ -178,17 +201,22 @@ export default function Home() {
   }, [frame, frameId]);
 
   async function createProduct() {
-    if (!previewReady) {
+    if (productSaving) return;
+    if (!previewReady || !selected || !frame) {
       setNotice('请先确认组合并查看效果图。');
       window.setTimeout(() => setNotice(''), 3000);
       return;
     }
+    setProductSaving(true);
     const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}`, sampleAssetId: generatedPreviewId, sizeCount: sizeOutputCount }) }).catch(() => null);
-    setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已保存，第一张样图任务已建立。` : `“${selected.name} · ${frame.name}”已进入样图确认阶段。`);
+    setProductSaving(false);
+    setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已连同效果图保存，后续制作任务尚未启动。` : '新品保存失败，请稍后重试；生成的效果图仍然保留。');
     window.setTimeout(() => setNotice(''), 3600);
   }
 
   function resetPreview() {
+    if (previewGenerating || submitGuard.current) return;
+    setPreviewTaskId('');
     setPreviewReady(false);
     setPreviewGenerating(false);
     setGeneratedPreviewUrl('');
@@ -197,14 +225,15 @@ export default function Home() {
   }
 
   async function generatePreview() {
-    if (!selected || !frame || previewGenerating) return;
+    if (!selected || !frame || previewGenerating || submitGuard.current || generations.busy || !generations.config?.configured) return;
+    submitGuard.current = true;
+    setPreviewTaskId('');
     setPreviewReady(false);
     setPreviewGenerating(true);
     setGeneratedPreviewUrl('');
     setGeneratedPreviewId('');
     setPreviewError('');
-    const response = await (async () => {
-      try {
+    try {
         const artworkResponse = await fetch(selected.file);
         if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
         const form = new FormData();
@@ -220,41 +249,42 @@ export default function Home() {
         form.set('colorId', frameColor.id);
         form.set('colorName', frameColor.name);
         form.set('colorHex', frameColor.color);
-        return await fetch('/api/generate-preview', { method: 'POST', body: form });
-      } catch (error) {
-        setPreviewError(error instanceof Error ? error.message : '所选图片暂时无法读取。');
-        return null;
-      }
-    })();
-    const result = await response?.json().catch(() => null);
-    setPreviewGenerating(false);
-    if (!response?.ok || !result?.url) {
-      setPreviewError(result?.error || '真实效果图生成没有完成，请稍后重试。');
-      return;
+        form.set('aspectRatio', aspectRatio);
+        form.set('resolution', resolution);
+        form.set('instruction', instruction);
+        const task = await generations.submit(form);
+        setPreviewTaskId(task.id);
+        setPreviewGenerating(isActiveGeneration(task.status));
+        setNotice('任务已提交给 RunningHub，可在「生成任务」查看进度。');
+    } catch (error) {
+      setPreviewGenerating(false);
+      setPreviewError(error instanceof Error ? error.message : '提交状态未确认，请先查看任务记录，不要重复生成。');
+    } finally {
+      submitGuard.current = false;
+      window.setTimeout(() => setNotice(''), 3600);
     }
-    setGeneratedPreviewUrl(result.url);
-    setGeneratedPreviewId(result.id || '');
-    setPreviewReady(true);
-    setNotice(`“${selected.name} · ${frame.name} · ${frameColor.name}”真实效果图已生成。`);
-    window.setTimeout(() => setNotice(''), 3600);
   }
 
   function selectArtwork(id: string) {
+    if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换图案。'); return; }
     setSelectedId(id);
     resetPreview();
   }
 
   function selectFrame(id: string) {
+    if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换框架。'); return; }
     setFrameId(id);
     resetPreview();
   }
 
   function selectFrameColor(id: string) {
+    if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换颜色。'); return; }
     setFrameColorId(id);
     resetPreview();
   }
 
   async function removeArtwork(id: string, name: string) {
+    if (previewGenerating || submitGuard.current) { setNotice('请等待当前组合生成完成。'); return; }
     if (visibleLibraryItems.length <= 1) {
       setNotice('图库至少需要保留一个可选图案。');
       return;
@@ -271,6 +301,7 @@ export default function Home() {
   }
 
   async function removeFrame(id: string, name: string) {
+    if (previewGenerating || submitGuard.current) { setNotice('请等待当前组合生成完成。'); return; }
     if (visibleFrameOptions.length <= 1) {
       setNotice('框架库至少需要保留一个可选框架。');
       return;
@@ -321,7 +352,7 @@ export default function Home() {
       setNotice('上传没有完成，请检查图片格式或稍后重试。');
       return;
     }
-    const row = await response.json();
+    const row = await response.json() as { id: string; name: string; url: string; category: string };
     const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, tag: classifyArtworkCategory(row.name as string, row.category as string), ratio: '原图', tone: '自动归类' };
     setLibraryItems((current) => [uploaded, ...current]);
     selectArtwork(uploaded.id);
@@ -354,14 +385,14 @@ export default function Home() {
 
     const representativeResponse = await uploadOne(representative, '框架模板');
     if (!representativeResponse?.ok) {
-      const message = await representativeResponse?.json().catch(() => null);
+      const message = await representativeResponse?.json().catch(() => null) as { error?: string } | null;
       setNotice(message?.error || '框架文件夹上传没有完成，请检查图片格式后重试。');
       setFrameUploadProgress('');
       setFrameUploading(false);
       return;
     }
 
-    const row = await representativeResponse.json();
+    const row = await representativeResponse.json() as { id: string; url: string };
     let completed = 1;
     let failed = 0;
     setFrameUploadProgress(`正在上传 ${completed}/${images.length}`);
@@ -396,42 +427,40 @@ export default function Home() {
 
         <nav className="side-nav" aria-label="工作台导航">
           <p className="nav-label">工作流</p>
-          {navItems.map(([id, label, count]) => (
-            <button key={id} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
+          {navItems.map(([id, label]) => (
+            <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
               <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
               <span>{label}</span>
-              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : count}</em>
+              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : id === 'colors' ? frameColors.length : id === 'jobs' ? generations.tasks.length : id === 'delivery' ? generations.tasks.filter((task) => task.status === 'succeeded').length : ''}</em>
             </button>
           ))}
         </nav>
 
         <div className="sidebar-spacer" />
         <section className="storage-card">
-          <div className="storage-title"><span>图库空间</span><b>38%</b></div>
-          <div className="storage-track"><i /></div>
-          <p>已使用 7.6 GB / 20 GB</p>
-          <button>管理素材</button>
+          <div className="storage-title"><span>生图服务</span><b>RunningHub</b></div>
+          <p>{generations.config?.configured ? '服务端密钥已配置 · 待实际验证' : '服务端密钥待配置'}</p>
+          <button onClick={() => setActiveNav('jobs')}>查看生成记录</button>
         </section>
         <div className="profile-row">
           <span className="avatar">徐</span>
           <div><strong>徐艺木业</strong><small>个人工作台</small></div>
-          <button aria-label="更多账户选项">•••</button>
         </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">NEW PRODUCT WORKFLOW</p>
-            <h1>创建一个屏风新品</h1>
+            <p className="eyebrow">PRODUCT STUDIO / 徐艺木业</p>
+            <h1>{navItems.find(([id]) => id === activeNav)?.[1] || '新品项目'}</h1>
           </div>
           <div className="top-actions">
-            <span className="sync-state"><i /> 已自动保存</span>
-            <button className="ghost-button">查看交付规范</button>
-            <button className="primary-button" onClick={createProduct}>创建新品 <span>→</span></button>
+            <span className="sync-state">RunningHub 图像生成</span>
+            <button className="ghost-button" onClick={() => setActiveNav(activeNav === 'new' ? 'jobs' : 'new')}>{activeNav === 'new' ? '查看生成记录' : '返回组合生图'}</button>
           </div>
         </header>
 
+        {activeNav === 'new' && <div className="studio-flow" aria-label="制作步骤"><span><b>01</b>选择图案</span><span><b>02</b>搭配框架与颜色</span><span className={previewReady ? 'flow-complete' : 'flow-active'}><b>03</b>{previewReady ? '效果图已生成' : '生成组合效果'}</span></div>}
         <div className={`content-grid ${activeNav === 'new' ? '' : 'view-hidden'}`}>
           <section className="library-panel">
             <section className="choice-section artwork-choice-section">
@@ -440,7 +469,7 @@ export default function Home() {
                 <button className="upload-button" onClick={() => setActiveNav('gallery')}>更多图案 <span>→</span></button>
               </div>
 
-              <p className="home-gallery-note">随机展示3张图案。点击即可选择，也可以进入完整图库搜索。</p>
+              <p className="home-gallery-note">已选图案固定显示在首位，更多素材可进入图库查找。</p>
               <div className="gallery-grid home-gallery-grid">
                 {(homeArtworks.length ? homeArtworks : visibleLibraryItems.slice(0, 3)).map((item) => (
                   <div className="option-card-wrap" key={item.id}>
@@ -486,14 +515,16 @@ export default function Home() {
           </section>
 
           <aside className="compose-panel">
-            <div className="compose-heading"><div><p>AI PRODUCT PREVIEW</p><h2>组合效果</h2></div><span className={previewReady ? 'draft-badge ready' : previewError ? 'draft-badge error' : 'draft-badge'}>{previewGenerating ? '生成中' : previewReady ? '已生成' : previewError ? '需重试' : '待生成'}</span></div>
+            <div className="compose-heading"><div><p>COMPOSITION STUDIO</p><h2>组合生图</h2></div><span className={previewReady ? 'draft-badge ready' : previewError ? 'draft-badge error' : 'draft-badge'}>{previewTask ? generationLabels[previewTask.status] : previewGenerating ? '准备参考图' : previewReady ? '已生成' : '待生成'}</span></div>
+            <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} />
             <div className="preview-stage">
               <div className="ambient-circle" />
-              {previewGenerating ? <div className="preview-generating"><i /><strong>正在生成真实组合效果</strong><small>图案装入框架，同时把木框整体替换为{frameColor.name}</small></div> : previewReady && generatedPreviewUrl ? <figure className="generated-preview"><img src={generatedPreviewUrl} alt={`${selected.name}与${frame.name}${frameColor.name}真实生成效果`} /><figcaption>GPT Image 2 真实生成 · {frameColor.name}</figcaption></figure> : <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>生成前确认组合</strong><small>“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small>{previewError && <em className="preview-error">{previewError}</em>}</div>}
+              {previewGenerating ? <div className="preview-generating"><i /><strong>{previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}</strong><small>{generations.paused ? '自动查询已暂停，请恢复查询。' : `图案装入框架，木框调整为${frameColor.name}。平台未提供精确进度百分比。`}</small></div> : previewReady && generatedPreviewUrl ? <figure className="generated-preview"><img src={generatedPreviewUrl} alt={`${selected.name}与${frame.name}${frameColor.name}真实生成效果`} /><figcaption>RunningHub · GPT Image 2</figcaption></figure> : <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>一张图案，一款新品</strong><small>“{selected.name}”＋“{frame.name}”＋“{frameColor.name}”</small></div>}
             </div>
 
-            {!previewReady && !previewError && <button className="combine-button" disabled={previewGenerating} onClick={generatePreview}>{previewGenerating ? '正在调用图像模型生成…' : '确认组合并生成效果图'} <span>→</span></button>}
-            {(previewReady || previewError) && <div className="preview-actions"><button onClick={resetPreview}>← 返回重选</button><button onClick={generatePreview}>{previewError ? '修复额度后重试' : '重新生成'}</button></div>}
+            {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
+            {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
+            {previewReady && <div className="preview-actions"><a href={generatedPreviewUrl} target="_blank" rel="noreferrer">查看原图 ↗</a><a href={`${generatedPreviewUrl}?download=1`} download>下载结果 ↓</a></div>}
 
             <div className="selection-summary">
               <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
@@ -508,21 +539,31 @@ export default function Home() {
               <button className="open-color-library" onClick={() => setActiveNav('colors')}>进入颜色库查看材质 →</button>
             </section>
 
+            <section className="generation-parameters">
+              <div className="row-label"><span>生成设置</span><b>单次 1 张</b></div>
+              <div className="parameter-grid"><div className="parameter-value"><small>当前输出画幅</small><strong>16:9</strong></div><div className="parameter-value"><small>当前输出分辨率</small><strong>2K · 标准质量</strong></div></div>
+              <label className="instruction-label" htmlFor="generation-instruction">补充制作要求 <span>选填</span></label>
+              <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => { setInstruction(event.target.value); resetPreview(); }} placeholder="例如：保持柜体结构，画芯图案居中完整，木色不要偏红。" rows={3} />
+              <p className="generation-privacy">点击生成会将所选参考图和制作要求发送给 RunningHub，并按该平台 API 规则计费。</p>
+              <button className="combine-button" disabled={previewGenerating || generations.busy || !generations.config?.configured} onClick={generatePreview}>{previewGenerating ? '任务处理中…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '配置 RunningHub 后可生成' : previewReady ? '重新生成一张' : '生成组合效果图'} <span>→</span></button>
+              {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
+            </section>
             <section className="output-plan">
-              <div className="row-label"><span>生成内容</span><b>按已确认标准</b></div>
+              <div className="row-label"><span>后续交付规划</span><b>不自动批量生图</b></div>
               <div className="output-items">
-                <label><input type="checkbox" defaultChecked /><span><i className="cover-icon" /><strong>新品主图</strong><small>场景图与电商白底图</small></span></label>
-                <label><input type="checkbox" defaultChecked /><span><i className="size-icon" /><strong>单尺寸图</strong><small>{sizeOutputCount} 个规格，每尺寸一张</small></span></label>
-                <label><input type="checkbox" defaultChecked /><span><i className="detail-icon" /><strong>全新详情页</strong><small>790px 长图、切片与 QA 图</small></span></label>
+                <div><strong>新品主图</strong><small>场景图与电商白底图</small></div>
+                <div><strong>单尺寸图</strong><small>{sizeOutputCount} 个规格</small></div>
+                <div><strong>全新详情页</strong><small>790px 长图、切片与 QA</small></div>
               </div>
             </section>
-            <button className="create-cta" disabled={!previewReady || previewGenerating} onClick={createProduct}>下一步：创建新品并进入样图任务 <span>→</span></button>
-            <p className="approval-note"><span>i</span> 样图确认前不会启动批量生成，原图始终保留。</p>
+            <button className="create-cta" disabled={!previewReady || previewGenerating || productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认效果，保存新品'} <span>→</span></button>
+            <p className="approval-note"><span>i</span> 当前接入组合效果图；主图、尺寸图及详情页保留为后续制作任务，不会自动扣费生成。</p>
           </aside>
         </div>
 
-        {activeNav !== 'new' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
+        {activeNav !== 'new' && activeNav !== 'jobs' && activeNav !== 'delivery' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
+      {(activeNav === 'jobs' || activeNav === 'delivery') && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} delivery={activeNav === 'delivery'} /></div>}
       </section>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
@@ -595,23 +636,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
         <div className="gallery-category-stack">{galleryGroups.map((group) => <section className="gallery-category-section" key={group.category}><header><h3>{group.category}</h3><span>{group.items.length} 张</span></header><div className="gallery-wide-grid selectable-gallery">{group.items.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div></section>)}{galleryGroups.length === 0 && <div className="gallery-empty-state"><strong>没有找到符合条件的图案</strong><span>可以更换类别或清空搜索词后再查看。</span></div>}</div>
         <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>
       </>}
-      {view === 'jobs' && <div className="job-board">
-        <div className="job-column"><h3>等待样图确认 <span>2</span></h3><JobCard name="浅绿云雾山影新品" image="/demo/浅绿云雾山影.png" state="第一张主图待确认" progress="1 / 33" /><JobCard name="暖白花枝新品" image="/demo/暖白花枝.jpg" state="框架结构待复核" progress="0 / 33" /></div>
-        <div className="job-column"><h3>批量生成中 <span>1</span></h3><JobCard name="米灰抽象花影新品" image="/demo/米灰抽象花影.jpg" state="20张单尺寸图生成中" progress="12 / 33" /></div>
-        <div className="job-column"><h3>QA 检查 <span>1</span></h3><JobCard name="米白灰绿植物新品" image="/demo/米白灰绿植物.jpg" state="详情页文字与尺寸复核" progress="31 / 33" /></div>
-      </div>}
-      {view === 'delivery' && <div className="delivery-list">
-        {[
-          ['浅绿云雾山影新品', '2026-08-27_v1', '待样图确认', '1 / 33'],
-          ['米灰抽象花影新品', '2026-08-26_v2', '生成中', '12 / 33'],
-          ['米白灰绿植物新品', '2026-08-25_v1', 'QA检查', '31 / 33'],
-          ['暖白花枝新品', '2026-08-24_v3', '已交付', '33 / 33'],
-        ].map(([name, version, state, count]) => <article key={version}><div className="package-icon"><i /><i /><i /></div><div><small>{version}</small><strong>{name}</strong><p>主图 · 20张单尺寸图 · 790px详情页 · QA总览 · 交付清单</p></div><span className={`package-state state-${state}`}>{state}</span><b>{count}</b><button>查看文件 →</button></article>)}
-      </div>}
+
     </section>
   );
-}
-
-function JobCard({ name, image, state, progress }: { name: string; image: string; state: string; progress: string }) {
-  return <article className="job-card"><div><img src={image} alt="" /><span><small>屏风新品</small><strong>{name}</strong></span></div><p>{state}</p><footer><span>{progress} 个文件</span><button>查看任务 →</button></footer></article>;
 }

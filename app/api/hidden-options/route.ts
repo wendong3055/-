@@ -31,10 +31,11 @@ export async function POST(request: Request) {
   if (ids.length === 0) return NextResponse.json({ saved: 0 });
 
   const currentOwner = ownerId(user?.userId);
+  const kind = body.kind;
   await getDb().insert(hiddenOptions).values(ids.map((optionId) => ({
     id: `${currentOwner}:${body.kind}:${optionId}`,
     ownerId: currentOwner,
-    kind: body.kind,
+    kind,
     optionId,
     createdAt: new Date(),
   }))).onConflictDoNothing();

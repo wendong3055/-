@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const assets = sqliteTable('assets', {
   id: text('id').primaryKey(),
@@ -21,6 +22,7 @@ export const products = sqliteTable('products', {
   artworkName: text('artwork_name').notNull(),
   frameId: text('frame_id').notNull(),
   frameName: text('frame_name').notNull(),
+  sampleAssetId: text('sample_asset_id'),
   status: text('status').notNull().default('sample_pending'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('products_owner_created_idx').on(table.ownerId, table.createdAt)]);
@@ -43,3 +45,24 @@ export const hiddenOptions = sqliteTable('hidden_options', {
   optionId: text('option_id').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('hidden_options_owner_kind_idx').on(table.ownerId, table.kind)]);
+
+export const generationTasks = sqliteTable('generation_tasks', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  remoteTaskId: text('remote_task_id'),
+  name: text('name').notNull(),
+  status: text('status').notNull().default('uploading'),
+  model: text('model').notNull(),
+  prompt: text('prompt').notNull(),
+  aspectRatio: text('aspect_ratio').notNull(),
+  resolution: text('resolution').notNull(),
+  colorName: text('color_name').notNull(),
+  assetId: text('asset_id'),
+  error: text('error').notNull().default(''),
+  lastPolledAt: integer('last_polled_at').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => [
+  index('generation_tasks_owner_created_idx').on(table.ownerId, table.createdAt),
+  uniqueIndex('generation_tasks_owner_active_idx').on(table.ownerId).where(sql`${table.status} IN ('uploading','submitting','queued','running','saving','unknown')`),
+]);
