@@ -51,6 +51,8 @@ const provider = await load('lib/runninghub.ts');
 const taskStore = await load('db/generation-tasks.ts');
 const limitedForm = await load('lib/limited-form.ts');
 const productRoutes = await load('app/api/products/route.ts');
+const { compositionPrompt } = await load('lib/composition-prompt.ts');
+const { parseRecipe } = await load('lib/studio-brief.ts');
 const origin = 'https://studio.example';
 let submissions = 0;
 let providerStatus = 'RUNNING';
@@ -81,7 +83,7 @@ globalThis.fetch = async (url, options = {}) => {
 
 function request(id, overrides = {}) {
   const form = new FormData();
-  for (const [key, value] of Object.entries({ requestId: id, artworkName: '测试画芯', frameName: '测试框架', colorName: '胡桃木色', colorId: 'walnut', aspectRatio: '16:9', resolution: '2k', ...overrides })) form.set(key, value);
+  for (const [key, value] of Object.entries({ requestId: id, artworkId: 'artwork-test', frameId: 'frame-test', artworkName: '测试画芯', frameName: '测试框架', colorName: '胡桃木色', colorId: 'walnut', aspectRatio: '16:9', resolution: '2k', ...overrides })) form.set(key, value);
   form.set('artwork', new File(['art'], 'art.png', { type: 'image/png' }));
   form.set('frame', new File(['frame'], 'frame.png', { type: 'image/png' }));
   return new Request(`${origin}/api/generate-preview`, { method: 'POST', headers: { origin }, body: form });
@@ -192,5 +194,32 @@ await check('lengthless request bodies have a streaming size cap', async () => {
 });
 await check('invalid model parameters are rejected locally', async () => {
   assert.equal((await create.POST(request(crypto.randomUUID(), { resolution: '64k' }))).status, 400);
+});
+await check('saved generation settings remain available after a fresh list request', async () => {
+  const rows = await (await list.GET()).json();
+  assert.deepEqual(rows.find((task) => task.id === first).recipe, { artworkId: 'artwork-test', frameId: 'frame-test', colorId: 'walnut', intent: 'composition', instruction: '' });
+  const row = await taskStore.getTask('owner-1', first);
+  assert.equal(taskStore.publicTask({ ...row, recipe_json: null }).recipe, null);
+  assert.equal(parseRecipe('{invalid'), null);
+  assert.equal(parseRecipe(JSON.stringify({ artworkId: 'a', frameId: 'f', colorId: 'walnut', intent: 'invalid', instruction: '' })), null);
+});
+await check('unsupported output intents are rejected without submitting or uploading', async () => {
+  const before = submissions;
+  assert.equal((await create.POST(request(crypto.randomUUID(), { intent: 'batch-100' }))).status, 400);
+  assert.equal(submissions, before);
+});
+await check('catalog and interior briefs do not contradict their background choice', async () => {
+  const input = { frameName: '框架', frameProfile: 'classic', colorId: 'walnut', colorName: '胡桃木色', colorHex: '#402b24', instruction: '画芯完整' };
+  for (const hasFrame of [true, false]) {
+    const catalog = compositionPrompt({ ...input, hasFrame, intent: 'catalog' });
+    const interior = compositionPrompt({ ...input, hasFrame, intent: 'interior' });
+    assert.ok(catalog.includes('纯白棚拍背景'));
+    assert.ok(interior.includes('玄关或客厅空间'));
+    for (const prompt of [catalog, interior]) {
+      assert.ok(!prompt.includes('保留原有透视、光影和背景'));
+      assert.ok(!prompt.includes('在浅中性电商背景上'));
+      assert.ok(prompt.includes('画芯完整'));
+    }
+  }
 });
 sqlite.close();

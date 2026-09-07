@@ -6,12 +6,16 @@ This update preserves the existing Site, artwork/frame/color libraries and stora
 
 1. Configure `RUNNINGHUB_API_KEY` as a secret in this Site's production environment settings. Do not put it in client code, source control, prompts or chat. The existing `OPENAI_API_KEY` is untouched and no longer used by the new generation route.
 2. This adapter uses `https://www.runninghub.ai`. Confirm the key and account have access to this international-site model. The CN model page directs visitors to `.ai`; that notice alone does not verify CN-key compatibility.
-3. Publish the saved update when ready. Saving code alone does not change the live Site. Additive migrations create `generation_tasks` and add nullable `products.sample_asset_id`; existing tables and assets are retained.
+3. Publish the saved update when ready. Saving code alone does not change the live Site. Additive migrations create `generation_tasks`, add nullable `products.sample_asset_id`, and add nullable `generation_tasks.recipe_json`; existing tables and assets are retained.
 4. Check the configuration indicator, then explicitly submit one sample. This spends RunningHub API credit; key presence is not a connection test. No price is hard-coded.
 
 ## Supported first slice
 
 - Frame image (optional) plus artwork, selected wood color, optional extra instructions.
+- Task presets for composition confirmation, catalog white-background output, and interior scenes use the same existing image endpoint. Each intent changes the server prompt's background rules. No extra API, speculative model options or hard-coded prices are introduced.
+- The working surface groups purpose, artwork/frame/color and editable requirements together, next to results and recent history. Preset text can be edited or undone. Ctrl/Cmd+Enter uses the same guarded submit handler.
+- New tasks retain their artwork/frame/color IDs, intent and custom instruction in an owner-scoped recipe. Reusing a recipe fills the editor without submitting. Missing/hidden original inputs must be restored or reselected. Legacy tasks remain viewable and downloadable but have no fabricated recipe.
+- History offers name/instruction search, status filters and comparison of two completed outputs. These controls do not invoke the provider.
 - GPT Image 2 official-stable image-to-image, fixed **16:9 / 2k / medium**, one task per click. These are the verified example values; other endpoint enums were not reliably retrievable, so they are not exposed as supported controls.
 - Upload, submit, poll, persist the actual image in existing R2 storage, and store owner-scoped metadata in D1.
 - Task history survives reload. Browser polling resumes on open/focus; the model runs remotely while the page is closed, but local result archival resumes only when the Site is opened and polled. This is not a background worker/cron pipeline.

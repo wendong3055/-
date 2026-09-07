@@ -1,0 +1,1 @@
+ALTER TABLE `generation_tasks` ADD `recipe_json` text;

@@ -54,6 +54,7 @@ export const generationTasks = sqliteTable('generation_tasks', {
   status: text('status').notNull().default('uploading'),
   model: text('model').notNull(),
   prompt: text('prompt').notNull(),
+  recipeJson: text('recipe_json'),
   aspectRatio: text('aspect_ratio').notNull(),
   resolution: text('resolution').notNull(),
   colorName: text('color_name').notNull(),

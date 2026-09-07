@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { FormLimitError, limitedFormData } from '../../../lib/limited-form';
 import { generationOwner } from '../../../lib/generation-auth';
 import { compositionPrompt } from '../../../lib/composition-prompt';
+import { isStudioIntent, parseRecipe } from '../../../lib/studio-brief';
 import { apiKeyConfigured, aspectRatios, providerError, resolutions, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
 
@@ -31,10 +32,13 @@ export async function POST(request: Request) {
     const artworkName = field('artworkName', '画芯');
     const frameName = field('frameName', '屏风框架');
     const colorName = field('colorName', '胡桃木色');
-    const prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction') });
+    const intent = field('intent', 'composition');
+    if (!isStudioIntent(intent)) return NextResponse.json({ error: '请选择有效的出图用途。' }, { status: 400 });
+    const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction') }));
+    const prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     await listTasks(owner);
     const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${artworkName} · ${frameName} · ${colorName}`,
-      status: 'uploading', model: RUNNINGHUB_MODEL, prompt, aspect_ratio: ratio, resolution, color_name: colorName,
+      status: 'uploading', model: RUNNINGHUB_MODEL, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
       asset_id: null, error: '', last_polled_at: 0, created_at: Date.now(), updated_at: Date.now() };
     if (!await insertTask(row)) {
       const existing = await getTask(owner, id);

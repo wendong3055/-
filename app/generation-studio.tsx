@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
+import { studioIntents } from '../lib/studio-brief';
 
 type Config = { configured: boolean; model: string; region: string };
 
@@ -123,22 +124,36 @@ export function RunningHubSettings({ config, onRefresh }: { config: Config | nul
   </details>;
 }
 
-export function GenerationHistory({ tasks, loading, error, paused, onRefresh, onResolve, delivery = false }: {
+export function GenerationHistory({ tasks, loading, error, paused, onRefresh, onResolve, onReuse, delivery = false }: {
   tasks: GenerationTask[]; loading: boolean; error: string; paused: boolean; onRefresh: () => void;
-  onResolve: (task: GenerationTask) => void; delivery?: boolean;
+  onResolve: (task: GenerationTask) => void; onReuse: (task: GenerationTask) => void; delivery?: boolean;
 }) {
-  const rows = delivery ? tasks.filter((task) => task.status === 'succeeded') : tasks;
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const rows = tasks.filter((task) => {
+    if (delivery && task.status !== 'succeeded') return false;
+    if (!delivery && filter === 'active' && !isActiveGeneration(task.status)) return false;
+    if (!delivery && filter === 'succeeded' && task.status !== 'succeeded') return false;
+    if (!delivery && filter === 'attention' && !['failed', 'unknown'].includes(task.status)) return false;
+    return `${task.name} ${task.recipe?.instruction || ''}`.toLowerCase().includes(query.trim().toLowerCase());
+  });
+  const compared = tasks.filter((task) => compareIds.includes(task.id) && task.url);
   return <section className="generation-history">
     <header><div><p className="eyebrow">{delivery ? 'GENERATED ASSETS' : 'RUNNINGHUB TASKS'}</p><h2>{delivery ? '生成结果' : '生成任务'}</h2><p>{delivery ? '已保存的组合效果图，可查看或下载。' : '显示实际提交记录；离开页面不会取消平台任务。'}</p></div><button className="ghost-button" onClick={onRefresh}>{paused ? '恢复查询' : '刷新记录'}</button></header>
     {(error || paused) && <p className="generation-warning" role="status">{error || '已暂停自动查询。点击「恢复查询」继续，不会重新扣费。'}</p>}
     <div className="generation-stats"><span>全部 <b>{tasks.length}</b></span><span>进行中 <b>{tasks.filter((task) => isActiveGeneration(task.status)).length}</b></span><span>已完成 <b>{tasks.filter((task) => task.status === 'succeeded').length}</b></span></div>
-    {loading ? <p className="generation-empty">正在读取任务记录…</p> : rows.length === 0 ? <div className="generation-empty"><strong>{delivery ? '还没有生成结果' : '还没有提交任务'}</strong><p>选好图案、框架和颜色后，在新品页生成第一张组合效果图。</p></div> :
+    <div className="history-toolbar"><label className="history-search"><span>查找记录</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索图案、框架或制作要求" /></label>{!delivery && <div className="history-filters" aria-label="按任务状态筛选">{[['all', '全部'], ['active', '进行中'], ['succeeded', '已完成'], ['attention', '待处理']].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>}</div>
+    {compared.length > 0 && <section className="result-comparison" aria-label="效果图对比"><header><strong>效果对比 · {compared.length}/2</strong><button onClick={() => setCompareIds([])}>结束对比</button></header><div>{compared.map((task) => <figure key={task.id}><a href={task.url!} target="_blank" rel="noreferrer"><img src={task.url!} alt={task.name} /></a><figcaption><strong>{task.name}</strong><span>{task.recipe ? studioIntents.find((item) => item.id === task.recipe?.intent)?.name : '组合效果图'}</span></figcaption></figure>)}{compared.length === 1 && <p>再勾选一张已完成的图片，即可并排比较。</p>}</div></section>}
+    {loading ? <p className="generation-empty">正在读取任务记录…</p> : rows.length === 0 ? <div className="generation-empty"><strong>{query || (!delivery && filter !== 'all') ? '没有符合条件的记录' : delivery ? '还没有生成结果' : '还没有提交任务'}</strong><p>{query || (!delivery && filter !== 'all') ? '试试其他关键词或任务状态。' : '选好图案、框架和颜色后，在新品页生成第一张组合效果图。'}</p></div> :
       <div className="generation-cards">{rows.map((task) => <article className="generation-card" key={task.id}>
         <div className="generation-card-image">{task.url ? <a href={task.url} target="_blank" rel="noreferrer"><img src={task.url} alt={task.name} loading="lazy" /></a> : <span className={isActiveGeneration(task.status) ? 'task-waiting' : ''}>{generationLabels[task.status]}</span>}<span className={`task-badge task-${task.status}`}>{generationLabels[task.status]}</span></div>
-        <div className="generation-card-info"><h3>{task.name}</h3><p>{task.model} · {task.aspectRatio === 'auto' ? '自动画幅' : task.aspectRatio} · {task.resolution.toUpperCase()}</p><time>{new Date(task.createdAt).toLocaleString('zh-CN')}</time>
+        <div className="generation-card-info"><h3>{task.name}</h3><p>{task.recipe ? studioIntents.find((item) => item.id === task.recipe?.intent)?.name : '组合效果图'} · {task.aspectRatio === 'auto' ? '自动画幅' : task.aspectRatio} · {task.resolution.toUpperCase()}</p><time>{new Date(task.createdAt).toLocaleString('zh-CN')}</time>
           {task.error && <p className="generation-error">{task.error}</p>}
+          {task.recipe && <details className="saved-brief"><summary>制作要求</summary><p>{task.recipe.instruction || '使用默认制作要求'}</p></details>}
           {task.remoteTaskId && <details><summary>平台任务编号</summary><code>{task.remoteTaskId}</code></details>}
           <footer>{task.url ? <><a href={task.url} target="_blank" rel="noreferrer">查看原图 ↗</a><a href={`${task.url}?download=1`} download>下载图片 ↓</a></> : task.status === 'unknown' ? <button onClick={() => onResolve(task)}>已核实未创建任务，解除锁定</button> : <span>{task.status === 'failed' ? '可返回新品页调整后重新提交' : '状态自动更新，无需重复提交'}</span>}</footer>
+          {(task.recipe || task.url) && <div className="history-reuse-row">{task.recipe && <button disabled={isActiveGeneration(task.status) || task.status === 'unknown'} onClick={() => onReuse(task)}>使用这组设置</button>}{task.url && <label><input type="checkbox" checked={compareIds.includes(task.id)} disabled={compareIds.length === 2 && !compareIds.includes(task.id)} onChange={(event) => setCompareIds((ids) => event.target.checked ? [...ids.filter((id) => id !== task.id), task.id].slice(0, 2) : ids.filter((id) => id !== task.id))} />加入对比</label>}</div>}
         </div>
       </article>)}</div>}
   </section>;

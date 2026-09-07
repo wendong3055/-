@@ -1,3 +1,5 @@
+import type { GenerationRecipe } from './studio-brief';
+
 export type GenerationStatus = 'uploading' | 'submitting' | 'queued' | 'running' | 'saving' | 'succeeded' | 'failed' | 'unknown';
 
 export type GenerationTask = {
@@ -12,6 +14,7 @@ export type GenerationTask = {
   url: string | null;
   assetId: string | null;
   remoteTaskId: string | null;
+  recipe?: GenerationRecipe | null;
 };
 
 export const generationLabels: Record<GenerationStatus, string> = {
