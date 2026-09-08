@@ -94,6 +94,7 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const generations = useGenerations();
+  const [generationMethod, setGenerationMethod] = useState<'api' | 'account'>('api');
   const [previewTaskId, setPreviewTaskId] = useState('');
   const aspectRatio = '16:9';
   const resolution = '2k';
@@ -273,6 +274,7 @@ export default function Home() {
   }
 
   async function generatePreview() {
+    if (generationMethod !== 'api') return;
     if (!selected || !frame || previewGenerating || submitGuard.current || generations.busy || !generations.config?.configured) return;
     submitGuard.current = true;
     setViewedTaskId('');
@@ -573,10 +575,18 @@ export default function Home() {
               <div className="brief-tools"><button disabled={previewGenerating} onClick={() => changeInstruction(currentIntent.instruction)}>填入用途示例</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
+              <fieldset className="generation-methods">
+                <legend>生图方式</legend>
+                <div className="generation-method-options">
+                  <label><input type="radio" name="generation-method" value="api" checked={generationMethod === 'api'} disabled={previewGenerating || generations.busy} onChange={() => setGenerationMethod('api')} /><span><strong>API 密钥</strong><small>{generations.config?.configured ? '已配置 · 当前可选' : '需要配置密钥'}</small></span></label>
+                  <label><input type="radio" name="generation-method" value="account" checked={generationMethod === 'account'} disabled={previewGenerating || generations.busy} onChange={() => setGenerationMethod('account')} /><span><strong>RunningHub 登录</strong><small>授权接入待完成</small></span></label>
+                </div>
+                {generationMethod === 'account' ? <div className="generation-method-note" role="status"><p>登录生图暂未开通，正在等待确认官方授权接入方式。</p><button type="button" disabled>使用 RunningHub 登录 · 暂不可用</button><p>你可以切回 API 密钥继续生图。</p></div> : <p className="generation-method-note">使用已配置的密钥，无需每次填写。费用计入该密钥所属账户。</p>}
+              </fieldset>
               <details className="output-settings"><summary><span>单次 1 张 · 16:9 · 2K</span><span>查看生成设置</span></summary><RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} /><p>当前使用 GPT Image 2 标准质量。每次提交生成一张图片。</p></details>
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
               <p className="generation-privacy">参考图和制作要求将发送至 RunningHub，按账户的 API 规则计费。</p>
-              <button className="combine-button" disabled={previewGenerating || generations.busy || !generations.config?.configured} onClick={generatePreview}>{previewGenerating ? '任务处理中…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '配置 RunningHub 后可生成' : previewReady ? '按当前要求再生成一张' : `生成${currentIntent.name}`} <span>→</span></button>
+              <button className="combine-button" disabled={generationMethod !== 'api' || previewGenerating || generations.busy || !generations.config?.configured} onClick={generatePreview}>{generationMethod === 'account' ? '登录生图暂未开通' : previewGenerating ? '任务处理中…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '配置 RunningHub 后可生成' : previewReady ? '按当前要求再生成一张' : `生成${currentIntent.name}`} <span>→</span></button>
               <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 结果保存在右侧</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
             </section>
