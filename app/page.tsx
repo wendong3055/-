@@ -644,7 +644,7 @@ export default function Home() {
               </div>
               <p>{instruction || '使用默认制作要求'}</p>
             </details>
-            {!importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '满意了，将正在查看的这张保存为新品'} <span>→</span></button><p className="approval-note">按这张效果图当时的搭配保存，其他试稿继续保留。</p></>}
+            {!importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '将 B 窗口的效果图保存为新品'} <span>→</span></button><p className="approval-note">按 B 窗口图片当时的搭配保存，A 窗口用于对比，其他试稿继续保留。</p></>}
           </aside>
         </ResizableWorkspace>
 
