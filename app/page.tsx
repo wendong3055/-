@@ -11,10 +11,10 @@ import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '..
 import { referenceUpload } from '../lib/reference-upload';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
-import { frameSources, groupFrameOptions, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
+import { frameSources, frameStyle, groupFrameOptions, validFrameStyleName, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
 import { syncHiddenOptions } from '../lib/hidden-options-client';
 
-type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
+type FrameOption = { id: string; name: string; styleKey?: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
 
 function frameVariantCount(tags: string | undefined) {
@@ -201,8 +201,8 @@ export default function Home() {
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
       const frameUploads = rows.filter((row: FrameAsset) => row.category === '框架模板').map((row: FrameAsset) => {
-        const { sizes, fileCount } = frameSources(rows, row);
-        return { id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: sizes.length ? `${sizes.length} 种已识别规格 · ${fileCount} 张原图` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: fileCount, sizes };
+        const { sizes, fileCount, styleKey, unknown, missing } = frameSources(rows, row);
+        return { id: `uploaded-frame-${row.id}`, name: row.name, styleKey, file: row.url, tone: sizes.length ? `${sizes.length} 种已识别规格 · ${fileCount} 张原图${unknown || missing ? ' · 尚有规格待确认' : ''}` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: fileCount, sizes };
       });
       const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
       setUploadedFrames(frameUploads);
@@ -458,7 +458,7 @@ export default function Home() {
     window.setTimeout(() => setNotice(''), 3600);
   }
 
-  async function uploadFrame(fileList: FileList | null) {
+  async function uploadFrame(fileList: FileList | null, requestedStyleName = '') {
     if (!fileList || frameUploading) return;
     const images = Array.from(fileList).filter((file) => file.type === 'image/png' || file.type === 'image/jpeg' || /\.(png|jpe?g)$/i.test(file.name));
     if (images.length === 0) {
@@ -467,9 +467,19 @@ export default function Home() {
       return;
     }
 
+    const folderName = requestedStyleName.trim() || frameFolderName(images);
+    if (!validFrameStyleName(folderName)) {
+      setNotice('请先填写明确的款式名称，再选文件夹。不能只用“成品PNG / images / sku”，也不要包含分号、冒号或路径符号。');
+      return;
+    }
+    const styleKey = frameStyle(folderName);
+    const matchingMembers = [...uploadedFrames, ...cabinetFrameStyles, ...frames].filter((item) => (item.styleKey || frameStyle(item.name)) === styleKey);
+    if ([`style:${styleKey}`, ...matchingMembers.flatMap((item) => [item.id, ...(item.memberIds || [])])].some((id) => hiddenFrameIds.includes(id))) {
+      setNotice('这个款式已被移除。请先主动恢复，或为不同的新款式填写另一个名称；本次未上传。');
+      return;
+    }
     setFrameUploading(true);
     setFrameUploadProgress(`准备上传，共 ${images.length} 张`);
-    const folderName = frameFolderName(images);
     const representative = representativeFrame(images);
     const uploadOne = async (file: File, category: '框架模板' | '框架规格原图') => {
       const form = new FormData();
@@ -506,7 +516,7 @@ export default function Home() {
     const savedRows = await fetch('/api/library').then((response) => response.ok ? response.json() : []).catch(() => []) as FrameAsset[];
     const representativeRow = savedRows.find((item) => item.id === row.id);
     const sourceInfo = representativeRow ? frameSources(savedRows, representativeRow) : null;
-    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: folderName, file: row.url as string, tone: sourceInfo?.sizes.length ? `${sourceInfo.sizes.length} 种已识别规格` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: images.length - failed, sizes: sourceInfo?.sizes };
+    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: folderName, styleKey, file: row.url as string, tone: sourceInfo?.sizes.length ? `${sourceInfo.sizes.length} 种已识别规格${sourceInfo.unknown || sourceInfo.missing ? ' · 尚有规格待确认' : ''}` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: images.length - failed, sizes: sourceInfo?.sizes };
     setUploadedFrames((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
     selectFrame(uploaded.id);
     setFrameUploadProgress('');
@@ -690,8 +700,9 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameUploadProgress, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (files: FileList | null) => void; frameUploading: boolean; frameUploadProgress: string; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameUploadProgress, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (files: FileList | null, styleName?: string) => void; frameUploading: boolean; frameUploadProgress: string; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
+  const [newFrameStyleName, setNewFrameStyleName] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
     const searchMatch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(gallerySearch.trim());
@@ -726,6 +737,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
           <div className="style-choice-bar"><span>选择款式后直接返回新品页与图案组合，尺寸变体在生成阶段调用。</span><span className="style-bar-actions">{hiddenFrameCount > 0 && <button className="restore-button" onClick={onRestoreFrames}>恢复已移除</button>}<button onClick={onCreate}>使用已选款式创建新品 →</button></span></div>
         </section>
         <div className="frame-subheading"><div><p className="eyebrow">OTHER FRAME SERIES</p><h3>其他屏风框架</h3></div><span>也可继续选择已有的滑轮屏风框型</span></div>
+        <label className="frame-style-name">新框架款式名称<input value={newFrameStyleName} onChange={(event) => setNewFrameStyleName(event.target.value)} maxLength={80} placeholder="如：飞鹤六连屏（普通款式文件夹可留空）" disabled={frameUploading} /><small>文件夹叫“成品PNG / images / sku”时必填；每次只上传同一个款式。</small></label>
         <div className="frame-library-grid">
           {screenFrames.map((item, index) => <div className="option-card-wrap" key={item.id}>
             <button className={frameId === item.id ? 'frame-library-card selected' : 'frame-library-card'} onClick={() => onSelectFrame(item.id)}>
@@ -735,7 +747,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
             </button>
             <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
           </div>)}
-          <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传文件夹' : '选择框架文件夹'}</strong><small>{frameUploading ? frameUploadProgress : '整套 JPG / PNG 一次上传，只生成一个代表框架'}</small><input type="file" accept="image/png,image/jpeg" multiple disabled={frameUploading} {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { onUploadFrame(event.target.files); event.currentTarget.value = ''; }} /></label>
+          <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传文件夹' : '选择框架文件夹'}</strong><small>{frameUploading ? frameUploadProgress : '整套 JPG / PNG 一次上传，只生成一个代表框架'}</small><input type="file" accept="image/png,image/jpeg" multiple disabled={frameUploading} {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { onUploadFrame(event.target.files, newFrameStyleName); event.currentTarget.value = ''; }} /></label>
         </div>
       </>}
       {view === 'colors' && <>

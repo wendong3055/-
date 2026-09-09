@@ -11,13 +11,19 @@ export function frameStyle(name: string) {
   const normalized = name.replace(/^\d{2}_/, '').trim();
   return aliases[normalized] || normalized;
 }
-function assetStyle(row: FrameAsset) {
+export function assetStyle(row: FrameAsset) {
   return frameStyle(row.tags?.match(/(?:款式文件夹|所属款式):([^;]+)/)?.[1] || row.name.split(/[\\/]/)[0]);
+}
+export function isGenericFrameFolder(name: string) {
+  return /^(?:成品(?:png|图)?|图片|框架|images?|sku|png|jpe?g|output|分割图)$/i.test(name.trim());
+}
+export function validFrameStyleName(name: string) {
+  return !!name.trim() && name.length <= 80 && !/[;:\/\\\r\n]/.test(name) && !isGenericFrameFolder(name);
 }
 export function frameSizeFromFilename(style: string, name: string): Omit<FrameSize, 'sourceIds' | 'sourceUrls'> | null {
   let file = name.split(/[\\/]/).at(-1)!.replace(/\.[^.]+$/, '').replace(/^SKU[_-]\d+[_-]/i, '');
   let parts: number[] = [], height = 0, depth: number | undefined, panels: number | undefined;
-  const explicit = file.match(/(\d+(?:\.\d+)?(?:加\d+(?:\.\d+)?)*)宽[_-]?(\d+(?:\.\d+)?)高/);
+  const explicit = file.match(/^(\d+(?:\.\d+)?(?:加\d+(?:\.\d+)?)*)宽?[_-](\d+(?:\.\d+)?)高(?:_|$)/);
   if (explicit) { parts = explicit[1].split('加').map(Number); height = Number(explicit[2]); }
   else if (style === 'large-screen') {
     const pair = file.match(/(?:白|胡桃)?(180|190|200|210)-(60|70|80|90|100)(?:_|$)/);
@@ -33,7 +39,7 @@ export function frameSizeFromFilename(style: string, name: string): Omit<FrameSi
     const match = file.match(/(40|50|60)(?:[x×]([2-6]))?-(180|190|200)(?:_|$)/i);
     if (match) { panels = Number(match[2] || 1); parts = Array.from({ length: panels }, () => Number(match[1])); height = Number(match[3]); if (panels === 1) depth = 29; }
   } else if (style === 'fubao-ankang' || style === 'qingyun') {
-    const match = file.match(/(\d+(?:\+\d+)*)-(200|220|230)(?:_|$)/);
+    const match = file.match(/^(?:原木|红木|黄花梨|胡桃木?|灰|白)?(\d+(?:\+\d+)*)-(200|220|230)(?:_|$)/);
     if (match) { parts = match[1].split('+').map(Number); height = Number(match[2]); depth = 30; }
   }
   if (!height || !parts.length || parts.some((v) => v < 10 || v > 300)) return null;
@@ -42,19 +48,27 @@ export function frameSizeFromFilename(style: string, name: string): Omit<FrameSi
 export function frameSources(rows: FrameAsset[], representative: FrameAsset) {
   const style = assetStyle(representative);
   const sources = rows.filter((row) => row.category.startsWith('框架') && assetStyle(row) === style);
-  const sizes = new Map<string, FrameSize>(); let unknown = 0;
+  const sizes = new Map<string, FrameSize>(); let unknown = 0, ignored = 0;
   for (const row of sources) {
     const filename = row.objectKey || row.object_key || row.name;
-    const size = frameSizeFromFilename(style, row.name) || frameSizeFromFilename(style, filename);
+    let originalName = '';
+    try { originalName = decodeURIComponent(row.tags?.match(/原始文件名:([^;]+)/)?.[1] || ''); } catch { /* Older metadata may not contain an encoded original name. */ }
+    if (/(?:QA总览|联系表|contact[-_ ]?sheet)/i.test(originalName || row.name)) { ignored++; continue; }
+    const size = frameSizeFromFilename(style, originalName) || frameSizeFromFilename(style, row.name) || frameSizeFromFilename(style, filename);
     if (!size) { unknown++; continue; }
     const existing = sizes.get(size.key) || { ...size, sourceIds: [], sourceUrls: [] };
     existing.sourceIds.push(row.id); existing.sourceUrls.push(row.url || `/api/files/${row.id}`); sizes.set(size.key, existing);
   }
-  return { sizes: [...sizes.values()].sort((a, b) => a.heightCm - b.heightCm || a.widthCm - b.widthCm), fileCount: sources.length, unknown };
+  const expectedFiles = Math.max(0, ...sources.map((row) => Number(row.tags?.match(/规格数量:(\d+)/)?.[1] || 0)));
+  const missing = Math.max(0, expectedFiles - sources.length);
+  return { styleKey: style, sizes: [...sizes.values()].sort((a, b) => a.heightCm - b.heightCm || a.widthCm - b.widthCm), fileCount: sources.length, unknown, ignored, missing };
 }
-export function groupFrameOptions<T extends { id: string; name: string; sizes?: FrameSize[]; memberIds?: string[] }>(frames: T[], hidden: string[]) {
+export function frameSpecStatus(catalog: ReturnType<typeof frameSources> | null) {
+  return catalog?.sizes.length && !catalog.unknown && !catalog.missing ? 'waiting_for_production' : 'needs_spec_confirmation';
+}
+export function groupFrameOptions<T extends { id: string; name: string; styleKey?: string; sizes?: FrameSize[]; memberIds?: string[] }>(frames: T[], hidden: string[]) {
   const groups = new Map<string, T[]>();
-  for (const item of frames) { const key = frameStyle(item.name); groups.set(key, [...(groups.get(key) || []), item]); }
+  for (const item of frames) { const key = item.styleKey || frameStyle(item.name); groups.set(key, [...(groups.get(key) || []), item]); }
   return [...groups.entries()].flatMap(([style, members]) => {
     const memberIds = [`style:${style}`, ...members.flatMap((item) => [item.id, ...(item.memberIds || [])])];
     // Group before filtering so a removed upload cannot resurrect its built-in alias.

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '../../../db';
 import { products } from '../../../db/schema';
 import { generationOwner } from '../../../lib/generation-auth';
-import { frameSources, frameStyle, type FrameAsset } from '../../../lib/frame-catalog';
+import { assetStyle, frameSources, frameSpecStatus, frameStyle, type FrameAsset } from '../../../lib/frame-catalog';
 
 export async function GET() {
   const owner = await generationOwner();
@@ -28,8 +28,9 @@ export async function POST(request: Request) {
     const id = `product-${body.sampleAssetId}`;
     const now = Date.now();
     const { results: frameRows } = await env.DB.prepare("SELECT id, name, category, tags, object_key FROM assets WHERE owner_id = ? AND category IN ('框架模板','框架规格原图')").bind(owner).all<FrameAsset>();
-    const representative = frameRows.find((row) => `uploaded-frame-${row.id}` === body.frameId) || frameRows.find((row) => row.category === '框架模板' && frameStyle(row.name) === frameStyle(body.frameName!.split('·')[0]));
-    const sizes = representative ? frameSources(frameRows, representative).sizes : [];
+    const representative = frameRows.find((row) => `uploaded-frame-${row.id}` === body.frameId) || frameRows.find((row) => row.category === '框架模板' && assetStyle(row) === frameStyle(body.frameName!.split('·')[0]));
+    const catalog = representative ? frameSources(frameRows, representative) : null;
+    const sizes = catalog?.sizes || [];
     const sizeCount = sizes.length;
     const product = { id, name: `${body.artworkName}新品`, sampleAssetId: body.sampleAssetId, status: 'approved' };
     const statements = [
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
         .bind(id, owner, product.name, body.artworkId!, body.artworkName!, body.frameId!, body.frameName!, body.sampleAssetId!, now),
       ...[['main_images', 1], ['single_sizes', sizeCount], ['detail_page', 12]].map(([kind, count]) =>
         env.DB.prepare("INSERT INTO jobs (id, owner_id, product_id, kind, status, version, output_count, specs_json, created_at) VALUES (?, ?, ?, ?, ?, 'v1', ?, ?, ?) ON CONFLICT(id) DO NOTHING")
-          .bind(`${id}-${kind}`, owner, id, kind, kind === 'single_sizes' && !sizeCount ? 'needs_spec_confirmation' : 'waiting_for_production', count, kind === 'single_sizes' ? JSON.stringify(sizes) : '[]', now)),
+          .bind(`${id}-${kind}`, owner, id, kind, kind === 'single_sizes' ? frameSpecStatus(catalog) : 'waiting_for_production', count, kind === 'single_sizes' ? JSON.stringify({ version: 1, sizes, sourceFileCount: catalog?.fileCount || 0, unrecognizedSourceCount: catalog?.unknown || 0, missingSourceCount: catalog?.missing || 0, ignoredSourceCount: catalog?.ignored || 0 }) : '[]', now)),
     ];
     await env.DB.batch(statements);
     return NextResponse.json(product, { status: 201 });

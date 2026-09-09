@@ -40,7 +40,9 @@ export async function POST(request: Request) {
     ownerId: currentOwner,
     name,
     category: requestedCategory === '自动分类' ? classifyArtworkCategory(`${name} ${file.name}`) : requestedCategory,
-    tags: String(form.get('tags') || ''),
+    tags: requestedCategory.startsWith('框架')
+      ? `${String(form.get('tags') || '').split(';').filter((tag) => !tag.startsWith('原始文件名:')).join(';')};原始文件名:${encodeURIComponent(file.name)}`
+      : String(form.get('tags') || ''),
     tone: String(form.get('tone') || ''),
     mimeType: file.type,
     objectKey,
