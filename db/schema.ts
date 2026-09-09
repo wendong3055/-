@@ -35,6 +35,7 @@ export const jobs = sqliteTable('jobs', {
   status: text('status').notNull().default('waiting_for_sample'),
   version: text('version').notNull().default('v1'),
   outputCount: integer('output_count').notNull().default(0),
+  specsJson: text('specs_json').notNull().default('[]'),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('jobs_product_idx').on(table.productId)]);
 
@@ -51,6 +52,14 @@ export const runningHubCredentials = sqliteTable('runninghub_credentials', {
   encryptedKey: text('encrypted_key').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+export const memberAppPreferences = sqliteTable('member_app_preferences', {
+  id: text('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  modelId: text('model_id').notNull(),
+  setupJson: text('setup_json').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, (table) => [uniqueIndex('member_app_preferences_owner_model_idx').on(table.ownerId, table.modelId)]);
 
 export const generationTasks = sqliteTable('generation_tasks', {
   id: text('id').primaryKey(),

@@ -27,6 +27,7 @@ function taskLabel(task: GenerationTask) {
 
 function ImageViewport({ src, label, zoom, fit }: { src: string; label: string; zoom: number; fit: 'contain' | 'cover' }) {
   const viewport = useRef<HTMLDivElement>(null);
+  const image = useRef<HTMLImageElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [bounds, setBounds] = useState({ width: 1, height: 1 });
   const [natural, setNatural] = useState({ width: 0, height: 0 });
@@ -38,7 +39,14 @@ function ImageViewport({ src, label, zoom, fit }: { src: string; label: string; 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => { setFailed(false); setNatural({ width: 0, height: 0 }); }, [src]);
+  // The parent keys this viewport by src. Never clear a cached image's onLoad
+  // result in a passive effect: onLoad can run before this effect during mount.
+  useEffect(() => {
+    const element = image.current;
+    if (element?.complete && element.naturalWidth > 0) {
+      setNatural({ width: element.naturalWidth, height: element.naturalHeight });
+    }
+  }, [src]);
   const scale = natural.width ? (fit === 'cover' ? Math.max(bounds.width / natural.width, bounds.height / natural.height) : Math.min(bounds.width / natural.width, bounds.height / natural.height)) * zoom / 100 : 1;
   const width = Math.max(1, natural.width * scale);
   const height = Math.max(1, natural.height * scale);
@@ -55,7 +63,7 @@ function ImageViewport({ src, label, zoom, fit }: { src: string; label: string; 
       event.currentTarget.scrollTop = drag.current.top - (event.clientY - drag.current.y);
     }}
     onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}>
-    {failed ? <div className="preview-image-error">图片暂时无法加载，请刷新或重新选择素材。</div> : <div className="trial-image-plane" style={{ width: Math.max(bounds.width, width), height: Math.max(bounds.height, height) }}><img key={src} src={src} alt={label} draggable={false} onLoad={(event) => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)} style={{ width: natural.width ? width : undefined, height: natural.height ? height : undefined, visibility: natural.width ? 'visible' : 'hidden' }} /></div>}
+    {failed ? <div className="preview-image-error">图片暂时无法加载，请刷新或重新选择素材。</div> : <div className="trial-image-plane" style={{ width: Math.max(bounds.width, width), height: Math.max(bounds.height, height) }}><img ref={image} key={src} src={src} alt={label} draggable={false} onLoad={(event) => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)} style={{ width: natural.width ? width : '100%', height: natural.height ? height : '100%', objectFit: fit }} /></div>}
   </div>;
 }
 

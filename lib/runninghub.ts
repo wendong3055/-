@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { defaultImageModel, getImageModel, validModelSettings } from './generation-models';
 import { chinaKey } from './runninghub-credentials';
 import { parseAppSpec, type AppSpec } from './runninghub-app-schema';
+import { readMemberTask } from './runninghub-member-query';
 
 // https://www.runninghub.ai/runninghub-api-doc-en/api-448969336
 // Model V2 and member AI App envelopes are normalized by separate adapters.
@@ -96,19 +97,31 @@ export async function queryGeneration(taskId: string, connection?: RunningHubCon
 }
 export async function loadMemberApp(appId: string, connection: RunningHubConnection): Promise<AppSpec> {
   if (connection.origin !== 'https://www.runninghub.cn' || !/^\d{10,25}$/.test(appId)) throw new RunningHubError('会员应用配置无效。');
+  let stage = '连接', httpStatus = 0, providerCode = '';
   try {
     // Official apiCallDemo contract requires query authentication. Keep this URL
     // server-only, fixed-host, and out of logs and error responses.
     const params = new URLSearchParams({ apiKey: connection.key, webappId: appId });
     const response = await fetch(`${connection.origin}/api/webapp/apiCallDemo?${params}`, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(25000), headers: { authorization: `Bearer ${connection.key}` } });
-    if (!response.ok || !response.body) throw new Error('应用参数读取失败，请检查会员 Key 与应用权限。');
+    stage = 'HTTP'; httpStatus = response.status;
+    if (!response.ok || !response.body) throw new RunningHubError(`参数接口返回 HTTP ${response.status}，尚未发起生图。请稍后重试或检查后台连接。`);
+    stage = '读取响应';
     const reader = response.body.getReader(); const decoder = new TextDecoder(); let text = '', size = 0;
     try { while (true) { const { value, done } = await reader.read(); if (done) break; size += value.byteLength; if (size > 1024 * 1024) throw new Error('应用参数超过读取上限。'); text += decoder.decode(value, { stream: true }); } text += decoder.decode(); }
     finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
+    stage = 'JSON';
     const payload = JSON.parse(text) as { code?: number; data?: unknown };
-    if (payload.code !== 0) throw new Error('会员 Key 暂不能读取此应用，请检查 Key 类型、应用权限或换一个应用。');
+    stage = '平台返回'; providerCode = /^[\w-]{1,50}$/.test(String(payload.code)) ? String(payload.code) : 'unknown';
+    if (payload.code !== 0) throw new RunningHubError(`RunningHub 未允许读取应用参数（代码 ${providerCode}）。请核对会员接口权限或稍后重试；尚未发起生图。`);
+    stage = '参数解析';
     return await parseAppSpec(appId, payload.data);
-  } catch { throw new RunningHubError('应用参数暂时无法读取，请检查会员 Key、应用权限，或稍后重新读取。'); }
+  } catch (error) {
+    // No upstream body, URL, credential, signed link or raw fetch error is logged.
+    console.warn(JSON.stringify({ event: 'runninghub-member-metadata', stage, httpStatus, providerCode, appId }));
+    if (error instanceof RunningHubError) throw error;
+    const detail = stage === '参数解析' && error instanceof Error ? error.message : `${stage}阶段未完成，请稍后重试。`;
+    throw new RunningHubError(`应用参数读取失败：${detail}（阶段：${stage}）尚未发起生图。`);
+  }
 }
 export async function submitMemberApp(appId: string, nodeInfoList: Array<{ nodeId: string; fieldName: string; fieldValue: string }>, connection: RunningHubConnection): Promise<ProviderResult> {
   if (connection.origin !== 'https://www.runninghub.cn') throw new RunningHubError('会员应用必须使用中国站接口。');
@@ -117,15 +130,9 @@ export async function submitMemberApp(appId: string, nodeInfoList: Array<{ nodeI
   return { taskId: payload.data.taskId, status: payload.data.taskStatus === 'FAILED' ? 'FAILED' : 'QUEUED' };
 }
 export async function queryMemberApp(taskId: string, connection: RunningHubConnection): Promise<ProviderResult> {
-  const body = { taskId, apiKey: connection.key };
-  const status = await call('/task/openapi/status', body, false, connection) as { code?: number; msg?: string; data?: string };
-  if (status.code !== 0) throw new RunningHubError(friendlyError(status.code, status.msg, 200));
-  if (status.data === 'FAILED') return { taskId, status: 'FAILED', errorCode: '1015' };
-  if (status.data === 'QUEUED' || status.data === 'RUNNING') return { taskId, status: status.data };
-  if (status.data !== 'SUCCESS') throw new RunningHubError('应用状态暂时无法识别，任务已保留，请恢复查询。');
-  const outputs = await call('/task/openapi/outputs', body, false, connection) as { code?: number; msg?: string; data?: Array<{ fileUrl?: string; fileType?: string }> };
-  if (outputs.code !== 0 || !Array.isArray(outputs.data)) throw new RunningHubError('应用已完成，结果暂时无法读取，请恢复查询，不要重新生成。');
-  return { taskId, status: 'SUCCESS', results: outputs.data.filter((item) => ['png','jpg','jpeg','webp','image'].includes((item.fileType || '').toLowerCase())).map((item) => ({ url: item.fileUrl, outputType: 'image' })) };
+  if (connection.origin !== 'https://www.runninghub.cn') throw new RunningHubError('会员应用必须使用中国站接口。');
+  try { return await readMemberTask(taskId, (path, body) => call(path, body, false, connection)); }
+  catch (error) { if (error instanceof RunningHubError) throw error; throw new RunningHubError('应用状态暂时无法识别，任务已保留，请恢复查询。'); }
 }
 export function providerError(payload: ProviderResult) { return friendlyError(payload.errorCode, payload.errorMessage, 200); }
 

@@ -19,14 +19,21 @@ globalThis.memberTestHooks = {
 let props = { modelId: 'member-app-a', configured: false, configRevision: 0, referenceCount: 2 };
 function render(changes = {}) { props = { ...props, ...changes }; let guard = 0; do { cursor = 0; dirty = false; current = useMemberApp(props); const pending = effects; effects = []; pending.forEach((fn) => fn()); assert.ok(++guard < 10, 'no hook loop'); } while (dirty); return current; }
 const requests = [], originalFetch = globalThis.fetch;
-globalThis.fetch = (url, init) => new Promise((resolve, reject) => requests.push({ url, init, resolve, reject }));
+const savedPreferences = new Map();
+globalThis.fetch = (url, init) => {
+  if (url.startsWith('/api/runninghub/preferences/')) {
+    if (init.method === 'POST') { savedPreferences.set(url, JSON.parse(init.body)); return Promise.resolve(Response.json({ saved: true })); }
+    return Promise.resolve(Response.json({ setup: savedPreferences.get(url) || null }));
+  }
+  return new Promise((resolve, reject) => requests.push({ url, init, resolve, reject }));
+};
 const spec = (appId) => ({ appId, name: appId, fingerprint: appId, fields: [
   { key: '1.image', nodeId: '1', fieldName: 'image', type: 'IMAGE', label: '框架', options: [], value: '' },
   { key: '2.image', nodeId: '2', fieldName: 'image', type: 'IMAGE', label: '图案', options: [], value: '' },
   { key: '3.prompt', nodeId: '3', fieldName: 'prompt', type: 'STRING', label: '要求', options: [], value: '' },
   { key: '4.resolution', nodeId: '4', fieldName: 'resolution', type: 'LIST', label: '清晰度', options: ['4k', '8k'], value: '4k' },
 ] });
-async function settle(request, appId, status = 200) { request.resolve(new Response(JSON.stringify(status === 200 ? spec(appId) : { error: '测试读取失败' }), { status })); await new Promise(setImmediate); return render(); }
+async function settle(request, appId, status = 200) { request.resolve(new Response(JSON.stringify(status === 200 ? spec(appId) : { error: '测试读取失败' }), { status })); await new Promise(setImmediate); await new Promise(setImmediate); return render(); }
 try {
   assert.equal(render().inputs, null); assert.equal(requests.length, 0);
   assert.equal(render({ configured: true, configRevision: 1 }).loading, true);
@@ -47,6 +54,11 @@ try {
   current.reload(); render(); assert.equal(requests.length, 5); await settle(requests[4], 'c'); assert.ok(current.inputs);
   render({ modelId: '' }); assert.equal(current.inputs, null); assert.equal(current.loading, false); assert.equal(requests.length, 5);
   render({ modelId: 'member-app-d' }); await settle(requests[5], 'wrong-app'); assert.equal(current.inputs, null); assert.ok(current.error.includes('不匹配'));
+  render({ modelId: 'member-app-a' }); await settle(requests[6], 'a'); assert.equal(current.inputs.setup.values['4.resolution'], '8k');
+  current.reload(); render(); await settle(requests[7], 'a'); assert.equal(current.inputs.setup.values['4.resolution'], '8k');
+  slots.forEach((slot) => slot.cleanup?.()); slots.length = 0;
+  render(); await settle(requests[8], 'a'); assert.equal(current.inputs.setup.values['4.resolution'], '8k');
+  assert.equal(current.review, '');
   for (const request of requests) { assert.ok(request.url.startsWith('/api/runninghub/apps/')); assert.ok(!request.init.method || request.init.method === 'GET'); }
   console.log('PASS: shared state survives navigation, output and reference selections stay aligned, old requests are aborted, changed Key reloads, failures/mismatches block ready state; no billable requests.');
 } finally { globalThis.fetch = originalFetch; delete globalThis.memberTestHooks; }

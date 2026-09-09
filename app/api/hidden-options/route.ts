@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     optionId,
     createdAt: new Date(),
   }))).onConflictDoNothing();
-  return NextResponse.json({ saved: ids.length });
+  return NextResponse.json({ saved: ids.length, ids });
 }
 
 export async function DELETE(request: Request) {

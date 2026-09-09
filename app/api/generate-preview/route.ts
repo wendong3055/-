@@ -5,6 +5,7 @@ import { compositionPrompt } from '../../../lib/composition-prompt';
 import { isStudioIntent, parseRecipe } from '../../../lib/studio-brief';
 import { runningHubConnection, loadMemberApp, submitMemberApp, providerError, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
 import { appOutputSetting, compileAppInputs, type AppSetup, type AppSpec } from '../../../lib/runninghub-app-schema';
+import { cleanAppSetup } from '../../../lib/app-setup-storage';
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
 
@@ -48,10 +49,12 @@ export async function POST(request: Request) {
       try {
         const rawSetup = String(form.get('appSetup') || '');
         if (rawSetup.length > 50000 || !rawSetup) throw new Error('请先读取并确认会员应用参数。');
-        appSetup = JSON.parse(rawSetup) as AppSetup;
+        appSetup = cleanAppSetup(JSON.parse(rawSetup));
+        if (!appSetup) throw new Error('应用参数格式不正确，请重新读取。');
         appSpec = await loadMemberApp(model.appId!, connection);
         compileAppInputs(appSpec, appSetup, refs.map((_, index) => `pending-${index}`), prompt);
         ratio = appOutputSetting(appSpec, appSetup, 'ratio'); resolution = appOutputSetting(appSpec, appSetup, 'resolution');
+        if (recipe) recipe.appSetup = appSetup;
       } catch (error) { return NextResponse.json({ error: error instanceof Error && !/JSON|Unexpected/i.test(error.message) ? error.message : '应用参数格式不正确，请重新读取。' }, { status: 400 }); }
     }
     await listTasks(owner);

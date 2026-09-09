@@ -1,6 +1,6 @@
 export type AppField = { key: string; nodeId: string; fieldName: string; type: string; label: string; options: string[]; value: string };
 export type AppSpec = { appId: string; name: string; fingerprint: string; fields: AppField[] };
-export type AppSetup = { fingerprint: string; promptKey: string; imageKeys: string[]; values: Record<string, string> };
+export type AppSetup = { fingerprint: string; promptKey: string; imageKeys: string[]; values: Record<string, string>; fieldTypes?: Record<string, string>; referenceKeys?: string[] };
 export function promptCandidates(spec: AppSpec) {
   return spec.fields.filter((f) => f.type === 'STRING' && !/negative|负面|system|系统/i.test(`${f.fieldName} ${f.label}`));
 }
@@ -8,7 +8,8 @@ export function initialAppSetup(spec: AppSpec, referenceCount: number): AppSetup
   const prompts = promptCandidates(spec);
   const preferred = prompts.filter((f) => /^(prompt|text|positive_prompt|positive)$/.test(f.fieldName));
   const prompt = preferred.length === 1 ? preferred[0] : prompts.length === 1 ? prompts[0] : undefined;
-  return { fingerprint: spec.fingerprint, promptKey: prompt?.key || '', imageKeys: spec.fields.filter((f) => f.type === 'IMAGE').slice(0, referenceCount).map((f) => f.key), values: Object.fromEntries(spec.fields.filter((f) => f.type !== 'IMAGE').map((f) => [f.key, /batch|num_images|image_count/i.test(f.fieldName) ? '1' : f.value])) };
+  const referenceKeys = spec.fields.filter((f) => f.type === 'IMAGE').slice(0, 2).map((f) => f.key);
+  return setupForReferences(spec, { fingerprint: spec.fingerprint, promptKey: prompt?.key || '', imageKeys: referenceKeys, referenceKeys, fieldTypes: Object.fromEntries(spec.fields.map((f) => [f.key, f.type])), values: Object.fromEntries(spec.fields.filter((f) => f.type !== 'IMAGE').map((f) => [f.key, /batch|num_images|image_count/i.test(f.fieldName) ? '1' : f.value])) }, referenceCount);
 }
 export async function parseAppSpec(appId: string, data: unknown): Promise<AppSpec> {
   const raw = data as { webappName?: unknown; nodeInfoList?: unknown } | null;
@@ -72,8 +73,9 @@ export function appOutputSetting(spec: AppSpec, setup: AppSetup, type: 'ratio' |
 
 // Upload order is [frame, artwork], or [artwork] when no frame image exists.
 export function setupForReferences(spec: AppSpec, setup: AppSetup, referenceCount: number): AppSetup {
-  if (setup.imageKeys.length === referenceCount) return setup;
-  const artworkKey = setup.imageKeys.at(-1) || '';
-  const imageKeys = referenceCount === 1 ? [artworkKey] : [spec.fields.find((field) => field.type === 'IMAGE' && field.key !== artworkKey)?.key || '', artworkKey];
-  return { ...setup, imageKeys };
+  const referenceKeys = setup.referenceKeys || setup.imageKeys;
+  const artworkKey = referenceKeys.at(-1) || '';
+  const frameKey = referenceKeys.length === 2 ? referenceKeys[0] : spec.fields.find((field) => field.type === 'IMAGE' && field.key !== artworkKey)?.key || '';
+  const imageKeys = referenceCount === 1 ? [artworkKey] : [frameKey, artworkKey];
+  return { ...setup, referenceKeys: [frameKey, artworkKey], imageKeys };
 }

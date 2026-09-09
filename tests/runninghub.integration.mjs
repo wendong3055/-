@@ -134,7 +134,11 @@ globalThis.fetch = async (url, options = {}) => {
     if (failSubmit) throw new Error('offline uncertain submission');
     return Response.json({ taskId: `provider-${submissions}`, status: 'QUEUED' });
   }
-  if (target.endsWith('/openapi/v2/query')) { assert.ok(!memberMode, 'member tasks must use the AI App query'); assert.equal(new URL(target).origin, expectedOrigin); assert.equal(options.headers.authorization, `Bearer ${expectedKey}`); return Response.json({ taskId: JSON.parse(options.body).taskId, status: providerStatus, results: providerStatus === 'SUCCESS' ? [{ outputType: 'image', url: outputUrl }] : [] }); }
+  if (target.endsWith('/openapi/v2/query')) {
+    assert.equal(new URL(target).origin, expectedOrigin); assert.equal(options.headers.authorization, `Bearer ${expectedKey}`);
+    if (memberMode) { memberQueries++; if (providerStatus === 'SUCCESS') { memberOutputs++; if (failOutputs) return Response.json({ errorCode: '500' }); } }
+    return Response.json({ taskId: JSON.parse(options.body).taskId, status: providerStatus, results: providerStatus === 'SUCCESS' ? [{ outputType: 'image', url: outputUrl }] : [] });
+  }
   if (target === outputUrl && target.startsWith('https://www.runninghub.ai/')) return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), { headers: { 'content-type': 'image/png' } });
   throw new Error(`Unexpected network attempt blocked: ${target}`);
 };
@@ -389,6 +393,7 @@ await check('every member app sends chosen inputs with uploaded filenames and ne
     assert.equal(response.status, 202);
     const task = await response.json();
     assert.equal(task.model, model.id); assert.equal(task.aspectRatio, '3:4'); assert.equal(task.resolution, '8k');
+    assert.equal(task.recipe.appSetup.values['20.resolution'], '8k');
     assert.equal(memberSubmitBody.webappId, model.appId);
     assert.ok(!JSON.stringify(task).includes(expectedKey));
     await create.POST(request(id, { model: model.id, appSetup: JSON.stringify(values) }));
@@ -418,5 +423,19 @@ await check('ambiguous member submission stays locked and cannot silently fall b
   assert.equal((await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: JSON.stringify(setup) }))).status, 409);
   assert.equal(submissions, before + 1);
   failSubmit = false;
+});
+await check('member preferences persist per owner and model, reject cross-site and oversized payloads', async () => {
+  const preferences = await load('app/api/runninghub/preferences/[id]/route.ts');
+  const ctx = context(memberModels[0].id);
+  const post = (body = setup, headers = { origin }) => new Request(`${origin}/api/runninghub/preferences/${memberModels[0].id}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  assert.equal((await preferences.POST(post(), ctx)).status, 200);
+  const saved = await (await preferences.GET(new Request(origin), ctx)).json();
+  assert.equal(saved.setup.values['20.resolution'], '8k');
+  testContext.user = { userId: 'owner-2', email: 'other@example.invalid' };
+  assert.equal((await (await preferences.GET(new Request(origin), ctx)).json()).setup, null);
+  assert.equal((await preferences.POST(post(setup, { origin: 'https://evil.invalid' }), ctx)).status, 401);
+  assert.equal((await preferences.POST(post({ ...setup, values: { api_key: 'secret' } }), ctx)).status, 400);
+  assert.equal((await preferences.POST(post({ x: 'x'.repeat(50001) }), ctx)).status, 413);
+  testContext.user = null; assert.equal((await preferences.GET(new Request(origin), ctx)).status, 401);
 });
 sqlite.close();

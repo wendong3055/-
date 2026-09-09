@@ -11,8 +11,10 @@ import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '..
 import { referenceUpload } from '../lib/reference-upload';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
+import { frameSources, groupFrameOptions, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
+import { syncHiddenOptions } from '../lib/hidden-options-client';
 
-type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
+type FrameOption = { id: string; name: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
 
 function frameVariantCount(tags: string | undefined) {
@@ -97,7 +99,6 @@ const navItems = [
   ['settings', '后台设置', ''],
 ];
 
-const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 × 111', '197 × 71', '197 × 81', '197 × 91', '197 × 101', '197 × 111', '207 × 71', '207 × 81', '207 × 91', '207 × 101', '207 × 111', '217 × 71', '217 × 81', '217 × 91', '217 × 101', '217 × 111'];
 
 export default function Home() {
   const generations = useGenerations();
@@ -131,8 +132,8 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState('new');
   const [notice, setNotice] = useState('');
   const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
-  const visibleCabinetFrames = useMemo(() => [...uploadedFrames, ...cabinetFrameStyles].filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds, uploadedFrames]);
-  const visibleScreenFrames = useMemo(() => frames.filter((item) => !hiddenFrameIds.includes(item.id)), [hiddenFrameIds]);
+  const visibleCabinetFrames = useMemo(() => groupFrameOptions([...uploadedFrames, ...cabinetFrameStyles], hiddenFrameIds), [hiddenFrameIds, uploadedFrames]);
+  const visibleScreenFrames = useMemo(() => groupFrameOptions(frames, hiddenFrameIds), [hiddenFrameIds]);
   const visibleFrameOptions = [...visibleCabinetFrames, ...visibleScreenFrames];
   const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
@@ -147,7 +148,7 @@ export default function Home() {
   const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: frame?.file ? 2 : 1, configRevision: generations.configRevision });
   const memberInputs = memberApp.inputs;
   let appReady = model.apiMode !== 'member-app';
-  if (model.apiMode === 'member-app' && memberInputs && memberInputs.spec.appId === model.appId) {
+  if (model.apiMode === 'member-app' && memberInputs && !memberApp.review && memberInputs.spec.appId === model.appId) {
     try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
   }
   const canGenerate = !previewGenerating && !generations.busy && modelConfigured && appReady;
@@ -187,14 +188,9 @@ export default function Home() {
       const saved = data as { artworkIds?: string[]; frameIds?: string[] } | null;
       const artworkIds = [...new Set([...(saved?.artworkIds || []), ...localArtworkIds])];
       const frameIds = [...new Set([...(saved?.frameIds || []), ...localFrameIds])];
-      setHiddenArtworkIds(artworkIds);
-      setHiddenFrameIds(frameIds);
-      const migrations = await Promise.all([
-        localArtworkIds.length ? fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'artwork', ids: localArtworkIds }) }) : null,
-        localFrameIds.length ? fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'frame', ids: localFrameIds }) }) : null,
-      ]);
-      if (!migrations[0] || migrations[0].ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
-      if (!migrations[1] || migrations[1].ok) window.localStorage.removeItem('pingfeng-hidden-frames');
+      setHiddenArtworkIds((current) => [...new Set([...current, ...artworkIds])]);
+      setHiddenFrameIds((current) => [...new Set([...current, ...frameIds])]);
+      await Promise.all([syncHiddenOptions('artwork', localArtworkIds), syncHiddenOptions('frame', localFrameIds)]);
     }).catch(() => undefined);
     fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((data) => {
       const manifest = data as { items?: Array<{ id: string; name: string; thumb: string; category: string; collection: string; date: string }> } | null;
@@ -204,9 +200,9 @@ export default function Home() {
     }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
-      const frameUploads = rows.filter((row: { category: string }) => row.category === '框架模板').map((row: { id: string; name: string; url: string; tags?: string }) => {
-        const variantCount = frameVariantCount(row.tags);
-        return { id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: variantCount > 1 ? `文件夹上传 · ${variantCount}张规格图` : '本地上传 · 标准合并框架', color: '#432d24', profile: 'cabinet', variantCount };
+      const frameUploads = rows.filter((row: FrameAsset) => row.category === '框架模板').map((row: FrameAsset) => {
+        const { sizes, fileCount } = frameSources(rows, row);
+        return { id: `uploaded-frame-${row.id}`, name: row.name, file: row.url, tone: sizes.length ? `${sizes.length} 种已识别规格 · ${fileCount} 张原图` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: fileCount, sizes };
       });
       const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
       setUploadedFrames(frameUploads);
@@ -243,7 +239,7 @@ export default function Home() {
       return;
     }
     setProductSaving(true);
-    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: savedArtwork.id, artworkName: savedArtwork.name, frameId: savedFrame.id, frameName: `${savedFrame.name}·${savedColor.name}`, sampleAssetId: displayedTask.assetId, sizeCount: savedFrame.variantCount ?? sizeMatrix.length }) }).catch(() => null);
+    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: savedArtwork.id, artworkName: savedArtwork.name, frameId: savedFrame.id, frameName: `${savedFrame.name}·${savedColor.name}`, sampleAssetId: displayedTask.assetId }) }).catch(() => null);
     setProductSaving(false);
     setNotice(response?.ok ? `“${savedArtwork.name} · ${savedFrame.name}”已连同效果图保存，后续制作任务尚未启动。` : '新品保存失败，请稍后重试；生成的效果图仍然保留。');
     window.setTimeout(() => setNotice(''), 3600);
@@ -276,6 +272,7 @@ export default function Home() {
     if (generations.busy || previewGenerating || submitGuard.current) { setNotice('请先等待当前任务完成，再使用历史设置。'); return; }
     const recipe = task.recipe;
     if (!recipe) return;
+    memberApp.cancelRestore();
     if (!visibleLibraryItems.some((item) => item.id === recipe.artworkId) || !visibleFrameOptions.some((item) => item.id === recipe.frameId) || !frameColors.some((item) => item.id === recipe.colorId)) {
       setNotice('这组设置中的图案或框架当前不可选，请先在素材库恢复或重新选择。');
       return;
@@ -287,8 +284,10 @@ export default function Home() {
     setIntent(recipe.intent);
     setInstruction(recipe.instruction);
     setPreviousInstruction(null);
-    const savedModel = getImageModel(task.model) || defaultImageModel;
+    const savedModel = getImageModel(task.model);
+    if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
     setModelId(savedModel.id);
+    if (savedModel.apiMode === 'member-app' && recipe.appSetup) memberApp.restore(savedModel.id, recipe.appSetup);
     setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : '16:9');
     setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : '2k');
     setQuality(savedModel.qualities.length ? recipe.quality || 'medium' : '');
@@ -297,7 +296,7 @@ export default function Home() {
       setPreviewReady(true);
     }
     setActiveNav('new');
-    setNotice('已带入图案、框架、木色和制作要求。修改后点击生成，不会自动提交。');
+    setNotice(savedModel.apiMode === 'member-app' && !recipe.appSetup ? '已带入搭配。旧记录未保存全部应用参数，请重新核对后生成。' : '已带入搭配和出图参数，核对后点击生成，不会自动提交。');
     window.setTimeout(() => setNotice(''), 4000);
   }
 
@@ -310,6 +309,7 @@ export default function Home() {
     if (previewGenerating || generations.busy) return;
     const next = getImageModel(id);
     if (!next) return;
+    memberApp.cancelRestore();
     setModelId(next.id);
     if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
     if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
@@ -393,9 +393,8 @@ export default function Home() {
     setHiddenArtworkIds(next);
     window.localStorage.setItem('pingfeng-hidden-artworks', JSON.stringify(next));
     resetPreview();
-    const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'artwork', ids: [id] }) }).catch(() => null);
-    if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-artworks');
-    setNotice(response?.ok ? `“${name}”已从图库选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
+    const saved = await syncHiddenOptions('artwork', [id]);
+    setNotice(saved ? `“${name}”已从图库选项中移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
     window.setTimeout(() => setNotice(''), 3200);
   }
 
@@ -406,13 +405,13 @@ export default function Home() {
       return;
     }
     if (!window.confirm(`确定从工作台选择列表中移除“${name}”吗？原始框架文件不会删除。`)) return;
-    const next = [...new Set([...hiddenFrameIds, id])];
+    const removalIds = visibleFrameOptions.find((item) => item.id === id)?.memberIds || [id];
+    const next = [...new Set([...hiddenFrameIds, ...removalIds])];
     setHiddenFrameIds(next);
     window.localStorage.setItem('pingfeng-hidden-frames', JSON.stringify(next));
     resetPreview();
-    const response = await fetch('/api/hidden-options', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'frame', ids: [id] }) }).catch(() => null);
-    if (response?.ok) window.localStorage.removeItem('pingfeng-hidden-frames');
-    setNotice(response?.ok ? `“${name}”已从框架选项中永久移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
+    const saved = await syncHiddenOptions('frame', removalIds);
+    setNotice(saved ? `“${name}”已从框架选项中移除。` : `“${name}”已在本页移除，后台保存暂未完成。`);
     window.setTimeout(() => setNotice(''), 3200);
   }
 
@@ -504,7 +503,10 @@ export default function Home() {
       setFrameUploadProgress(`正在上传 ${completed}/${images.length}`);
     }
 
-    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: folderName, file: row.url as string, tone: `文件夹上传 · ${images.length}张规格图`, color: '#432d24', profile: 'cabinet', variantCount: images.length };
+    const savedRows = await fetch('/api/library').then((response) => response.ok ? response.json() : []).catch(() => []) as FrameAsset[];
+    const representativeRow = savedRows.find((item) => item.id === row.id);
+    const sourceInfo = representativeRow ? frameSources(savedRows, representativeRow) : null;
+    const uploaded: FrameOption = { id: `uploaded-frame-${row.id}`, name: folderName, file: row.url as string, tone: sourceInfo?.sizes.length ? `${sourceInfo.sizes.length} 种已识别规格` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: images.length - failed, sizes: sourceInfo?.sizes };
     setUploadedFrames((current) => [uploaded, ...current.filter((item) => item.id !== uploaded.id)]);
     selectFrame(uploaded.id);
     setFrameUploadProgress('');
@@ -748,7 +750,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
         <div className="color-choice-bar"><span>已选颜色：<strong>{frameColors.find((item) => item.id === frameColorId)?.name}</strong></span><button onClick={onCreate}>使用所选颜色创建新品 →</button></div>
       </>}
       {view === 'gallery' && <>
-        <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>本地图库与上传素材统一归类</small></div><div><span>图库类别</span><strong>{artworkCategories.length}</strong><small>按图案内容分类收纳</small></div><div><span>自动分类</span><strong>开启</strong><small>上传后立即识别类别</small></div><div><span>未识别素材</span><strong>{categoryCounts['综合图案']}</strong><small>统一收纳在综合图案</small></div></div>
+        <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>本地图库与上传素材统一归类</small></div><div><span>图库类别</span><strong>{artworkCategories.length}</strong><small>按类别筛选与收纳</small></div><div><span>自动分类</span><strong>文件名</strong><small>当前按文件名关键词归类，未接入看图识别</small></div><div><span>未识别素材</span><strong>{categoryCounts['综合图案']}</strong><small>统一收纳在综合图案</small></div></div>
         <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、类别、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips"><button className={galleryCategory === '全部素材' ? 'selected' : ''} onClick={() => setGalleryCategory('全部素材')}>全部素材 <b>{libraryItems.length}</b></button>{artworkCategories.map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item} <b>{categoryCounts[item]}</b></button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<label className="upload-button"><span>＋</span> 上传并自动分类<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
         <div className="gallery-category-stack">{galleryGroups.map((group) => <section className="gallery-category-section" key={group.category}><header><h3>{group.category}</h3><span>{group.items.length} 张</span></header><div className="gallery-wide-grid selectable-gallery">{group.items.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div></section>)}{galleryGroups.length === 0 && <div className="gallery-empty-state"><strong>没有找到符合条件的图案</strong><span>可以更换类别或清空搜索词后再查看。</span></div>}</div>
         <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>

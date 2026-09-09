@@ -1,14 +1,20 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { appOutputField, compileAppInputs, initialAppSetup, promptCandidates, setupForReferences, type AppField, type AppSpec, type AppSetup, type OutputFieldKind } from '../lib/runninghub-app-schema';
+import { cleanAppSetup, reconcileAppSetup } from '../lib/app-setup-storage';
 
 type AppInputs = { spec: AppSpec; setup: AppSetup };
-type LoadedApp = { identity: string; inputs: AppInputs | null; error: string; loading: boolean };
+type LoadedApp = { identity: string; inputs: AppInputs | null; error: string; loading: boolean; review?: string };
 
 // One shared controller stays mounted in Home, including while the settings view is open.
 export function useMemberApp({ modelId, configured, referenceCount, configRevision }: { modelId: string; configured: boolean; referenceCount: number; configRevision: number }) {
   const [loaded, setLoaded] = useState<LoadedApp | null>(null);
   const [revision, setRevision] = useState(0);
+  const [saveStatus, setSaveStatus] = useState('');
+  const drafts = useRef(new Map<string, AppSetup>());
+  const restores = useRef(new Map<string, AppSetup>());
+  const saves = useRef(new Map<string, Promise<void>>());
+  const selectedModel = useRef(modelId); selectedModel.current = modelId;
   const countRef = useRef(referenceCount);
   countRef.current = referenceCount;
   const identity = `${modelId}:${configRevision}:${revision}`;
@@ -18,28 +24,55 @@ export function useMemberApp({ modelId, configured, referenceCount, configRevisi
   const loading = enabled && (!current || current.loading);
   useEffect(() => {
     const abort = new AbortController();
+    setSaveStatus('');
     if (!enabled) { setLoaded(null); return () => abort.abort(); }
     setLoaded({ identity, inputs: null, loading: true, error: '' });
     fetch(`/api/runninghub/apps/${encodeURIComponent(modelId)}`, { cache: 'no-store', signal: abort.signal }).then(async (response) => {
       const data = await response.json() as AppSpec & { error?: string };
       if (!response.ok) throw new Error(data.error || '读取失败。');
       if (data.appId !== modelId.replace(/^member-app-/, '')) throw new Error('应用参数不匹配，请重新读取。');
+      await saves.current.get(modelId)?.catch(() => undefined);
+      let saved: unknown = restores.current.get(modelId) || drafts.current.get(modelId);
+      if (!saved) {
+        const response = await fetch(`/api/runninghub/preferences/${encodeURIComponent(modelId)}`, { cache: 'no-store', signal: abort.signal });
+        const result = await response.json() as { setup?: unknown };
+        if (!response.ok) throw new Error('已保存参数暂时无法读取，请稍后重试，避免覆盖原设置。');
+        saved = result.setup;
+      }
       if (abort.signal.aborted) return;
-      setLoaded({ identity, inputs: { spec: data, setup: initialAppSetup(data, countRef.current) }, loading: false, error: '' });
+      const { setup, review } = reconcileAppSetup(data, saved, countRef.current);
+      const restored = restores.current.delete(modelId);
+      setLoaded({ identity, inputs: { spec: data, setup }, loading: false, error: '', review });
+      if (restored && !review) persist(modelId, setup);
     }).catch((cause) => {
       if (!abort.signal.aborted) setLoaded({ identity, inputs: null, loading: false, error: cause instanceof Error ? cause.message : '读取失败。' });
     });
     return () => abort.abort();
   }, [modelId, enabled, identity]);
+  function persist(id: string, setup: AppSetup) {
+    drafts.current.set(id, setup);
+    setSaveStatus('正在保存参数…');
+    const previous = saves.current.get(id) || Promise.resolve();
+    const queued = previous.catch(() => undefined).then(async () => {
+      const response = await fetch(`/api/runninghub/preferences/${encodeURIComponent(id)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(setup), keepalive: true });
+      if (!response.ok) throw new Error('保存失败');
+    });
+    saves.current.set(id, queued);
+    void queued.then(() => { if (selectedModel.current === id && saves.current.get(id) === queued) setSaveStatus('参数已保存'); }, () => { if (selectedModel.current === id && saves.current.get(id) === queued) setSaveStatus('参数尚未保存，请点击重试保存。'); });
+  }
   function update(setup: AppSetup) {
     setLoaded((previous) => previous?.identity === identity && previous.inputs ? { ...previous, inputs: { spec: previous.inputs.spec, setup } } : previous);
+    if (!current?.review) persist(modelId, setup);
   }
+  function confirm() { if (!inputs) return; setLoaded((previous) => previous ? { ...previous, review: '' } : previous); persist(modelId, inputs.setup); }
+  function cancelRestore() { restores.current.clear(); }
+  function restore(id: string, saved: unknown) { restores.current.clear(); const setup = cleanAppSetup(saved); if (setup) { restores.current.set(id, setup); setRevision((v) => v + 1); } }
   let validation = '';
   if (inputs) {
     try { compileAppInputs(inputs.spec, inputs.setup, Array.from({ length: referenceCount }, (_, i) => `reference-${i}`), '制作要求'); }
     catch (cause) { validation = cause instanceof Error ? cause.message : '请确认输入参数。'; }
   }
-  return { inputs, configured, loading, error: current?.error || '', validation, update, reload: () => setRevision((value) => value + 1) };
+  return { inputs, configured, loading, error: current?.error || '', review: current?.review || '', validation, saveStatus, update, confirm, restore, cancelRestore, save: () => inputs && persist(modelId, inputs.setup), reload: () => setRevision((value) => value + 1) };
 }
 export type MemberAppController = ReturnType<typeof useMemberApp>;
 
@@ -63,6 +96,8 @@ export function MemberOutputOptions({ controller, disabled, onSettings, onChange
   });
   return <div className="member-output-options">
     <div className="output-fields">{controls}</div>
+    {controller.review && <div className="output-setup-notice"><span>{controller.review}</span><button type="button" disabled={disabled || !!validation} onClick={controller.confirm}>确认更新后的参数</button></div>}
+    {inputs && <p role="status">{controller.saveStatus || '修改后自动保存到当前账号'}{controller.saveStatus?.includes('尚未') && <button type="button" onClick={controller.save}>重试保存</button>}</p>}
     {!configured ? <div className="output-setup-notice" role="status"><span>当前会员应用尚未连接，连接后可选择它支持的比例与清晰度。</span><button type="button" onClick={onSettings}>前往后台设置 →</button></div> : loading ? <p role="status">正在读取当前应用的可选参数，不会发起生图。</p> : error || validation ? <div className="output-setup-notice" role="status"><span>{error ? '暂时无法读取可用参数，请在后台检查连接并重试。' : '应用输入尚未配置完整，请到后台确认。'}</span><button type="button" onClick={onSettings}>检查后台设置 →</button></div> : <p>按当前应用支持的选项出图；自动项由应用决定。</p>}
   </div>;
 }
@@ -72,14 +107,15 @@ export function MemberAppSettings({ controller, referenceCount, disabled }: { co
   const outputKeys = new Set(inputs ? (['ratio', 'resolution', 'quality', 'model'] as const).map((kind) => appOutputField(inputs.spec, kind)?.key).filter(Boolean) : []);
   return <section className="member-app-settings">
     <div className="row-label"><strong>应用输入绑定</strong><button type="button" disabled={!configured || loading || disabled} onClick={controller.reload}>{loading ? '正在读取…' : '重新读取参数'}</button></div>
-    <p>绑定制作要求和参考图；比例、清晰度在做图页面调整。重新读取会恢复应用默认参数。</p>
+    <p>绑定制作要求和参考图；比例、清晰度在做图页面调整。重新读取会核对并保留仍有效的已保存参数。</p>
     {!configured ? <p>先保存上方的消费级-会员 Key，再读取应用参数。</p> : loading ? <p role="status">正在读取应用输入项，不会提交生图。</p> : error ? <p className="generation-warning" role="alert">{error}</p> : null}
     {inputs && <fieldset className="image-output-options" disabled={disabled}>
       <legend>{inputs.spec.name}</legend>
       <label>制作要求对应的输入<select value={inputs.setup.promptKey} onChange={(event) => update({ ...inputs.setup, promptKey: event.target.value })}><option value="">请选择文本输入</option>{promptCandidates(inputs.spec).map((field) => <option value={field.key} key={field.key}>{field.label}</option>)}</select></label>
-      {Array.from({ length: referenceCount }, (_, index) => <label key={index}>{referenceCount === 2 && index === 0 ? '框架参考图' : '图案参考图'}<select value={inputs.setup.imageKeys[index] || ''} onChange={(event) => { const imageKeys = inputs.setup.imageKeys.map((key, i) => i === index ? event.target.value : key); update({ ...inputs.setup, imageKeys }); }}><option value="">请选择图像输入</option>{inputs.spec.fields.filter((field) => field.type === 'IMAGE').map((field) => <option value={field.key} key={field.key}>{field.label}</option>)}</select></label>)}
+      {Array.from({ length: referenceCount }, (_, index) => <label key={index}>{referenceCount === 2 && index === 0 ? '框架参考图' : '图案参考图'}<select value={inputs.setup.imageKeys[index] || ''} onChange={(event) => { const imageKeys = inputs.setup.imageKeys.map((key, i) => i === index ? event.target.value : key); const referenceKeys = [...(inputs.setup.referenceKeys || inputs.setup.imageKeys)]; referenceKeys[referenceCount === 1 ? 1 : index] = event.target.value; update({ ...inputs.setup, imageKeys, referenceKeys }); }}><option value="">请选择图像输入</option>{inputs.spec.fields.filter((field) => field.type === 'IMAGE').map((field) => <option value={field.key} key={field.key}>{field.label}</option>)}</select></label>)}
       <details className="backend-advanced"><summary>其他应用参数</summary>{inputs.spec.fields.filter((field) => field.type !== 'IMAGE' && field.key !== inputs.setup.promptKey && !outputKeys.has(field.key)).map((field) => <AppFieldControl key={field.key} field={field} setup={inputs.setup} onChange={update} />)}</details>
       {validation && <p className="generation-warning" role="status">{validation}</p>}
+      {controller.review && <p role="status">{controller.review}<button type="button" disabled={!!validation} onClick={controller.confirm}>确认更新后的参数</button></p>}
       <p>未使用的图像输入会清空；每次生成 1 张。提交前会再次核对参数。</p>
     </fieldset>}
   </section>;

@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `specs_json` text DEFAULT '[]' NOT NULL;
