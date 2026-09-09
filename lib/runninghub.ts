@@ -1,14 +1,11 @@
 import { env } from 'cloudflare:workers';
+import { defaultImageModel, getImageModel, validModelSettings } from './generation-models';
 
 // https://www.runninghub.ai/runninghub-api-doc-en/api-448969336
 // V2 only: do not mix in the legacy data/taskStatus response envelope.
 export const RUNNINGHUB_ORIGIN = 'https://www.runninghub.ai';
-export const RUNNINGHUB_MODEL = 'gpt-image-2';
-export const MODEL_PATH = '/openapi/v2/rhart-image-g-2-official/image-to-image';
-// Only expose the values verified in this endpoint's official request example.
-// Expand the preset after checking the live schema, not another model's enums.
-export const aspectRatios = ['16:9'] as const;
-export const resolutions = ['2k'] as const;
+export const RUNNINGHUB_MODEL = defaultImageModel.id;
+export const MODEL_PATH = defaultImageModel.endpoint;
 export type ProviderResult = { taskId?: string; status?: string; errorCode?: string; errorMessage?: string; results?: Array<{ url?: string; outputType?: string }> };
 export class RunningHubError extends Error {
   constructor(message: string, public uncertain = false) { super(message); }
@@ -64,8 +61,13 @@ export async function uploadReference(file: File) {
   if (url.protocol !== 'https:') throw new RunningHubError('平台返回了无效的参考图地址。');
   return url.href;
 }
-export async function submitGeneration(input: { prompt: string; imageUrls: string[]; aspectRatio: string; resolution: string }) {
-  const payload = await call(MODEL_PATH, { ...input, quality: 'medium' }, true) as ProviderResult;
+export async function submitGeneration(input: { prompt: string; imageUrls: string[]; aspectRatio: string; resolution: string; model?: string; quality?: string }) {
+  const model = getImageModel(input.model || RUNNINGHUB_MODEL);
+  if (!model || !validModelSettings(model, input.aspectRatio, input.resolution, input.quality)) throw new RunningHubError('所选模型不支持这组生成参数。');
+  const payload = await call(model.endpoint, {
+    prompt: input.prompt, imageUrls: input.imageUrls, aspectRatio: input.aspectRatio, resolution: input.resolution,
+    ...(model.qualities.length ? { quality: input.quality || 'medium' } : {}),
+  }, true) as ProviderResult;
   if (!payload.taskId) throw new RunningHubError(friendlyError(payload.errorCode, payload.errorMessage, 200), !payload.errorCode);
   return payload;
 }

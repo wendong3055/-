@@ -59,19 +59,23 @@ let providerStatus = 'RUNNING';
 let failSubmit = false;
 let failUpload = false;
 let outputUrl = 'https://www.runninghub.ai/results/test.png';
+let uploads = 0;
+let expectedModel = { endpoint: '/rhart-image-g-2-official/image-to-image', quality: 'medium', resolution: '2k', ratio: '16:9' };
 globalThis.fetch = async (url, options = {}) => {
   const target = String(url);
   if (target.includes('/media/upload/binary')) {
+    uploads++;
     if (failUpload) throw new Error('offline upload timeout');
     assert.equal(options.headers.authorization, 'Bearer offline-test-key');
     assert.ok(options.body.get('file') instanceof File);
     return Response.json({ code: 200, data: { download_url: 'https://www.runninghub.ai/references/test.png' } });
   }
-  if (target.endsWith('/rhart-image-g-2-official/image-to-image')) {
+  if (target.includes('/openapi/v2/rhart-image-')) {
     submissions++;
+    assert.ok(target.endsWith(expectedModel.endpoint));
     assert.equal(options.headers.authorization, 'Bearer offline-test-key');
     const body = JSON.parse(options.body);
-    assert.equal(body.quality, 'medium'); assert.equal(body.resolution, '2k');
+    assert.equal(body.quality, expectedModel.quality); assert.equal(body.resolution, expectedModel.resolution); assert.equal(body.aspectRatio, expectedModel.ratio);
     assert.ok(body.prompt.includes('画芯')); assert.equal(body.imageUrls.length, 2);
     if (failSubmit) throw new Error('offline uncertain submission');
     return Response.json({ taskId: `provider-${submissions}`, status: 'QUEUED' });
@@ -197,7 +201,7 @@ await check('invalid model parameters are rejected locally', async () => {
 });
 await check('saved generation settings remain available after a fresh list request', async () => {
   const rows = await (await list.GET()).json();
-  assert.deepEqual(rows.find((task) => task.id === first).recipe, { artworkId: 'artwork-test', frameId: 'frame-test', colorId: 'walnut', intent: 'composition', instruction: '' });
+  assert.deepEqual(rows.find((task) => task.id === first).recipe, { artworkId: 'artwork-test', frameId: 'frame-test', colorId: 'walnut', intent: 'composition', instruction: '', quality: 'medium' });
   const row = await taskStore.getTask('owner-1', first);
   assert.equal(taskStore.publicTask({ ...row, recipe_json: null }).recipe, null);
   assert.equal(parseRecipe('{invalid'), null);
@@ -220,6 +224,30 @@ await check('catalog and interior briefs do not contradict their background choi
       assert.ok(!prompt.includes('在浅中性电商背景上'));
       assert.ok(prompt.includes('画芯完整'));
     }
+  }
+});
+await check('model-specific invalid ratios and quality are rejected before upload', async () => {
+  const beforeUploads = uploads;
+  const beforeSubmissions = submissions;
+  for (const overrides of [{ model: 'unknown' }, { aspectRatio: 'auto' }, { model: 'nano-banana-pro', aspectRatio: '1:8' }, { model: 'nano-banana-2', quality: 'high' }, { quality: 'ultra' }]) {
+    assert.equal((await create.POST(request(crypto.randomUUID(), overrides))).status, 400);
+  }
+  assert.equal(uploads, beforeUploads); assert.equal(submissions, beforeSubmissions);
+});
+await check('all selectable models send their own endpoint and selected image settings', async () => {
+  sqlite.exec("UPDATE generation_tasks SET status = 'failed' WHERE status = 'saving'");
+  for (const settings of [
+    { model: 'gpt-image-2', endpoint: '/rhart-image-g-2-official/image-to-image', quality: 'high', resolution: '4k', ratio: '3:4' },
+    { model: 'nano-banana-pro', endpoint: '/rhart-image-n-pro-official/edit', quality: undefined, resolution: '1k', ratio: '1:1' },
+    { model: 'nano-banana-2', endpoint: '/rhart-image-n-g31-flash-official/image-to-image', quality: undefined, resolution: '2k', ratio: '1:8' },
+  ]) {
+    expectedModel = settings;
+    const id = crypto.randomUUID();
+    const response = await create.POST(request(id, { model: settings.model, quality: settings.quality || '', resolution: settings.resolution, aspectRatio: settings.ratio }));
+    assert.equal(response.status, 202);
+    const saved = await response.json();
+    assert.equal(saved.model, settings.model); assert.equal(saved.resolution, settings.resolution); assert.equal(saved.aspectRatio, settings.ratio); assert.equal(saved.recipe.quality, settings.quality);
+    await taskStore.updateTask('owner-1', id, 'failed', 'End offline test task');
   }
 });
 sqlite.close();

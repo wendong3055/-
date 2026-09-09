@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { generationLabels, type GenerationTask } from '../lib/generation-types';
 
 type Props = {
@@ -17,23 +17,35 @@ type Props = {
   onGenerate: () => void;
   canGenerate: boolean;
   generateLabel: string;
+  outputSummary: string;
+  references: { src: string; label: string }[];
 };
 
 function taskLabel(task: GenerationTask) {
   return `${task.name} · ${new Date(task.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
 }
 
-function ImageViewport({ task, zoom }: { task: GenerationTask; zoom: number }) {
+function ImageViewport({ src, label, zoom, fit }: { src: string; label: string; zoom: number; fit: 'contain' | 'cover' }) {
   const viewport = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [bounds, setBounds] = useState({ width: 1, height: 1 });
+  const [natural, setNatural] = useState({ width: 0, height: 0 });
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     const element = viewport.current;
-    if (element) { element.scrollLeft = 0; element.scrollTop = 0; }
-  }, [task.id, zoom]);
-  return <div ref={viewport} className="trial-viewport" tabIndex={0} aria-label={`${task.name}，${zoom}% 适配倍率。放大后可拖动或用方向键滚动。`}
-    style={{ '--trial-zoom': zoom / 100 } as CSSProperties}
+    if (!element) return;
+    const observer = new ResizeObserver(() => setBounds({ width: element.clientWidth, height: element.clientHeight }));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => { setFailed(false); setNatural({ width: 0, height: 0 }); }, [src]);
+  const scale = natural.width ? (fit === 'cover' ? Math.max(bounds.width / natural.width, bounds.height / natural.height) : Math.min(bounds.width / natural.width, bounds.height / natural.height)) * zoom / 100 : 1;
+  const width = Math.max(1, natural.width * scale);
+  const height = Math.max(1, natural.height * scale);
+  useEffect(() => { const element = viewport.current; if (element) { element.scrollLeft = (width - bounds.width) / 2; element.scrollTop = (height - bounds.height) / 2; } }, [src, width, height, bounds.width, bounds.height]);
+  return <div ref={viewport} className="trial-viewport" tabIndex={0} aria-label={`${label}，${zoom}% 倍率。放大后可拖动或用方向键滚动。`}
     onPointerDown={(event) => {
-      if (zoom === 100 || event.button !== 0 || event.pointerType === 'touch') return;
+      if (event.button !== 0 || event.pointerType === 'touch') return;
       drag.current = { x: event.clientX, y: event.clientY, left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
       event.currentTarget.setPointerCapture(event.pointerId);
     }}
@@ -43,7 +55,7 @@ function ImageViewport({ task, zoom }: { task: GenerationTask; zoom: number }) {
       event.currentTarget.scrollTop = drag.current.top - (event.clientY - drag.current.y);
     }}
     onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}>
-    <div className="trial-image-plane"><img src={task.url!} alt={task.name} draggable={false} /></div>
+    {failed ? <div className="preview-image-error">图片暂时无法加载，请刷新或重新选择素材。</div> : <div className="trial-image-plane" style={{ width: Math.max(bounds.width, width), height: Math.max(bounds.height, height) }}><img key={src} src={src} alt={label} draggable={false} onLoad={(event) => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} onError={() => setFailed(true)} style={{ width: natural.width ? width : undefined, height: natural.height ? height : undefined, visibility: natural.width ? 'visible' : 'hidden' }} /></div>}
   </div>;
 }
 
@@ -53,6 +65,12 @@ export function TrialCanvas(props: Props) {
   // Keep the last result visible while settings change or the next task is running.
   const shown = completed.find((task) => task.id === activeTaskId) || completed[0];
   const [zoom, setZoom] = useState(100);
+  const [fit, setFit] = useState<'contain' | 'cover'>('contain');
+  const [height, setHeight] = useState(560);
+  const [referenceIndex, setReferenceIndex] = useState(0);
+  const heightDrag = useRef<{ y: number; height: number } | null>(null);
+  useEffect(() => { try { const saved = Number(localStorage.getItem('studio-preview-height')); if (saved >= 320 && saved <= 1000) setHeight(saved); } catch { /* Optional preference. */ } }, []);
+  function resizeHeight(next: number) { const value = Math.min(1000, Math.max(320, next)); setHeight(value); try { localStorage.setItem('studio-preview-height', String(value)); } catch { /* Optional preference. */ } }
   const [comparing, setComparing] = useState(false);
   const [baselineId, setBaselineId] = useState('');
   const alternatives = completed.filter((task) => task.id !== shown?.id);
@@ -63,29 +81,35 @@ export function TrialCanvas(props: Props) {
   useEffect(() => { setZoom(100); }, [shown?.id, showComparison]);
 
   const zoomControls = (prefix: string) => <div className="trial-zoom-controls">
-    <button type="button" disabled={!shown || zoom <= 100} onClick={() => setZoom((value) => Math.max(100, value - 25))} aria-label={`${prefix}缩小`}>−</button>
-    <button type="button" disabled={!shown} onClick={() => setZoom(100)} aria-label={`${prefix}恢复适合画布`}>{zoom === 100 ? '适合画布' : `${zoom}%`}</button>
-    <button type="button" disabled={!shown || zoom >= 300} onClick={() => setZoom((value) => Math.min(300, value + 25))} aria-label={`${prefix}放大`}>＋</button>
+    <button type="button" disabled={zoom <= 50} onClick={() => setZoom((value) => Math.max(50, value - 25))} aria-label={`${prefix}缩小`}>−</button>
+    <button type="button" onClick={() => setZoom(100)} aria-label={`${prefix}恢复100%适配倍率`}>{zoom}%</button>
+    <button type="button" disabled={zoom >= 400} onClick={() => setZoom((value) => Math.min(400, value + 25))} aria-label={`${prefix}放大`}>＋</button>
   </div>;
 
   const pictures = () => shown ? <div className={showComparison ? 'trial-pictures comparing' : 'trial-pictures'}>
-    {showComparison && baseline && <figure><figcaption><b>A · 对比图</b><span>{taskLabel(baseline)}</span></figcaption><ImageViewport task={baseline} zoom={zoom} /></figure>}
-    <figure><figcaption><b>{showComparison ? 'B · 正在查看' : '正在查看'}</b><span>{taskLabel(shown)}</span></figcaption><ImageViewport task={shown} zoom={zoom} /></figure>
-  </div> : <div className="trial-empty">{fallback}</div>;
+    {showComparison && baseline && <figure><figcaption><b>A · 对比图</b><span>{taskLabel(baseline)}</span></figcaption><ImageViewport src={baseline.url!} label={baseline.name} zoom={zoom} fit={fit} /></figure>}
+    <figure><figcaption><b>{showComparison ? 'B · 正在查看' : '正在查看'}</b><span>{taskLabel(shown)}</span></figcaption><ImageViewport src={shown.url!} label={shown.name} zoom={zoom} fit={fit} /></figure>
+  </div> : props.references.length ? <div className="trial-pictures"><figure><figcaption><b>参考素材 · 尚未组合</b><span>{(props.references[referenceIndex] || props.references[0]).label}</span></figcaption><ImageViewport src={(props.references[referenceIndex] || props.references[0]).src} label={(props.references[referenceIndex] || props.references[0]).label} zoom={zoom} fit={fit} /></figure></div> : <div className="trial-empty">{fallback}</div>;
 
   return <section className="trial-canvas" aria-label="效果大图与试稿记录">
     <header className="compose-heading"><div><p>DESIGN CANVAS</p><h2>效果预览</h2></div><span className={working ? 'trial-status working' : 'trial-status'} role="status">{working ? status : shown ? '已保留生成结果' : '等待第一张效果图'}</span></header>
     <div className="trial-toolbar">
-      <div className="trial-modes"><button type="button" aria-pressed={!showComparison} onClick={() => setComparing(false)}>单图</button><button type="button" aria-pressed={showComparison} disabled={!canCompare} onClick={() => setComparing(true)} title={canCompare ? '对比两张生成结果' : '完成两张效果图后可对比'}>两张对比</button></div>
+      <div className="trial-modes"><button type="button" aria-pressed={fit === 'contain'} onClick={() => { setFit('contain'); setZoom(100); }}>完整显示</button><button type="button" aria-pressed={fit === 'cover'} onClick={() => { setFit('cover'); setZoom(100); }}>填满窗口</button></div>
       {zoomControls('画布')}
       <button type="button" className="trial-expand" onClick={() => dialog.current?.showModal()}>全屏查看 ↗</button>
     </div>
+    <div className="canvas-view-options">{!shown ? <div className="reference-tabs">{props.references.map((reference, index) => <button type="button" key={reference.label} aria-pressed={referenceIndex === index} onClick={() => { setReferenceIndex(index); setZoom(100); }}>{reference.label}</button>)}</div> : <button type="button" aria-pressed={showComparison} disabled={!canCompare} onClick={() => setComparing(!showComparison)}>{showComparison ? '结束对比' : '两张对比'}</button>}<label>窗口高度 <input type="range" min="320" max="1000" step="20" value={height} onChange={(event) => resizeHeight(Number(event.target.value))} /><span>{height}px</span></label></div>
     {showComparison && <label className="trial-baseline">A 对比图<select value={baseline?.id || ''} onChange={(event) => setBaselineId(event.target.value)}>{alternatives.map((task) => <option key={task.id} value={task.id}>{taskLabel(task)}</option>)}</select></label>}
-    <div className="trial-stage">{pictures()}{working && <div className="trial-progress" role="status"><i />{status} · 完成后自动显示新图</div>}</div>
-    <div className="trial-caption"><span>{zoom > 100 ? '放大后拖动画面查看细节' : shown ? '改设置、再生成，历史结果始终保留' : '图案与框架是参考素材，生成后在此显示效果图'}</span><a className="trial-controls-link" href="#studio-controls">调整制作要求 ↓</a></div>
+    <div className="trial-stage" style={{ height }}>{pictures()}{working && <div className="trial-progress" role="status"><i />{status} · 完成后自动显示新图</div>}</div>
+    <div className="preview-height-resizer" role="separator" aria-orientation="horizontal" aria-label="调整预览高度，上下方向键微调" aria-valuenow={height} aria-valuemin={320} aria-valuemax={1000} tabIndex={0} title="上下拖动调整高度"
+      onKeyDown={(event) => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); resizeHeight(height + (event.key === 'ArrowUp' ? -20 : 20)); } }}
+      onPointerDown={(event) => { if (event.button !== 0) return; heightDrag.current = { y: event.clientY, height }; event.currentTarget.setPointerCapture(event.pointerId); }}
+      onPointerMove={(event) => { if (heightDrag.current) resizeHeight(heightDrag.current.height + event.clientY - heightDrag.current.y); }}
+      onPointerUp={() => { heightDrag.current = null; }} onPointerCancel={() => { heightDrag.current = null; }} onLostPointerCapture={() => { heightDrag.current = null; }}><span /></div>
+    <div className="trial-caption"><span>{fit === 'cover' ? '填满模式会超出窗口边缘，可拖动查看；不裁切原文件。' : zoom > 100 ? '拖动画面查看细节；100% 表示适配窗口的大小。' : shown ? '改设置、再生成，历史结果始终保留' : '这里展示参考原图，点击生成后才会组合。'}</span><a className="trial-controls-link" href="#studio-controls">返回调整搭配</a></div>
     {shown && <div className="trial-result-actions"><button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button><a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
     {shown?.recipe && <details className="saved-brief"><summary>这张图的制作要求</summary><p>{shown.recipe.instruction || '使用默认制作要求'}</p></details>}
-    <div className="trial-next"><div><strong>继续下一轮</strong><span>每次生成 1 张 · 16:9 · 2K</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>
+    <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>
     <section className="trial-history"><div className="row-label"><h3>试稿记录 <span>{completed.length} 张</span></h3><button type="button" onClick={onHistory}>全部记录 →</button></div>
       {loading ? <p className="trial-history-empty">正在读取记录…</p> : tasks.length ? <div className="trial-filmstrip">{tasks.slice(0, 12).map((task) => <button type="button" key={task.id} aria-pressed={shown?.id === task.id} onClick={() => task.url ? onSelect(task.id) : onHistory()} aria-label={`查看${taskLabel(task)}，${generationLabels[task.status]}`}><span className="trial-film-image">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><strong>{task.name}</strong><small>{new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {generationLabels[task.status]}</small></button>)}</div> : <p className="trial-history-empty">每轮结果都会留在这里。选中任意一张，即可查看、对比或带入它的设置。</p>}
     </section>

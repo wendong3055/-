@@ -3,7 +3,8 @@ import { FormLimitError, limitedFormData } from '../../../lib/limited-form';
 import { generationOwner } from '../../../lib/generation-auth';
 import { compositionPrompt } from '../../../lib/composition-prompt';
 import { isStudioIntent, parseRecipe } from '../../../lib/studio-brief';
-import { apiKeyConfigured, aspectRatios, providerError, resolutions, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
+import { apiKeyConfigured, providerError, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
+import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
 
 export async function POST(request: Request) {
@@ -28,17 +29,20 @@ export async function POST(request: Request) {
     const field = (name: string, fallback = '') => String(form.get(name) || fallback).trim().slice(0, name === 'instruction' ? 1500 : 160);
     const ratio = field('aspectRatio', '16:9');
     const resolution = field('resolution', '2k');
-    if (!(aspectRatios as readonly string[]).includes(ratio) || !(resolutions as readonly string[]).includes(resolution)) return NextResponse.json({ error: '不支持的画幅或分辨率。' }, { status: 400 });
+    const model = getImageModel(field('model', RUNNINGHUB_MODEL));
+    const quality = field('quality', model?.qualities.length ? 'medium' : '');
+    if (!model || !validModelSettings(model, ratio, resolution, quality)) return NextResponse.json({ error: '所选模型不支持这组比例、清晰度或质量设置。' }, { status: 400 });
+    if (model.id !== 'gpt-image-2' && refs.some((file) => (file as File).type === 'image/webp')) return NextResponse.json({ error: '此模型需要 JPG 或 PNG 参考图，请刷新页面后重试格式转换。' }, { status: 400 });
     const artworkName = field('artworkName', '画芯');
     const frameName = field('frameName', '屏风框架');
     const colorName = field('colorName', '胡桃木色');
     const intent = field('intent', 'composition');
     if (!isStudioIntent(intent)) return NextResponse.json({ error: '请选择有效的出图用途。' }, { status: 400 });
-    const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction') }));
+    const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction'), ...(quality ? { quality } : {}) }));
     const prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     await listTasks(owner);
     const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${artworkName} · ${frameName} · ${colorName}`,
-      status: 'uploading', model: RUNNINGHUB_MODEL, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
+      status: 'uploading', model: model.id, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
       asset_id: null, error: '', last_polled_at: 0, created_at: Date.now(), updated_at: Date.now() };
     if (!await insertTask(row)) {
       const existing = await getTask(owner, id);
@@ -51,7 +55,7 @@ export async function POST(request: Request) {
     if (!await claimSubmission(owner, id)) throw new RunningHubError('参考图上传已过期，请重新创建任务。');
     submitted = true;
     // Never retry this billable request automatically.
-    const result = await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution });
+    const result = await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution, model: model.id, quality });
     acceptedRemoteId = result.taskId!;
     await updateTask(owner, id, result.status === 'FAILED' ? 'failed' : 'queued', result.status === 'FAILED' ? providerError(result) : '', acceptedRemoteId);
     return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });

@@ -5,7 +5,7 @@ export const studioIntents = [
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];
-export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string };
+export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string };
 export function isStudioIntent(value: string): value is StudioIntent { return studioIntents.some((item) => item.id === value); }
 
 export function parseRecipe(value: string | null | undefined): GenerationRecipe | null {
@@ -13,6 +13,7 @@ export function parseRecipe(value: string | null | undefined): GenerationRecipe 
   try {
     const data = JSON.parse(value) as Partial<GenerationRecipe>;
     if (!data || typeof data !== 'object' || !['artworkId', 'frameId', 'colorId'].every((key) => typeof data[key as keyof GenerationRecipe] === 'string' && data[key as keyof GenerationRecipe]!.length > 0 && data[key as keyof GenerationRecipe]!.length <= 160) || typeof data.intent !== 'string' || !isStudioIntent(data.intent) || typeof data.instruction !== 'string' || data.instruction.length > 1500) return null;
-    return { artworkId: data.artworkId!, frameId: data.frameId!, colorId: data.colorId!, intent: data.intent, instruction: data.instruction };
+    return { artworkId: data.artworkId!, frameId: data.frameId!, colorId: data.colorId!, intent: data.intent, instruction: data.instruction,
+      ...(['low', 'medium', 'high'].includes(data.quality || '') ? { quality: data.quality } : {}) };
   } catch { return null; }
 }

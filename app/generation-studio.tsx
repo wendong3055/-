@@ -115,7 +115,7 @@ export function useGenerations() {
 
 export function RunningHubSettings({ config, onRefresh }: { config: Config | null; onRefresh: () => void }) {
   return <details className="rh-connection">
-    <summary><span className="rh-monogram" aria-hidden="true">RH</span><span><strong>RunningHub</strong><small>GPT Image 2 · 图生图</small></span><span className={config?.configured ? 'rh-configured' : 'rh-unconfigured'}>{config ? config.configured ? '密钥已配置' : '待配置' : '检查配置中'}</span></summary>
+    <summary><span className="rh-monogram" aria-hidden="true">RH</span><span><strong>RunningHub API</strong><small>与网页会员权益分开</small></span><span className={config?.configured ? 'rh-configured' : 'rh-unconfigured'}>{config ? config.configured ? '密钥已配置' : '待配置' : '检查配置中'}</span></summary>
     <div className="rh-connection-body"><p>使用 RunningHub 国际站标准模型接口，不需要工作流 ID。密钥只在服务端使用。</p>
       {!config?.configured && <p>在站点的服务端环境变量中添加 <code>RUNNINGHUB_API_KEY</code>，设为密钥并发布后生效。不要将密钥写进提示词或聊天。</p>}
       <p>配置存在不代表验证通过；模型权限及费用以 RunningHub 账户为准。</p>

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import { TrialCanvas } from './trial-canvas';
+import { ResizableWorkspace } from './resizable-workspace';
+import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
+import { referenceUpload } from '../lib/reference-upload';
+import { compositionPrompt } from '../lib/composition-prompt';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 
@@ -95,10 +99,13 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const generations = useGenerations();
-  const [generationMethod, setGenerationMethod] = useState<'api' | 'account'>('api');
+  const [generationMethod, setGenerationMethod] = useState<'api' | 'account'>('account');
   const [previewTaskId, setPreviewTaskId] = useState('');
-  const aspectRatio = '16:9';
-  const resolution = '2k';
+  const [modelId, setModelId] = useState(defaultImageModel.id);
+  const model = getImageModel(modelId) || defaultImageModel;
+  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [resolution, setResolution] = useState('2k');
+  const [quality, setQuality] = useState('medium');
   const [intent, setIntent] = useState<StudioIntent>('composition');
   const [instruction, setInstruction] = useState<string>(studioIntents[0].instruction);
   const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
@@ -267,6 +274,11 @@ export default function Home() {
     setIntent(recipe.intent);
     setInstruction(recipe.instruction);
     setPreviousInstruction(null);
+    const savedModel = getImageModel(task.model) || defaultImageModel;
+    setModelId(savedModel.id);
+    setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : '16:9');
+    setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : '2k');
+    setQuality(savedModel.qualities.length ? recipe.quality || 'medium' : '');
     if (task.status === 'succeeded' && task.url) {
       setPreviewTaskId(task.id);
       setPreviewReady(true);
@@ -289,11 +301,11 @@ export default function Home() {
         const artworkResponse = await fetch(selected.file);
         if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
         const form = new FormData();
-        form.set('artwork', await artworkResponse.blob(), `${selected.name}.png`);
+        form.set('artwork', await referenceUpload(await artworkResponse.blob(), selected.name));
         if (frame.file) {
           const frameResponse = await fetch(frame.file);
           if (!frameResponse.ok) throw new Error('所选框架暂时无法读取。');
-          form.set('frame', await frameResponse.blob(), `${frame.name}.png`);
+          form.set('frame', await referenceUpload(await frameResponse.blob(), frame.name));
         }
         form.set('artworkName', selected.name);
         form.set('artworkId', selected.id);
@@ -305,6 +317,8 @@ export default function Home() {
         form.set('colorHex', frameColor.color);
         form.set('aspectRatio', aspectRatio);
         form.set('resolution', resolution);
+        form.set('model', model.id);
+        if (model.qualities.length) form.set('quality', quality);
         form.set('instruction', instruction);
         form.set('intent', intent);
         const task = await generations.submit(form);
@@ -318,6 +332,15 @@ export default function Home() {
       submitGuard.current = false;
       window.setTimeout(() => setNotice(''), 3600);
     }
+  }
+
+  async function copyMemberBrief() {
+    const prompt = compositionPrompt({ hasFrame: Boolean(frame.file), frameName: frame.name, frameProfile: frame.profile, colorId: frameColor.id, colorName: frameColor.name, colorHex: frameColor.color, instruction, intent });
+    try {
+      await navigator.clipboard.writeText(`建议模型：${model.name}\n图片比例：${aspectRatio}；清晰度：${resolution.toUpperCase()}；数量：1张\n请在 rhTV 画布中选择实际支持的模型及参数，并确认该次费用。\n\n${prompt}`);
+      setNotice('已复制完整制作要求。在会员画布上传参考图、确认参数与费用后再生成。');
+    } catch { setNotice('复制未成功，请允许浏览器访问剪贴板后重试。'); }
+    window.setTimeout(() => setNotice(''), 5000);
   }
 
   function selectArtwork(id: string) {
@@ -515,12 +538,12 @@ export default function Home() {
           </div>
         </header>
 
-        {activeNav === 'new' && <div className="studio-flow" aria-label="制作步骤"><span><b>01</b>选出图用途</span><span><b>02</b>搭配图案与框架</span><span><b>03</b>调整制作要求</span><span className={previewReady ? 'flow-complete' : 'flow-active'}><b>04</b>{previewReady ? '效果图已生成' : '生成并确认'}</span></div>}
-        <div className={`content-grid ${activeNav === 'new' ? '' : 'view-hidden'}`}>
+        {activeNav === 'new' && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
+        <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
             <fieldset className="intent-picker" disabled={previewGenerating}>
               <legend>这次想做什么图？</legend>
-              <div className="intent-options">{studioIntents.map((item, index) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><span className="intent-number">0{index + 1}</span><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
+              <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
             </fieldset>
             <section className="choice-section artwork-choice-section">
               <div className="section-heading">
@@ -582,11 +605,18 @@ export default function Home() {
                   <label><input type="radio" name="generation-method" value="api" checked={generationMethod === 'api'} disabled={previewGenerating || generations.busy} onChange={() => setGenerationMethod('api')} /><span><strong>API 密钥</strong><small>{generations.config?.configured ? '已配置 · 当前可选' : '需要配置密钥'}</small></span></label>
                   <label><input type="radio" name="generation-method" value="account" checked={generationMethod === 'account'} disabled={previewGenerating || generations.busy} onChange={() => setGenerationMethod('account')} /><span><strong>RunningHub 登录</strong><small>授权接入待完成</small></span></label>
                 </div>
-                {generationMethod === 'account' ? <div className="generation-method-note" role="status"><p>登录生图暂未开通，正在等待确认官方授权接入方式。</p><button type="button" disabled>使用 RunningHub 登录 · 暂不可用</button><p>你可以切回 API 密钥继续生图。</p></div> : <p className="generation-method-note">使用已配置的密钥，无需每次填写。费用计入该密钥所属账户。</p>}
+                {generationMethod === 'account' ? <div className="generation-method-note" role="status"><strong>rhTV 会员画布 · 尚未自动连接</strong><p>打开你提供的画布，在官网使用会员账号。官网登录状态不能直接用于本工作台；不会自动切换到 API 扣费。</p><a className="official-login-link" href="https://rhtv.runninghub.cn/project/canvas/2092477537835167746" target="_blank" rel="noopener noreferrer">打开我的会员画布 ↗</a><div className="member-handoff-actions"><button type="button" onClick={copyMemberBrief}>复制完整制作要求</button><a href={selected.file} download>下载画芯参考图</a>{frame.file && <a href={frame.file} download>下载框架参考图</a>}</div><p>目前需要手动上传参考图并粘贴要求，模型、参数与费用在会员画布中确认；生成结果暂不自动回传。自动连接仍需官方支持的第三方授权方式。</p></div> : <p className="generation-method-note">使用服务端 API 密钥，按 API 规则计费，不代表使用网页会员权益。</p>}
               </fieldset>
-              <details className="output-settings"><summary><span>单次 1 张 · 16:9 · 2K</span><span>查看生成设置</span></summary><RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} /><p>当前使用 GPT Image 2 标准质量。每次提交生成一张图片。</p></details>
+              <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
+                <legend>生图设置</legend>
+                <label className="model-select">模型<select value={modelId} onChange={(event) => { const next = getImageModel(event.target.value)!; setModelId(next.id); if (!next.ratios.includes(aspectRatio)) setAspectRatio('16:9'); setQuality(next.qualities.length ? 'medium' : ''); resetPreview(); }}>{imageModels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>
+                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
+                <p>每次生成 1 张。以上为 API 模型支持的参数；会员模式以官网可用模型与权益为准。</p>
+              </fieldset>
+              {generationMethod === 'api' && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} />}
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-              <p className="generation-privacy">参考图和制作要求将发送至 RunningHub，按账户的 API 规则计费。</p>
+              {generationMethod === 'api' && <p className="generation-privacy">点击生成后，参考图和制作要求将发送至 RunningHub，可能产生 API 费用。</p>}
               <button className="combine-button" disabled={generationMethod !== 'api' || previewGenerating || generations.busy || !generations.config?.configured} onClick={generatePreview}>{generationMethod === 'account' ? '登录生图暂未开通' : previewGenerating ? '任务处理中…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '配置 RunningHub 后可生成' : previewReady ? '按当前要求再生成一张' : `生成${currentIntent.name}`} <span>→</span></button>
               <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
@@ -600,6 +630,8 @@ export default function Home() {
               loading={generations.loading} onSelect={setViewedTaskId} onReuse={reuseTask}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
+              outputSummary={`${model.name} · ${aspectRatio} · ${resolution.toUpperCase()}`}
+              references={[{ src: selected.file, label: '图案原图' }, ...(frame.file ? [{ src: frame.file, label: '框架原图' }] : [])]}
               fallback={<div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>第一张效果图，从这组搭配开始</strong><small>选图案、挑框架，写下要求后生成。</small></div>}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
@@ -615,7 +647,7 @@ export default function Home() {
             </details>
             {displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '满意了，将正在查看的这张保存为新品'} <span>→</span></button><p className="approval-note">按这张效果图当时的搭配保存，其他试稿继续保留。</p></>}
           </aside>
-        </div>
+        </ResizableWorkspace>
 
         {activeNav !== 'new' && activeNav !== 'jobs' && activeNav !== 'delivery' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
