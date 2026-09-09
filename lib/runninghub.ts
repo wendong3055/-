@@ -102,7 +102,7 @@ export async function loadMemberApp(appId: string, connection: RunningHubConnect
     // Official apiCallDemo contract requires query authentication. Keep this URL
     // server-only, fixed-host, and out of logs and error responses.
     const params = new URLSearchParams({ apiKey: connection.key, webappId: appId });
-    const response = await fetch(`${connection.origin}/api/webapp/apiCallDemo?${params}`, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(25000), headers: { authorization: `Bearer ${connection.key}` } });
+    const response = await fetch(`${connection.origin}/api/webapp/apiCallDemo?${params}`, { redirect: 'error', signal: AbortSignal.timeout(25000), headers: { authorization: `Bearer ${connection.key}`, 'cache-control': 'no-store' } });
     stage = 'HTTP'; httpStatus = response.status;
     if (!response.ok || !response.body) throw new RunningHubError(`参数接口返回 HTTP ${response.status}，尚未发起生图。请稍后重试或检查后台连接。`);
     stage = '读取响应';
@@ -117,9 +117,11 @@ export async function loadMemberApp(appId: string, connection: RunningHubConnect
     return await parseAppSpec(appId, payload.data);
   } catch (error) {
     // No upstream body, URL, credential, signed link or raw fetch error is logged.
-    console.warn(JSON.stringify({ event: 'runninghub-member-metadata', stage, httpStatus, providerCode, appId }));
+    const message = error instanceof Error ? error.message : '';
+    const connectionReason = stage !== '连接' ? '' : /cache|RequestInitializerDict/i.test(message) ? '请求选项不兼容' : /redirect/i.test(message) ? '接口发生重定向' : /certificate|SSL|TLS/i.test(message) ? '安全连接失败' : /header|ByteString/i.test(message) ? '请求头格式不兼容' : /timeout|abort/i.test(message) ? '连接超时' : '网络请求未完成';
+    console.warn(JSON.stringify({ event: 'runninghub-member-metadata', stage, httpStatus, providerCode, appId, connectionReason }));
     if (error instanceof RunningHubError) throw error;
-    const detail = stage === '参数解析' && error instanceof Error ? error.message : `${stage}阶段未完成，请稍后重试。`;
+    const detail = stage === '参数解析' && error instanceof Error ? error.message : `${connectionReason || stage + '阶段未完成'}，请稍后重试。`;
     throw new RunningHubError(`应用参数读取失败：${detail}（阶段：${stage}）尚未发起生图。`);
   }
 }

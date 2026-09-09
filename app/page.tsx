@@ -151,7 +151,7 @@ export default function Home() {
   if (model.apiMode === 'member-app' && memberInputs && !memberApp.review && memberInputs.spec.appId === model.appId) {
     try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
   }
-  const canGenerate = !previewGenerating && !generations.busy && modelConfigured && appReady;
+  const canGenerate = Boolean(selected && frame) && !previewGenerating && !generations.busy && modelConfigured && appReady;
   const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
   const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
   const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
@@ -659,16 +659,16 @@ export default function Home() {
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
-              references={[{ src: selected.file, label: '图案原图' }, ...(frame.file ? [{ src: frame.file, label: '框架原图' }] : [])]}
+              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(frame?.file ? [{ src: frame.file, label: '框架原图' }] : [])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
             {generations.busy && !previewGenerating && <button className="reuse-result" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
             <details className="current-combination">
-              <summary><span>下一张使用的搭配</span><strong>{selected.name} · {frameColor.name}</strong></summary>
+              <summary><span>下一张使用的搭配</span><strong>{selected?.name || '请选择图案'} · {frameColor.name}</strong></summary>
               <div className="selection-summary">
-                <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
-                <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frameColor.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}</span><span><small>已选框架</small><strong>{frame.name} · {frameColor.name}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
+                <div className="summary-art">{selected?.file && <img src={selected.file} alt="" />}<span><small>已选图案</small><strong>{selected?.name || '请选择图案'}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
+                <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frameColor.color } as React.CSSProperties}>{frame?.file ? <img src={frame.file} alt="" /> : <i />}</span><span><small>已选框架</small><strong>{frame?.name || '请选择框架'} · {frameColor.name}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
               </div>
               <p>{instruction || '使用默认制作要求'}</p>
             </details>

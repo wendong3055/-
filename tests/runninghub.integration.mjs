@@ -94,7 +94,8 @@ globalThis.fetch = async (url, options = {}) => {
     assert.equal(parsed.origin, 'https://www.runninghub.cn');
     assert.equal(parsed.searchParams.get('apiKey'), expectedKey);
     assert.match(parsed.searchParams.get('webappId'), /^\d{19}$/);
-    assert.equal(options.redirect, 'error'); assert.equal(options.cache, 'no-store');
+    assert.equal(options.redirect, 'error'); assert.equal(options.headers['cache-control'], 'no-store');
+    assert.equal(options.cache, undefined); // Avoid platform-dependent RequestInit cache support.
     if (failMetadata) throw new Error(`Network error at ${target}`);
     return Response.json({ code: 0, data: { webappName: 'Offline AI App', curl: `NEVER EXECUTE ${expectedKey}`, nodeInfoList: metadataFields } });
   }
