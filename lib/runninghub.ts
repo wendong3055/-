@@ -102,7 +102,24 @@ export async function loadMemberApp(appId: string, connection: RunningHubConnect
     // Official apiCallDemo contract requires query authentication. Keep this URL
     // server-only, fixed-host, and out of logs and error responses.
     const params = new URLSearchParams({ apiKey: connection.key, webappId: appId });
-    const response = await fetch(`${connection.origin}/api/webapp/apiCallDemo?${params}`, { redirect: 'error', signal: AbortSignal.timeout(25000), headers: { authorization: `Bearer ${connection.key}`, 'cache-control': 'no-store' } });
+    let endpoint = `${connection.origin}/api/webapp/apiCallDemo?${params}`;
+    let response: Response;
+    for (let redirects = 0; ; redirects++) {
+      response = await fetch(endpoint, { redirect: 'manual', signal: AbortSignal.timeout(25000), headers: { authorization: `Bearer ${connection.key}`, 'cache-control': 'no-store' } });
+      if (![301,302,303,307,308].includes(response.status)) break;
+      stage = '重定向'; httpStatus = response.status;
+      const location = response.headers.get('location');
+      if (!location) throw new RunningHubError('参数接口返回了不完整的跳转信息，尚未发起生图。');
+      const next = new URL(location, endpoint);
+      // Never forward a Chinese member Key to another host, website login or arbitrary API.
+      if (next.origin !== connection.origin || next.username || next.password || !/^\/api\/webapp\/apiCallDemo\/?$/.test(next.pathname)) {
+        const destination = next.hostname === 'www.runninghub.ai' || next.hostname === 'runninghub.ai' ? '国际站' : next.origin === connection.origin ? '非参数接口页面' : '其他站点';
+        throw new RunningHubError(`中国站参数接口将请求转向${destination}，已停止跳转以保护会员密钥；需要 RunningHub 提供可直接访问的中国站会员接口。尚未发起生图。`);
+      }
+      if (redirects >= 2) throw new RunningHubError('中国站参数接口反复跳转，尚未发起生图。');
+      next.searchParams.set('apiKey', connection.key); next.searchParams.set('webappId', appId);
+      endpoint = next.href; stage = '连接';
+    }
     stage = 'HTTP'; httpStatus = response.status;
     if (!response.ok || !response.body) throw new RunningHubError(`参数接口返回 HTTP ${response.status}，尚未发起生图。请稍后重试或检查后台连接。`);
     stage = '读取响应';

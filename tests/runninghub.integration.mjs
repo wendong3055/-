@@ -76,7 +76,7 @@ const memberFields = [
   { nodeId: '20', fieldName: 'model', fieldType: 'LIST', fieldValue: 'pro', fieldData: '[{"name":"Pro","index":"pro"},{"name":"Ultra","index":"ultra"}]', description: '模型' },
   { nodeId: '21', fieldName: 'num_images', fieldType: 'INT', fieldValue: '5', description: '数量' },
 ];
-let metadataFields = memberFields, failMetadata = false, failOutputs = false, memberSubmitBody, memberQueries = 0, memberOutputs = 0;
+let metadataFields = memberFields, failMetadata = false, failOutputs = false, memberSubmitBody, memberQueries = 0, memberOutputs = 0, metadataRedirect = '', metadataCalls = 0;
 let memberMode = false;
 let expectedModel = { endpoint: '/rhart-image-g-2-official/image-to-image', quality: 'medium', resolution: '2k', ratio: '16:9' };
 globalThis.fetch = async (url, options = {}) => {
@@ -90,13 +90,15 @@ globalThis.fetch = async (url, options = {}) => {
     return Response.json({ code: expectedOrigin.endsWith('.cn') ? 0 : 200, data: { download_url: `${expectedOrigin}/references/test.png`, fileName: `openapi/reference-${uploads}.png` } });
   }
   if (target.includes('/api/webapp/apiCallDemo')) {
+    metadataCalls++;
     const parsed = new URL(target);
     assert.equal(parsed.origin, 'https://www.runninghub.cn');
     assert.equal(parsed.searchParams.get('apiKey'), expectedKey);
     assert.match(parsed.searchParams.get('webappId'), /^\d{19}$/);
-    assert.equal(options.redirect, 'error'); assert.equal(options.headers['cache-control'], 'no-store');
+    assert.equal(options.redirect, 'manual'); assert.equal(options.headers['cache-control'], 'no-store');
     assert.equal(options.cache, undefined); // Avoid platform-dependent RequestInit cache support.
     if (failMetadata) throw new Error(`Network error at ${target}`);
+    if (metadataRedirect) return new Response(null, {status:302,headers:{location:metadataRedirect}});
     return Response.json({ code: 0, data: { webappName: 'Offline AI App', curl: `NEVER EXECUTE ${expectedKey}`, nodeInfoList: metadataFields } });
   }
   if (target.endsWith('/task/openapi/ai-app/run')) {
@@ -371,6 +373,19 @@ await check('member app metadata authenticates via official query contract and r
   const error = await (await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).text();
   assert.ok(!error.includes(expectedKey)); assert.ok(!error.includes('apiKey='));
   failMetadata = false;
+});
+await check('member metadata redirects never forward the Key to another origin or website login', async () => {
+  const before = [uploads, submissions];
+  for (const destination of ['https://www.runninghub.ai/api/webapp/apiCallDemo','https://www.runninghub.cn/login','https://untrusted.example/api/webapp/apiCallDemo']) {
+    metadataRedirect = destination; const calls = metadataCalls;
+    const response = await memberMetadata.GET(new Request(origin), context(memberModels[0].id));
+    assert.equal(response.status,503); assert.equal(metadataCalls,calls+1);
+    assert.ok(!(await response.text()).includes(expectedKey));
+  }
+  metadataRedirect = '/api/webapp/apiCallDemo/'; const calls = metadataCalls;
+  assert.equal((await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).status,503);
+  assert.equal(metadataCalls,calls+3); metadataRedirect = '';
+  assert.deepEqual([uploads,submissions],before);
 });
 await check('invalid, changed or ambiguous member inputs stop before upload or charge', async () => {
   const before = [uploads, submissions];
