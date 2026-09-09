@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
+import { TrialCanvas } from './trial-canvas';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 
@@ -104,6 +105,7 @@ export default function Home() {
   const [viewedTaskId, setViewedTaskId] = useState('');
   const [productSaving, setProductSaving] = useState(false);
   const submitGuard = useRef(false);
+  const lastCompletedPreview = useRef('');
   const [libraryItems, setLibraryItems] = useState(artworks);
   const [uploadedFrames, setUploadedFrames] = useState<FrameOption[]>([]);
   const [frameUploading, setFrameUploading] = useState(false);
@@ -114,8 +116,6 @@ export default function Home() {
   const [frameColorId, setFrameColorId] = useState('walnut');
   const [previewReady, setPreviewReady] = useState(false);
   const [previewGenerating, setPreviewGenerating] = useState(false);
-  const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState('');
-  const [generatedPreviewId, setGeneratedPreviewId] = useState('');
   const [previewError, setPreviewError] = useState('');
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
@@ -128,19 +128,23 @@ export default function Home() {
   const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
   const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
-  const sizeOutputCount = frame.variantCount ?? sizeMatrix.length;
   const homeArtworks = [selected, ...homeSampleIds.filter((id) => id !== selected?.id).map((id) => visibleLibraryItems.find((item) => item.id === id))].filter((item): item is typeof artworks[number] => Boolean(item)).slice(0, 3);
   const homeFrames = [frame, ...visibleFrameOptions.filter((item) => item.id !== frame?.id)].filter(Boolean).slice(0, 4);
   const currentIntent = studioIntents.find((item) => item.id === intent)!;
-  const viewedTask = generations.tasks.find((task) => task.id === viewedTaskId);
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
+  const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
+  const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
+  const canGenerate = generationMethod === 'api' && !previewGenerating && !generations.busy && Boolean(generations.config?.configured);
+  const generateLabel = generationMethod === 'account' ? '登录生图暂未开通' : previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '请先配置 RunningHub' : '按当前设置生成一张';
 
   useEffect(() => {
     if (!previewTask) return;
     setPreviewGenerating(isActiveGeneration(previewTask.status));
     if (previewTask.status === 'succeeded' && previewTask.url) {
-      setGeneratedPreviewUrl(previewTask.url);
-      setGeneratedPreviewId(previewTask.assetId || '');
+      if (lastCompletedPreview.current !== previewTask.id) {
+        lastCompletedPreview.current = previewTask.id;
+        setViewedTaskId('');
+      }
       setPreviewReady(true);
       setPreviewError('');
     } else if (previewTask.error) setPreviewError(previewTask.error);
@@ -210,15 +214,18 @@ export default function Home() {
 
   async function createProduct() {
     if (productSaving) return;
-    if (!previewReady || !selected || !frame) {
-      setNotice('请先确认组合并查看效果图。');
+    const savedArtwork = libraryItems.find((item) => item.id === displayedTask?.recipe?.artworkId);
+    const savedFrame = [...uploadedFrames, ...cabinetFrameStyles, ...frames].find((item) => item.id === displayedTask?.recipe?.frameId);
+    const savedColor = frameColors.find((item) => item.id === displayedTask?.recipe?.colorId);
+    if (!displayedTask?.assetId || !savedArtwork || !savedFrame || !savedColor) {
+      setNotice('这张历史图的搭配信息不完整，仍可下载原图。');
       window.setTimeout(() => setNotice(''), 3000);
       return;
     }
     setProductSaving(true);
-    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: selected.id, artworkName: selected.name, frameId: frame.id, frameName: `${frame.name}·${frameColor.name}`, sampleAssetId: generatedPreviewId, sizeCount: sizeOutputCount }) }).catch(() => null);
+    const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: savedArtwork.id, artworkName: savedArtwork.name, frameId: savedFrame.id, frameName: `${savedFrame.name}·${savedColor.name}`, sampleAssetId: displayedTask.assetId, sizeCount: savedFrame.variantCount ?? sizeMatrix.length }) }).catch(() => null);
     setProductSaving(false);
-    setNotice(response?.ok ? `“${selected.name} · ${frame.name}”已连同效果图保存，后续制作任务尚未启动。` : '新品保存失败，请稍后重试；生成的效果图仍然保留。');
+    setNotice(response?.ok ? `“${savedArtwork.name} · ${savedFrame.name}”已连同效果图保存，后续制作任务尚未启动。` : '新品保存失败，请稍后重试；生成的效果图仍然保留。');
     window.setTimeout(() => setNotice(''), 3600);
   }
 
@@ -228,8 +235,6 @@ export default function Home() {
     setViewedTaskId('');
     setPreviewReady(false);
     setPreviewGenerating(false);
-    setGeneratedPreviewUrl('');
-    setGeneratedPreviewId('');
     setPreviewError('');
   }
 
@@ -264,8 +269,6 @@ export default function Home() {
     setPreviousInstruction(null);
     if (task.status === 'succeeded' && task.url) {
       setPreviewTaskId(task.id);
-      setGeneratedPreviewUrl(task.url);
-      setGeneratedPreviewId(task.assetId || '');
       setPreviewReady(true);
     }
     setActiveNav('new');
@@ -281,8 +284,6 @@ export default function Home() {
     setPreviewTaskId('');
     setPreviewReady(false);
     setPreviewGenerating(true);
-    setGeneratedPreviewUrl('');
-    setGeneratedPreviewId('');
     setPreviewError('');
     try {
         const artworkResponse = await fetch(selected.file);
@@ -516,7 +517,7 @@ export default function Home() {
 
         {activeNav === 'new' && <div className="studio-flow" aria-label="制作步骤"><span><b>01</b>选出图用途</span><span><b>02</b>搭配图案与框架</span><span><b>03</b>调整制作要求</span><span className={previewReady ? 'flow-complete' : 'flow-active'}><b>04</b>{previewReady ? '效果图已生成' : '生成并确认'}</span></div>}
         <div className={`content-grid ${activeNav === 'new' ? '' : 'view-hidden'}`}>
-          <section className="library-panel">
+          <section className="library-panel" id="studio-controls">
             <fieldset className="intent-picker" disabled={previewGenerating}>
               <legend>这次想做什么图？</legend>
               <div className="intent-options">{studioIntents.map((item, index) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><span className="intent-number">0{index + 1}</span><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
@@ -587,43 +588,32 @@ export default function Home() {
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
               <p className="generation-privacy">参考图和制作要求将发送至 RunningHub，按账户的 API 规则计费。</p>
               <button className="combine-button" disabled={generationMethod !== 'api' || previewGenerating || generations.busy || !generations.config?.configured} onClick={generatePreview}>{generationMethod === 'account' ? '登录生图暂未开通' : previewGenerating ? '任务处理中…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '配置 RunningHub 后可生成' : previewReady ? '按当前要求再生成一张' : `生成${currentIntent.name}`} <span>→</span></button>
-              <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 结果保存在右侧</p>
+              <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
             </section>
           </section>
 
           <aside className="compose-panel">
-            <div className="compose-heading"><div><p>RESULTS</p><h2>{viewedTask ? '历史效果' : '效果预览'}</h2></div><span className={previewReady ? 'draft-badge ready' : previewError ? 'draft-badge error' : 'draft-badge'}>{viewedTask ? generationLabels[viewedTask.status] : previewTask ? generationLabels[previewTask.status] : previewGenerating ? '准备参考图' : previewReady ? '已生成' : '待生成'}</span></div>
-            {viewedTask && <div className="viewed-task-heading"><strong>{viewedTask.name}</strong><button onClick={() => setViewedTaskId('')}>返回当前组合</button></div>}
-            <div className="preview-stage">
-              <div className="ambient-circle" />
-              {viewedTask?.url ? <figure className="generated-preview"><img src={viewedTask.url} alt={viewedTask.name} /><figcaption>{new Date(viewedTask.createdAt).toLocaleString('zh-CN')}</figcaption></figure> : previewGenerating ? <div className="preview-generating"><i /><strong>{previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}</strong><small>{generations.paused ? '自动查询已暂停，请恢复查询。' : '图片生成后会自动显示在这里，无需重复提交。'}</small></div> : previewReady && generatedPreviewUrl ? <figure className="generated-preview"><img src={generatedPreviewUrl} alt={`${selected.name}与${frame.name}${frameColor.name}真实生成效果`} /><figcaption>RunningHub · GPT Image 2</figcaption></figure> : <div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color, '--preview-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>{currentIntent.name}</strong><small>选好搭配，调整制作要求后生成第一张。</small></div>}
-            </div>
-
+            <TrialCanvas
+              tasks={generations.tasks} activeTaskId={viewedTaskId || previewTaskId}
+              working={previewGenerating} status={previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}
+              loading={generations.loading} onSelect={setViewedTaskId} onReuse={reuseTask}
+              reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
+              onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
+              fallback={<div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>第一张效果图，从这组搭配开始</strong><small>选图案、挑框架，写下要求后生成。</small></div>}
+            />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
-            {(viewedTask?.url || previewReady) && <div className="preview-actions"><a href={viewedTask?.url || generatedPreviewUrl} target="_blank" rel="noreferrer">查看原图 ↗</a><a href={`${viewedTask?.url || generatedPreviewUrl}?download=1`} download>下载结果 ↓</a></div>}
-            {viewedTask?.recipe && <button className="reuse-result" disabled={generations.busy || previewGenerating} onClick={() => reuseTask(viewedTask)}>使用这组搭配与制作要求</button>}
-            {viewedTask?.recipe && <details className="saved-brief"><summary>查看当时的制作要求</summary><p>{viewedTask.recipe.instruction || '使用默认制作要求'}</p></details>}
-
-            {!viewedTask && <div className="selection-summary">
-              <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
-              <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frameColor.color, '--summary-texture': frameColor.texture ? `url(${frameColor.texture})` : 'none' } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}<em /></span><span><small>已选框架</small><strong>{frame.name} · {frameColor.name}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
-            </div>}
-
-            {!viewedTask && <><button className="create-cta" disabled={!previewReady || previewGenerating || productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认效果，保存新品'} <span>→</span></button><p className="approval-note">确认后把当前效果图与新品关联，方便后续制作。</p></>}
-            <section className="recent-generations"><div className="row-label"><h3>最近生成</h3><button onClick={() => setActiveNav('jobs')}>全部记录 →</button></div>
-              {generations.loading ? <p className="recent-empty">正在读取生成记录…</p> : generations.tasks.length ? <div className="recent-list">{generations.tasks.slice(0, 5).map((task) => <button className={(viewedTask?.id || previewTaskId) === task.id ? 'recent-item selected' : 'recent-item'} key={task.id} onClick={() => { if (task.url) setViewedTaskId(task.id); else setActiveNav('jobs'); }}><span className="recent-thumb">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><span><strong>{task.name}</strong><small>{task.recipe ? studioIntents.find((item) => item.id === task.recipe?.intent)?.name : '组合效果图'} · {new Date(task.createdAt).toLocaleDateString('zh-CN')}</small></span><em>{generationLabels[task.status]}</em></button>)}</div> : <div className="recent-empty"><strong>第一张效果图，从左侧开始</strong><p>生成后会自动保留在这里，可下载或再次使用设置。</p></div>}
-            </section>
-            <details className="output-plan">
-              <summary>后续交付规划</summary>
-              <div className="output-items">
-                <div><strong>新品主图</strong><small>场景图与电商白底图</small></div>
-                <div><strong>单尺寸图</strong><small>{sizeOutputCount} 个规格</small></div>
-                <div><strong>全新详情页</strong><small>790px 长图、切片与 QA</small></div>
+            {generations.busy && !previewGenerating && <button className="reuse-result" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
+            <details className="current-combination">
+              <summary><span>下一张使用的搭配</span><strong>{selected.name} · {frameColor.name}</strong></summary>
+              <div className="selection-summary">
+                <div className="summary-art"><img src={selected.file} alt="" /><span><small>已选图案</small><strong>{selected.name}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
+                <div className="summary-frame"><span className="summary-frame-icon" style={{ '--summary-frame': frameColor.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="" /> : <i />}</span><span><small>已选框架</small><strong>{frame.name} · {frameColor.name}</strong></span><button onClick={() => setActiveNav('frames')}>更换</button></div>
               </div>
-              <p className="approval-note">以上是后续交付计划，保存新品不会自动启动批量制作。</p>
+              <p>{instruction || '使用默认制作要求'}</p>
             </details>
+            {displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '满意了，将正在查看的这张保存为新品'} <span>→</span></button><p className="approval-note">按这张效果图当时的搭配保存，其他试稿继续保留。</p></>}
           </aside>
         </div>
 
