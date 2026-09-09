@@ -2,7 +2,8 @@ import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
 import { generationOwner } from '../../../../lib/generation-auth';
 import { claimPoll, completeTask, getTask, publicTask, releasePoll, updateTask } from '../../../../db/generation-tasks';
-import { downloadResult, providerError, queryGeneration, RunningHubError } from '../../../../lib/runninghub';
+import { downloadResult, providerError, queryGeneration, queryMemberApp, runningHubConnection, RunningHubError } from '../../../../lib/runninghub';
+import { getImageModel } from '../../../../lib/generation-models';
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = await generationOwner();
@@ -14,10 +15,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const lease = row.remote_task_id ? await claimPoll(owner, id) : null;
     if (row.remote_task_id && lease) {
       try {
-        const result = await queryGeneration(row.remote_task_id);
+        const connection = await runningHubConnection(owner, row.model);
+        const result = getImageModel(row.model)?.apiMode === 'member-app' ? await queryMemberApp(row.remote_task_id, connection) : await queryGeneration(row.remote_task_id, connection);
         if (result.status === 'SUCCESS') {
           await updateTask(owner, id, 'saving', '', null, lease);
-          const image = result.results?.find((item) => item.url && (!item.outputType || item.outputType.toLowerCase() === 'image'));
+          const image = result.results?.find((item) => item.url && (!item.outputType || ['image', 'jpg', 'jpeg', 'png', 'webp'].includes(item.outputType.toLowerCase())));
           if (!image?.url) throw new RunningHubError('平台显示完成但未返回图片，请在 RunningHub 任务记录核对。');
           const { bytes, mime, size } = await downloadResult(image.url);
           const key = `${owner}/generated-previews/${id}/result`;

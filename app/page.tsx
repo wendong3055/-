@@ -5,11 +5,10 @@ import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-categ
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
-import { RunningHubAppPicker } from './runninghub-app-picker';
-import { verifiedRunningHubApps } from '../lib/runninghub-apps';
+import { MemberAppSettings } from './member-app-settings';
+import { appOutputSetting, compileAppInputs, type AppSpec, type AppSetup } from '../lib/runninghub-app-schema';
 import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
 import { referenceUpload } from '../lib/reference-upload';
-import { compositionPrompt } from '../lib/composition-prompt';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 
@@ -101,15 +100,14 @@ const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 ×
 
 export default function Home() {
   const generations = useGenerations();
-  const [generationMethod, setGenerationMethod] = useState<'api' | 'account'>('account');
-  const [officialApp, setOfficialApp] = useState(verifiedRunningHubApps[0]);
   const [importedResult, setImportedResult] = useState<{ url: string; name: string } | null>(null);
   const [previewTaskId, setPreviewTaskId] = useState('');
   const [modelId, setModelId] = useState(defaultImageModel.id);
+  const [memberInputs, setMemberInputs] = useState<{ spec: AppSpec; setup: AppSetup } | null>(null);
   const model = getImageModel(modelId) || defaultImageModel;
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [resolution, setResolution] = useState('2k');
-  const [quality, setQuality] = useState('medium');
+  const [quality, setQuality] = useState('');
   const [intent, setIntent] = useState<StudioIntent>('composition');
   const [instruction, setInstruction] = useState<string>(studioIntents[0].instruction);
   const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
@@ -145,8 +143,15 @@ export default function Home() {
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
-  const canGenerate = generationMethod === 'account' || (!previewGenerating && !generations.busy && Boolean(generations.config?.configured));
-  const generateLabel = generationMethod === 'account' ? '打开所选官网应用' : previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !generations.config?.configured ? '请先配置 RunningHub' : '按当前设置生成一张';
+  const modelConfigured = Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
+  let appReady = model.apiMode !== 'member-app';
+  if (model.apiMode === 'member-app' && memberInputs && memberInputs.spec.appId === model.appId) {
+    try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
+  }
+  const canGenerate = !previewGenerating && !generations.busy && modelConfigured && appReady;
+  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先配置会员 API Key' : !appReady ? '请先确认应用参数' : '在工作台生成效果图';
+  const outputRatio = model.apiMode === 'member-app' && memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : aspectRatio;
+  const outputResolution = model.apiMode === 'member-app' && memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : resolution;
   useEffect(() => () => { if (importedResult) URL.revokeObjectURL(importedResult.url); }, [importedResult]);
 
   useEffect(() => {
@@ -294,12 +299,7 @@ export default function Home() {
   }
 
   async function generatePreview() {
-    if (generationMethod === 'account') {
-      window.open(officialApp.url, '_blank', 'noopener,noreferrer');
-      setNotice('请在官网上传参考图、粘贴制作要求，并确认参数和费用后生成。');
-      return;
-    }
-    if (!selected || !frame || previewGenerating || submitGuard.current || generations.busy || !generations.config?.configured) return;
+    if (!selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
     submitGuard.current = true;
     setImportedResult(null);
     setViewedTaskId('');
@@ -328,6 +328,7 @@ export default function Home() {
         form.set('aspectRatio', aspectRatio);
         form.set('resolution', resolution);
         form.set('model', model.id);
+        if (model.apiMode === 'member-app' && memberInputs) form.set('appSetup', JSON.stringify(memberInputs.setup));
         if (model.qualities.length) form.set('quality', quality);
         form.set('instruction', instruction);
         form.set('intent', intent);
@@ -342,15 +343,6 @@ export default function Home() {
       submitGuard.current = false;
       window.setTimeout(() => setNotice(''), 3600);
     }
-  }
-
-  async function copyMemberBrief() {
-    const prompt = compositionPrompt({ hasFrame: Boolean(frame.file), frameName: frame.name, frameProfile: frame.profile, colorId: frameColor.id, colorName: frameColor.name, colorHex: frameColor.color, instruction, intent });
-    try {
-      await navigator.clipboard.writeText(`所选 RunningHub 应用：${officialApp.name}\n${officialApp.url}\n期望图片比例：${aspectRatio}；期望清晰度：${resolution.toUpperCase()}；数量：1张\n请在官网选择实际支持的参数，并确认该次费用。\n参考图1：画芯；参考图2：框架（如提供）；参考图3：木色样板（如提供）。\n\n${prompt}`);
-      setNotice('已复制完整制作要求。前往所选官网应用，上传参考图并确认费用后生成。');
-    } catch { setNotice('复制未成功，请允许浏览器访问剪贴板后重试。'); }
-    window.setTimeout(() => setNotice(''), 5000);
   }
 
   function selectArtwork(id: string) {
@@ -609,32 +601,27 @@ export default function Home() {
               <div className="brief-tools"><button disabled={previewGenerating} onClick={() => changeInstruction(currentIntent.instruction)}>填入用途示例</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
-              <fieldset className="generation-methods">
-                <legend>生图方式</legend>
-                <div className="generation-method-options">
-                  <label><input type="radio" name="generation-method" value="account" checked={generationMethod === 'account'} onChange={() => setGenerationMethod('account')} /><span><strong>RunningHub 官网</strong><small>用官网登录的账号生成</small></span></label>
-                  <label><input type="radio" name="generation-method" value="api" checked={generationMethod === 'api'} disabled={previewGenerating || generations.busy} onChange={() => setGenerationMethod('api')} /><span><strong>API 模式（备用）</strong><small>国际站接口 · 单独计费</small></span></label>
-                </div>
-                {generationMethod === 'account' ? <><RunningHubAppPicker selected={officialApp} onSelect={setOfficialApp} /><div className="generation-method-note"><strong>在官网生成，不调用工作台 API</strong><p>在打开应用的浏览器中使用已登录账号；如果未登录，请在 RunningHub 官网登录。工作台不读取你的账号密码，也不会自动切换到 API 扣费。</p><div className="member-handoff-actions"><button type="button" onClick={copyMemberBrief}>复制完整制作要求</button><a href={selected.file} download>下载画芯参考图</a>{frame.file && <a href={frame.file} download>下载框架参考图</a>}{frameColor.texture && <a href={frameColor.texture} download>下载木色样板</a>}</div><p>复制要求、下载参考图后，打开下方所选应用。应用是否支持多参考图、是否另收费用，以官网为准。生成结果不会自动回传，可在右侧导入预览。</p></div></> : <p className="generation-method-note">保留原有国际站 API 接口，与上方官网应用目录分开。使用服务端密钥并单独计费，不代表网页会员权益。</p>}
-              </fieldset>
               <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
-                <legend>{generationMethod === 'account' ? '期望出图设置（复制到制作要求）' : 'API 生图设置'}</legend>
-                {generationMethod === 'api' && <label className="model-select">API 模型<select value={modelId} onChange={(event) => { const next = getImageModel(event.target.value)!; setModelId(next.id); if (!next.ratios.includes(aspectRatio)) setAspectRatio('16:9'); setQuality(next.qualities.length ? 'medium' : ''); resetPreview(); }}>{imageModels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-                <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>
-                {generationMethod === 'api' && model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
-                <p>{generationMethod === 'account' ? '这些是制作期望，不会自动填写官网表单。请在所选应用中手动选择其支持的比例与清晰度。' : '每次生成 1 张，使用所选 API 模型支持的参数。'}</p>
+                <legend>模型与出图设置</legend>
+                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => { const next = getImageModel(event.target.value)!; setMemberInputs(null); setModelId(next.id); if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]); if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]); setQuality(next.qualities.length ? 'medium' : ''); resetPreview(); }}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+                {model.apiMode !== 'member-app' && <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
+                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
+                <p>在工作台提交任务，主结果自动回到右侧并保存到生成记录，不跳转官网作图。</p>
+                {model.note && <p className="generation-warning">{model.note}</p>}
+                <p>会员应用名称来自你指定的「AI 应用」页；可用参数和访问权限通过你的 Key 读取确认。</p>
               </fieldset>
-              {generationMethod === 'api' && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} />}
+              <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy} member={model.apiMode === 'member-app'} />
+              {model.apiMode === 'member-app' && <MemberAppSettings modelId={model.id} configured={modelConfigured} referenceCount={frame.file ? 2 : 1} disabled={previewGenerating || generations.busy} onChange={(value) => { setMemberInputs(value); resetPreview(); }} />}
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-              {generationMethod === 'api' && <p className="generation-privacy">点击生成后，参考图和制作要求将发送至 RunningHub，可能产生 API 费用。</p>}
-              <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{generateLabel} <span>↗</span></button>
-              <p className="generation-shortcut">{generationMethod === 'account' ? '只打开官网，不自动提交任务、不自动扣费。' : 'Ctrl / ⌘ + Enter 生成 · 每轮结果自动保留'}</p>
+              <p className="generation-privacy">点击生成将把参考图和制作要求发送至所选站点的 RunningHub 接口，按账号 API 权限与余额计费。</p>
+              <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{generateLabel} <span>→</span></button>
+              <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 不跳转官网 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
             </section>
           </section>
 
           <aside className="compose-panel">
-            <div className="official-result-import"><label>导入官网生成的图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；原文件仍在你的电脑中。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div>
+            <details className="local-preview-import"><summary>可选：预览本地图片</summary><div className="official-result-import"><label>选择本地图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；工作台生成的结果自动保存，无需手动导入。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div></details>
             <TrialCanvas
               importedResult={importedResult}
               tasks={generations.tasks} activeTaskId={viewedTaskId || previewTaskId}
@@ -642,7 +629,7 @@ export default function Home() {
               loading={generations.loading} onSelect={(id) => { setImportedResult(null); setViewedTaskId(id); }} onReuse={reuseTask}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
-              outputSummary={`${generationMethod === 'account' ? officialApp.name : model.name} · ${aspectRatio} · ${resolution.toUpperCase()}`}
+              outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
               references={[{ src: selected.file, label: '图案原图' }, ...(frame.file ? [{ src: frame.file, label: '框架原图' }] : [])]}
               fallback={<div className="preview-placeholder"><span className="preview-pair"><img src={selected.file} alt="已选图案" />＋<i style={{ '--preview-frame': frameColor.color } as React.CSSProperties}>{frame.file ? <img src={frame.file} alt="已选框架" /> : <em />}</i></span><strong>第一张效果图，从这组搭配开始</strong><small>选图案、挑框架，写下要求后生成。</small></div>}
             />

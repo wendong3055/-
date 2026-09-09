@@ -52,8 +52,8 @@ try {
   assert.ok(!(await failed.text()).includes('private upstream'));
 } finally { globalThis.fetch = originalFetch; }
 const page = readFileSync('app/page.tsx', 'utf8');
-assert.ok(page.includes("useState<'api' | 'account'>('account')"));
-assert.ok(page.includes("window.open(officialApp.url, '_blank', 'noopener,noreferrer')"));
+assert.ok(!page.includes('window.open('));
+assert.ok(page.includes('generations.submit(form)'));
 assert.ok(!page.includes('rhtv.runninghub.cn'));
-assert.ok(page.includes('期望出图设置（复制到制作要求）'));
-console.log('PASS: catalog parsing, image filtering, URL allowlist, dedup, payload bounds, source-only fetch, authorization, safe errors and default website handoff.');
+assert.ok(page.includes('模型与出图设置'));
+console.log('PASS: catalog parsing, image filtering, URL allowlist, dedup, payload bounds, source-only fetch, authorization, safe errors and direct generation (no website handoff).');

@@ -46,6 +46,12 @@ export const hiddenOptions = sqliteTable('hidden_options', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('hidden_options_owner_kind_idx').on(table.ownerId, table.kind)]);
 
+export const runningHubCredentials = sqliteTable('runninghub_credentials', {
+  ownerId: text('owner_id').primaryKey(),
+  encryptedKey: text('encrypted_key').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 export const generationTasks = sqliteTable('generation_tasks', {
   id: text('id').primaryKey(),
   ownerId: text('owner_id').notNull(),

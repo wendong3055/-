@@ -98,6 +98,16 @@ button, input, select, textarea { font-family: inherit; }
 .official-result-import small { font-size: 14px; color: #59695e; line-height: 1.6; }
 .official-result-import button { background: white; border: 1px solid #bdcdbf; border-radius: 7px; padding: 10px; color: #294f37; font-size: 14px; cursor: pointer; }
 .rh-connection small, .rh-configured, .rh-unconfigured, .rh-connection-body { font-size: 14px; }
+.rh-connection-body .rh-key-form { display: grid; gap: 12px; }
+.rh-key-form label { display: grid; gap: 8px; font-size: 15px; }
+.rh-key-form input { width: 100%; min-height: 46px; border: 1px solid #b8cbbb; background: white; padding: 10px; border-radius: 7px; font-size: 16px; }
+.rh-key-form button { min-height: 44px; font-size: 15px; }
+.rh-key-form small { line-height: 1.6; }
+.rh-key-form :disabled { opacity: .55; cursor: not-allowed; }
+.member-app-settings { margin: 20px 0; padding-top: 16px; border-top: 1px solid #cbd9cd; }
+.member-app-settings > p { font-size: 14px; line-height: 1.6; }
+.member-app-settings .row-label button { border: 1px solid #b8cbbb; padding: 8px; border-radius: 7px; color: #294f37; background: white; font-size: 14px; cursor: pointer; }
+.member-app-settings .image-output-options input { min-height: 44px; padding: 10px; border: 1px solid #b8cbbb; border-radius: 7px; background: white; font-size: 16px; }
 .content-grid .combine-button { font-size: 16px; min-height: 50px; }
 .compose-heading { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .trial-status { margin-left: auto; font-size: 14px; padding: 7px 10px; background: #edf4ee; }
@@ -179,3 +189,5 @@ button, input, select, textarea { font-family: inherit; }
   .trial-caption { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+.local-preview-import { padding: 8px 0; color: #60756c; font-size: 14px; }
+.local-preview-import > summary { cursor: pointer; width: fit-content; }

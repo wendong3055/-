@@ -48,6 +48,10 @@ const resolve = await load('app/api/generations/[id]/resolve/route.ts');
 const list = await load('app/api/generations/route.ts');
 const config = await load('app/api/runninghub/config/route.ts');
 const provider = await load('lib/runninghub.ts');
+const credentials = await load('lib/runninghub-credentials.ts');
+const memberMetadata = await load('app/api/runninghub/apps/[id]/route.ts');
+const appSchema = await load('lib/runninghub-app-schema.ts');
+const { imageModels } = await load('lib/generation-models.ts');
 const taskStore = await load('db/generation-tasks.ts');
 const limitedForm = await load('lib/limited-form.ts');
 const productRoutes = await load('app/api/products/route.ts');
@@ -60,34 +64,84 @@ let failSubmit = false;
 let failUpload = false;
 let outputUrl = 'https://www.runninghub.ai/results/test.png';
 let uploads = 0;
+let expectedOrigin = 'https://www.runninghub.ai';
+let expectedKey = 'offline-test-key';
+const memberFields = [
+  { nodeId: '10', fieldName: 'image', fieldType: 'IMAGE', fieldValue: 'sample-do-not-send.png', description: '参考图一' },
+  { nodeId: '11', fieldName: 'image', fieldType: 'IMAGE', fieldValue: 'sample-do-not-send.png', description: '参考图二' },
+  { nodeId: '12', fieldName: 'image', fieldType: 'IMAGE', fieldValue: 'sample-do-not-send.png', description: '可选参考图' },
+  { nodeId: '20', fieldName: 'prompt', fieldType: 'STRING', fieldValue: 'example prompt', description: '制作要求' },
+  { nodeId: '20', fieldName: 'aspect_ratio', fieldType: 'LIST', fieldValue: '16:9', fieldData: JSON.stringify([{ name: '16:9', index: '16:9' }, { name: '3:4', index: '3:4' }, { default: '16:9' }]), description: '比例' },
+  { nodeId: '20', fieldName: 'resolution', fieldType: 'LIST', fieldValue: '4k', fieldData: '["4k","8k"]', description: '清晰度' },
+  { nodeId: '20', fieldName: 'model', fieldType: 'LIST', fieldValue: 'pro', fieldData: '[{"name":"Pro","index":"pro"},{"name":"Ultra","index":"ultra"}]', description: '模型' },
+  { nodeId: '21', fieldName: 'num_images', fieldType: 'INT', fieldValue: '5', description: '数量' },
+];
+let metadataFields = memberFields, failMetadata = false, failOutputs = false, memberSubmitBody, memberQueries = 0, memberOutputs = 0;
+let memberMode = false;
 let expectedModel = { endpoint: '/rhart-image-g-2-official/image-to-image', quality: 'medium', resolution: '2k', ratio: '16:9' };
 globalThis.fetch = async (url, options = {}) => {
   const target = String(url);
   if (target.includes('/media/upload/binary')) {
     uploads++;
     if (failUpload) throw new Error('offline upload timeout');
-    assert.equal(options.headers.authorization, 'Bearer offline-test-key');
+    assert.equal(new URL(target).origin, expectedOrigin);
+    assert.equal(options.headers.authorization, `Bearer ${expectedKey}`);
     assert.ok(options.body.get('file') instanceof File);
-    return Response.json({ code: 200, data: { download_url: 'https://www.runninghub.ai/references/test.png' } });
+    return Response.json({ code: expectedOrigin.endsWith('.cn') ? 0 : 200, data: { download_url: `${expectedOrigin}/references/test.png`, fileName: `openapi/reference-${uploads}.png` } });
+  }
+  if (target.includes('/api/webapp/apiCallDemo')) {
+    const parsed = new URL(target);
+    assert.equal(parsed.origin, 'https://www.runninghub.cn');
+    assert.equal(parsed.searchParams.get('apiKey'), expectedKey);
+    assert.match(parsed.searchParams.get('webappId'), /^\d{19}$/);
+    assert.equal(options.redirect, 'error'); assert.equal(options.cache, 'no-store');
+    if (failMetadata) throw new Error(`Network error at ${target}`);
+    return Response.json({ code: 0, data: { webappName: 'Offline AI App', curl: `NEVER EXECUTE ${expectedKey}`, nodeInfoList: metadataFields } });
+  }
+  if (target.endsWith('/task/openapi/ai-app/run')) {
+    assert.ok(memberMode); submissions++;
+    assert.equal(new URL(target).origin, 'https://www.runninghub.cn');
+    assert.equal(options.headers.authorization, `Bearer ${expectedKey}`);
+    const body = JSON.parse(options.body); memberSubmitBody = body;
+    assert.equal(body.apiKey, expectedKey); assert.match(body.webappId, /^\d{19}$/);
+    const fields = Object.fromEntries(body.nodeInfoList.map((f) => [`${f.nodeId}.${f.fieldName}`, f.fieldValue]));
+    assert.match(fields['10.image'], /^openapi\/reference-\d+\.png$/);
+    assert.match(fields['11.image'], /^openapi\/reference-\d+\.png$/);
+    assert.notEqual(fields['10.image'], fields['11.image']); assert.equal(fields['12.image'], '');
+    assert.ok(fields['20.prompt'].includes('画芯'));
+    assert.equal(fields['20.aspect_ratio'], '3:4'); assert.equal(fields['20.resolution'], '8k'); assert.equal(fields['20.model'], 'ultra');
+    assert.equal(fields['21.num_images'], '1');
+    if (failSubmit) return Response.json({ code: 500, msg: 'UNKNOWN_ERROR' });
+    return Response.json({ code: 0, data: { taskId: `member-${submissions}`, taskStatus: 'RUNNING' } });
+  }
+  if (target.endsWith('/task/openapi/status') || target.endsWith('/task/openapi/outputs')) {
+    assert.ok(memberMode); assert.equal(new URL(target).origin, 'https://www.runninghub.cn');
+    const body = JSON.parse(options.body); assert.equal(body.apiKey, expectedKey); assert.match(body.taskId, /^member-/);
+    if (target.endsWith('/status')) { memberQueries++; return Response.json({ code: 0, data: providerStatus }); }
+    memberOutputs++;
+    if (failOutputs) return Response.json({ code: 500, msg: 'UNKNOWN_ERROR' });
+    return Response.json({ code: 0, data: [{ fileUrl: outputUrl, fileType: 'png' }, { fileUrl: 'https://www.runninghub.cn/output.mp4', fileType: 'mp4' }] });
   }
   if (target.includes('/openapi/v2/rhart-image-')) {
+    assert.ok(!memberMode, 'member Key must never submit a model API request');
     submissions++;
     assert.ok(target.endsWith(expectedModel.endpoint));
-    assert.equal(options.headers.authorization, 'Bearer offline-test-key');
+    assert.equal(new URL(target).origin, expectedOrigin);
+    assert.equal(options.headers.authorization, `Bearer ${expectedKey}`);
     const body = JSON.parse(options.body);
     assert.equal(body.quality, expectedModel.quality); assert.equal(body.resolution, expectedModel.resolution); assert.equal(body.aspectRatio, expectedModel.ratio);
     assert.ok(body.prompt.includes('画芯')); assert.equal(body.imageUrls.length, 2);
     if (failSubmit) throw new Error('offline uncertain submission');
     return Response.json({ taskId: `provider-${submissions}`, status: 'QUEUED' });
   }
-  if (target.endsWith('/openapi/v2/query')) return Response.json({ taskId: JSON.parse(options.body).taskId, status: providerStatus, results: providerStatus === 'SUCCESS' ? [{ outputType: 'image', url: outputUrl }] : [] });
+  if (target.endsWith('/openapi/v2/query')) { assert.ok(!memberMode, 'member tasks must use the AI App query'); assert.equal(new URL(target).origin, expectedOrigin); assert.equal(options.headers.authorization, `Bearer ${expectedKey}`); return Response.json({ taskId: JSON.parse(options.body).taskId, status: providerStatus, results: providerStatus === 'SUCCESS' ? [{ outputType: 'image', url: outputUrl }] : [] }); }
   if (target === outputUrl && target.startsWith('https://www.runninghub.ai/')) return new Response(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), { headers: { 'content-type': 'image/png' } });
   throw new Error(`Unexpected network attempt blocked: ${target}`);
 };
 
 function request(id, overrides = {}) {
   const form = new FormData();
-  for (const [key, value] of Object.entries({ requestId: id, artworkId: 'artwork-test', frameId: 'frame-test', artworkName: '测试画芯', frameName: '测试框架', colorName: '胡桃木色', colorId: 'walnut', aspectRatio: '16:9', resolution: '2k', ...overrides })) form.set(key, value);
+  for (const [key, value] of Object.entries({ requestId: id, model: 'gpt-image-2', artworkId: 'artwork-test', frameId: 'frame-test', artworkName: '测试画芯', frameName: '测试框架', colorName: '胡桃木色', colorId: 'walnut', aspectRatio: '16:9', resolution: '2k', ...overrides })) form.set(key, value);
   form.set('artwork', new File(['art'], 'art.png', { type: 'image/png' }));
   form.set('frame', new File(['frame'], 'frame.png', { type: 'image/png' }));
   return new Request(`${origin}/api/generate-preview`, { method: 'POST', headers: { origin }, body: form });
@@ -249,5 +303,120 @@ await check('all selectable models send their own endpoint and selected image se
     assert.equal(saved.model, settings.model); assert.equal(saved.resolution, settings.resolution); assert.equal(saved.aspectRatio, settings.ratio); assert.equal(saved.recipe.quality, settings.quality);
     await taskStore.updateTask('owner-1', id, 'failed', 'End offline test task');
   }
+});
+await check('China models never reuse the existing international credential', async () => {
+  const before = uploads;
+  assert.equal((await create.POST(request(crypto.randomUUID(), { model: 'cn-rhart-image-g-2' }))).status, 503);
+  assert.equal(uploads, before);
+});
+await check('China credential is encrypted, owner-scoped and never returned in config', async () => {
+  testContext.env.CREDENTIAL_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+  const keyRequest = (apiKey, requestOrigin = origin) => new Request(`${origin}/api/runninghub/config`, { method: 'POST', headers: { origin: requestOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ apiKey }) });
+  assert.equal((await config.POST(keyRequest('cn-offline-test-key', 'https://evil.invalid'))).status, 401);
+  assert.equal((await config.POST(keyRequest('cn-offline-test-key'))).status, 200);
+  const stored = sqlite.prepare('SELECT encrypted_key FROM runninghub_credentials WHERE owner_id = ?').get('owner-1').encrypted_key;
+  assert.ok(!stored.includes('cn-offline-test-key'));
+  assert.equal(await credentials.chinaKey('owner-1'), 'cn-offline-test-key');
+  assert.equal(await credentials.chinaKey('owner-2'), '');
+  // Authenticated encryption binds ciphertext to its owner, not just a DB lookup.
+  sqlite.prepare('INSERT INTO runninghub_credentials VALUES (?, ?, ?)').run('owner-2', stored, Date.now());
+  await assert.rejects(credentials.chinaKey('owner-2'));
+  const body = await (await config.GET()).json();
+  assert.equal(body.regions.cn, true); assert.equal(body.regions.international, true);
+  assert.ok(!JSON.stringify(body).includes('cn-offline-test-key'));
+  assert.ok(!JSON.stringify(body).includes(stored));
+  assert.equal((await config.POST(keyRequest('short'))).status, 400);
+  assert.ok(!(await (await config.POST(keyRequest('x'.repeat(2500)))).text()).includes('x'.repeat(100)));
+});
+await check('all China models submit/query the correct host and accept code-zero uploads', async () => {
+  expectedOrigin = 'https://www.runninghub.cn'; expectedKey = 'cn-offline-test-key'; providerStatus = 'SUCCESS'; outputUrl = 'https://www.runninghub.ai/results/test.png';
+  for (const settings of [
+    { model: 'cn-rhart-image-g-2', endpoint: '/rhart-image-g-2/image-to-image', resolution: '2k', ratio: '9:21' },
+    { model: 'cn-rhart-image-n-pro', endpoint: '/rhart-image-n-pro/edit', resolution: '1k', ratio: '1:1' },
+    { model: 'cn-rhart-image-n-pro-ultra', endpoint: '/rhart-image-n-pro-official/edit-ultra', resolution: '8k', ratio: '3:4' },
+  ]) {
+    expectedModel = settings;
+    const id = crypto.randomUUID();
+    assert.equal((await create.POST(request(id, { model: settings.model, resolution: settings.resolution, aspectRatio: settings.ratio }))).status, 202);
+    await assert.rejects(credentials.saveChinaKey('owner-1', 'replacement-test-key'));
+    assert.equal(await credentials.chinaKey('owner-1'), 'cn-offline-test-key');
+    const result = await (await query.GET(new Request(origin), context(id))).json();
+    assert.equal(result.status, 'succeeded'); assert.ok(result.url);
+    assert.equal(result.model, settings.model);
+  }
+  assert.equal((await create.POST(request(crypto.randomUUID(), { model: 'cn-rhart-image-n-pro-ultra', resolution: '2k' }))).status, 400);
+  await assert.rejects(provider.submitGeneration({ model: 'cn-rhart-image-g-2', prompt: '画芯', imageUrls: [], aspectRatio: '1:1', resolution: '1k' }, { origin: 'https://www.runninghub.ai', key: expectedKey }));
+});
+memberMode = true;
+const memberModels = imageModels.filter((m) => m.apiMode === 'member-app');
+let spec, setup;
+await check('member app metadata authenticates via official query contract and returns safe schema only', async () => {
+  testContext.user = null;
+  assert.equal((await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).status, 401);
+  testContext.user = { userId: 'owner-1', email: 'test@example.invalid' };
+  assert.equal((await memberMetadata.GET(new Request(origin), context('unknown-app'))).status, 400);
+  const result = await memberMetadata.GET(new Request(origin), context(memberModels[0].id));
+  assert.equal(result.status, 200); assert.equal(result.headers.get('cache-control'), 'no-store');
+  spec = await result.json();
+  assert.ok(!JSON.stringify(spec).includes(expectedKey)); assert.ok(!JSON.stringify(spec).includes('curl'));
+  assert.ok(!JSON.stringify(spec).includes('sample-do-not-send'));
+  setup = appSchema.initialAppSetup(spec, 2);
+  setup.values['20.aspect_ratio'] = '3:4'; setup.values['20.resolution'] = '8k'; setup.values['20.model'] = 'ultra';
+  failMetadata = true;
+  const error = await (await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).text();
+  assert.ok(!error.includes(expectedKey)); assert.ok(!error.includes('apiKey='));
+  failMetadata = false;
+});
+await check('invalid, changed or ambiguous member inputs stop before upload or charge', async () => {
+  const before = [uploads, submissions];
+  for (const value of ['', '{invalid', JSON.stringify({ ...setup, fingerprint: 'stale' }), JSON.stringify({ ...setup, imageKeys: ['10.image', '10.image'] }), JSON.stringify({ ...setup, promptKey: '10.image' }), JSON.stringify({ ...setup, values: { ...setup.values, '20.aspect_ratio': '99:1' } })]) {
+    assert.equal((await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: value }))).status, 400);
+  }
+  metadataFields = memberFields.filter((f) => f.fieldType !== 'IMAGE' || f.nodeId === '10');
+  const single = await appSchema.parseAppSpec(memberModels[0].appId, { nodeInfoList: metadataFields });
+  const singleResponse = await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: JSON.stringify(appSchema.initialAppSetup(single, 2)) }));
+  assert.equal(singleResponse.status, 400, await singleResponse.text());
+  metadataFields = memberFields;
+  await assert.rejects(appSchema.parseAppSpec('123', { nodeInfoList: [{ nodeId: '1', fieldName: 'api_key', fieldType: 'STRING' }] }));
+  assert.deepEqual([uploads, submissions], before);
+});
+await check('every member app sends chosen inputs with uploaded filenames and never calls enterprise model APIs', async () => {
+  for (const model of memberModels) {
+    const app = await (await memberMetadata.GET(new Request(origin), context(model.id))).json();
+    const values = { ...setup, fingerprint: app.fingerprint };
+    const id = crypto.randomUUID(), before = submissions;
+    const response = await create.POST(request(id, { model: model.id, appSetup: JSON.stringify(values) }));
+    assert.equal(response.status, 202);
+    const task = await response.json();
+    assert.equal(task.model, model.id); assert.equal(task.aspectRatio, '3:4'); assert.equal(task.resolution, '8k');
+    assert.equal(memberSubmitBody.webappId, model.appId);
+    assert.ok(!JSON.stringify(task).includes(expectedKey));
+    await create.POST(request(id, { model: model.id, appSetup: JSON.stringify(values) }));
+    assert.equal(submissions, before + 1);
+    providerStatus = 'RUNNING';
+    const outputCount = memberOutputs;
+    assert.equal((await (await query.GET(new Request(origin), context(id))).json()).status, 'running');
+    assert.equal(memberOutputs, outputCount);
+    providerStatus = 'SUCCESS'; resetPoll(); failOutputs = true;
+    const interrupted = await (await query.GET(new Request(origin), context(id))).json();
+    assert.notEqual(interrupted.status, 'succeeded'); assert.equal(submissions, before + 1);
+    failOutputs = false; resetPoll();
+    const saved = await (await query.GET(new Request(origin), context(id))).json();
+    assert.equal(saved.status, 'succeeded'); assert.equal(saved.url, `/api/files/${id}`); assert.ok(storage.has(id) || storage.size > 1);
+    assert.equal(submissions, before + 1);
+  }
+  assert.ok(memberQueries >= memberModels.length * 3);
+});
+await check('ambiguous member submission stays locked and cannot silently fall back or double-charge', async () => {
+  const id = crypto.randomUUID(), before = submissions;
+  failSubmit = true;
+  const req = () => request(id, { model: memberModels[0].id, appSetup: JSON.stringify(setup) });
+  assert.equal((await create.POST(req())).status, 502);
+  assert.equal((await taskStore.getTask('owner-1', id)).status, 'unknown');
+  assert.equal((await create.POST(req())).status, 200);
+  assert.equal(submissions, before + 1);
+  assert.equal((await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: JSON.stringify(setup) }))).status, 409);
+  assert.equal(submissions, before + 1);
+  failSubmit = false;
 });
 sqlite.close();
