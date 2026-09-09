@@ -212,3 +212,36 @@ button, input, select, textarea { font-family: inherit; }
 .reference-pair-preview .trial-viewport { background: white; }
 .reference-missing { flex: 1; display: grid; place-items: center; padding: 16px; color: var(--muted); font-size: 16px; text-align: center; }
 .trial-dialog > .reference-pair-preview { flex: 1; min-height: 0; border: 1px solid #d0d8c9; border-radius: 8px; overflow: hidden; }
+
+/* Everyday output choices stay at the top; account wiring has its own view. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.studio-output-panel { margin: 0 0 24px; padding: 18px; border: 1px solid #b8cdbf; border-radius: 10px; background: #f6f9f7; }
+.studio-output-panel > .row-label { gap: 10px; flex-wrap: wrap; }
+.studio-output-panel > .row-label strong { font-size: 1.125rem; }
+.studio-output-panel > .row-label button, .output-setup-notice button { min-height: 36px; padding: 6px 8px; border: 0; background: transparent; color: #245f3d; font-size: .875rem; text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.studio-output-panel .image-output-options { margin: 16px 0 0; }
+.studio-output-panel .output-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.studio-output-panel .image-output-options label { font-size: 1rem; min-width: 0; }
+.image-output-options input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid #bdcdbf; background: #fff; color: #203d2b; font-size: 1rem; border-radius: 8px; }
+.image-output-options select:disabled { color: #56675d; background: #edf1ee; opacity: 1; }
+.member-output-options > p { font-size: .875rem; font-weight: 400; color: var(--muted); line-height: 1.6; margin: 0; }
+.output-setup-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 10px 12px; border-radius: 7px; background: #e8f0eb; color: #3b5845; font-size: .875rem; font-weight: 400; line-height: 1.6; }
+.output-setup-notice span { flex: 1 1 180px; }
+.backend-settings-view { max-width: 920px; margin: 24px auto; padding: 28px; background: white; border: 1px solid var(--line); border-radius: 14px; }
+.backend-settings-view h2 { margin: 0 0 8px; font-size: 1.5rem; }
+.backend-settings-view header p { color: var(--muted); font-size: 1rem; line-height: 1.7; }
+.backend-settings-view .rh-connection { margin-top: 16px; }
+.backend-advanced { margin: 18px 0; padding: 14px; background: #f5f7f5; border: 1px solid var(--line); border-radius: 8px; }
+.backend-advanced summary { font-size: 1rem; cursor: pointer; }
+.backend-advanced[open] summary { margin-bottom: 16px; }
+.backend-settings-view footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; margin-top: 24px; border-top: 1px solid var(--line); }
+.backend-settings-view footer span { flex: 1 1 260px; font-size: .875rem; line-height: 1.7; color: var(--muted); }
+.backend-settings-view .primary-button { min-height: 46px; font-size: 1rem; white-space: normal; }
+.nav-icon-settings { border-radius: 50%; }
+.nav-icon-settings::after { content: ''; position: absolute; inset: 4px; border: 1px solid currentColor; border-radius: 50%; }
+@media (max-width: 560px) {
+  .studio-output-panel { padding: 14px; }
+  .studio-output-panel .output-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .backend-settings-view { padding: 18px; }
+  .backend-settings-view .rh-connection summary { flex-wrap: wrap; }
+}

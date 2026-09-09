@@ -57,7 +57,23 @@ export function compileAppInputs(spec: AppSpec, setup: AppSetup, filenames: stri
     return { nodeId: f.nodeId, fieldName: f.fieldName, fieldValue: value };
   });
 }
+export type OutputFieldKind = 'ratio' | 'resolution' | 'quality' | 'model';
+export function appOutputField(spec: AppSpec, type: OutputFieldKind) {
+  const names = { ratio: /^(aspect_?ratio|ratio)$/i, resolution: /^(resolution|image_?size)$/i, quality: /^(quality|image_?quality)$/i, model: /^(model|model_?name)$/i };
+  const labels = { ratio: /图片比例|画面比例|宽高比|画幅|aspect.?ratio/i, resolution: /分辨率|清晰度|resolution/i, quality: /生成质量|图像质量|image.?quality/i, model: /选择模型|生图模型|model.?name/i };
+  const fields = spec.fields.filter((field) => field.type !== 'IMAGE');
+  return fields.find((field) => names[type].test(field.fieldName))
+    || fields.find((field) => field.type === 'LIST' && labels[type].test(field.label));
+}
 export function appOutputSetting(spec: AppSpec, setup: AppSetup, type: 'ratio' | 'resolution') {
-  const match = spec.fields.find((f) => type === 'ratio' ? /^(aspect_ratio|aspectRatio|ratio)$/.test(f.fieldName) : /^(resolution|image_size)$/.test(f.fieldName));
+  const match = appOutputField(spec, type);
   return match ? setup.values[match.key] || match.value : 'auto';
+}
+
+// Upload order is [frame, artwork], or [artwork] when no frame image exists.
+export function setupForReferences(spec: AppSpec, setup: AppSetup, referenceCount: number): AppSetup {
+  if (setup.imageKeys.length === referenceCount) return setup;
+  const artworkKey = setup.imageKeys.at(-1) || '';
+  const imageKeys = referenceCount === 1 ? [artworkKey] : [spec.fields.find((field) => field.type === 'IMAGE' && field.key !== artworkKey)?.key || '', artworkKey];
+  return { ...setup, imageKeys };
 }

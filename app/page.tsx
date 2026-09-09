@@ -5,8 +5,8 @@ import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-categ
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
-import { MemberAppSettings } from './member-app-settings';
-import { appOutputSetting, compileAppInputs, type AppSpec, type AppSetup } from '../lib/runninghub-app-schema';
+import { MemberAppSettings, MemberOutputOptions, useMemberApp } from './member-app-settings';
+import { appOutputSetting, compileAppInputs } from '../lib/runninghub-app-schema';
 import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
 import { referenceUpload } from '../lib/reference-upload';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
@@ -94,6 +94,7 @@ const navItems = [
   ['colors', '颜色库', '06'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
+  ['settings', '后台设置', ''],
 ];
 
 const sizeMatrix = ['187 × 71', '187 × 81', '187 × 91', '187 × 101', '187 × 111', '197 × 71', '197 × 81', '197 × 91', '197 × 101', '197 × 111', '207 × 71', '207 × 81', '207 × 91', '207 × 101', '207 × 111', '217 × 71', '217 × 81', '217 × 91', '217 × 101', '217 × 111'];
@@ -103,7 +104,6 @@ export default function Home() {
   const [importedResult, setImportedResult] = useState<{ url: string; name: string } | null>(null);
   const [previewTaskId, setPreviewTaskId] = useState('');
   const [modelId, setModelId] = useState(defaultImageModel.id);
-  const [memberInputs, setMemberInputs] = useState<{ spec: AppSpec; setup: AppSetup } | null>(null);
   const model = getImageModel(modelId) || defaultImageModel;
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [resolution, setResolution] = useState('2k');
@@ -144,14 +144,16 @@ export default function Home() {
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
   const modelConfigured = Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
+  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: frame?.file ? 2 : 1, configRevision: generations.configRevision });
+  const memberInputs = memberApp.inputs;
   let appReady = model.apiMode !== 'member-app';
   if (model.apiMode === 'member-app' && memberInputs && memberInputs.spec.appId === model.appId) {
     try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
   }
   const canGenerate = !previewGenerating && !generations.busy && modelConfigured && appReady;
-  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先配置会员 API Key' : !appReady ? '请先确认应用参数' : '在工作台生成效果图';
-  const outputRatio = model.apiMode === 'member-app' && memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : aspectRatio;
-  const outputResolution = model.apiMode === 'member-app' && memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : resolution;
+  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
+  const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
+  const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
   useEffect(() => () => { if (importedResult) URL.revokeObjectURL(importedResult.url); }, [importedResult]);
 
   useEffect(() => {
@@ -297,6 +299,22 @@ export default function Home() {
     setActiveNav('new');
     setNotice('已带入图案、框架、木色和制作要求。修改后点击生成，不会自动提交。');
     window.setTimeout(() => setNotice(''), 4000);
+  }
+
+  function returnToStudio() {
+    setActiveNav('new');
+    window.requestAnimationFrame(() => document.getElementById('studio-controls')?.scrollTo({ top: 0 }));
+  }
+
+  function chooseModel(id: string) {
+    if (previewGenerating || generations.busy) return;
+    const next = getImageModel(id);
+    if (!next) return;
+    setModelId(next.id);
+    if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
+    if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
+    setQuality(next.qualities.length ? 'medium' : '');
+    resetPreview();
   }
 
   async function generatePreview() {
@@ -520,8 +538,8 @@ export default function Home() {
         <div className="sidebar-spacer" />
         <section className="storage-card">
           <div className="storage-title"><span>生图服务</span><b>RunningHub</b></div>
-          <p>{generations.config?.configured ? '服务端密钥已配置' : '服务端密钥待配置'}</p>
-          <button onClick={() => setActiveNav('jobs')}>查看生成记录</button>
+          <p>{generations.config ? modelConfigured ? '当前通道已配置' : '当前通道待配置' : '正在检查当前通道'}</p>
+          <button onClick={() => setActiveNav('settings')}>后台设置 →</button>
         </section>
         <div className="profile-row">
           <span className="avatar">徐</span>
@@ -544,6 +562,16 @@ export default function Home() {
         {activeNav === 'new' && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
+            <section className="studio-output-panel" aria-label="模型与出图设置">
+              <div className="row-label"><strong>模型与出图设置</strong><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
+              <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
+                <legend className="sr-only">选择生成模型和图片参数</legend>
+                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+                {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
+                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
+                {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前国际站通道尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
+              </fieldset>
+            </section>
             <fieldset className="intent-picker" disabled={previewGenerating}>
               <legend>这次想做什么图？</legend>
               <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
@@ -602,19 +630,8 @@ export default function Home() {
               <div className="brief-tools"><button disabled={previewGenerating} onClick={() => changeInstruction(currentIntent.instruction)}>填入用途示例</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
-              <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
-                <legend>模型与出图设置</legend>
-                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => { const next = getImageModel(event.target.value)!; setMemberInputs(null); setModelId(next.id); if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]); if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]); setQuality(next.qualities.length ? 'medium' : ''); resetPreview(); }}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
-                {model.apiMode !== 'member-app' && <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
-                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
-                <p>在工作台提交任务，主结果自动回到右侧并保存到生成记录，不跳转官网作图。</p>
-                {model.note && <p className="generation-warning">{model.note}</p>}
-                <p>会员应用名称来自你指定的「AI 应用」页；可用参数和访问权限通过你的 Key 读取确认。</p>
-              </fieldset>
-              <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy} member={model.apiMode === 'member-app'} />
-              {model.apiMode === 'member-app' && <MemberAppSettings modelId={model.id} configured={modelConfigured} referenceCount={frame.file ? 2 : 1} disabled={previewGenerating || generations.busy} onChange={(value) => { setMemberInputs(value); resetPreview(); }} />}
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-              <p className="generation-privacy">点击生成将把参考图和制作要求发送至所选站点的 RunningHub 接口，按账号 API 权限与余额计费。</p>
+              <p className="generation-privacy">生成时将发送所选参考图与制作要求，按当前应用权益与费用规则计费。</p>
               <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{generateLabel} <span>→</span></button>
               <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 不跳转官网 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
@@ -648,7 +665,20 @@ export default function Home() {
           </aside>
         </ResizableWorkspace>
 
-        {activeNav !== 'new' && activeNav !== 'jobs' && activeNav !== 'delivery' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
+        {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
+          <header><h2>生图服务配置</h2><p>在这里连接账号、绑定应用输入；图片比例与清晰度在新品页调整。</p></header>
+          <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
+            <legend>当前调用应用</legend>
+            <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+          </fieldset>
+          <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />
+          {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
+          {model.note && <p className="generation-warning">{model.note}</p>}
+          {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
+          <footer><span>连接信息加密保存在账号下；当前页面的参数调整返回后继续保留。</span><button className="primary-button" onClick={returnToStudio}>返回做图，调整图片比例 →</button></footer>
+        </section>}
+
+        {activeNav !== 'new' && activeNav !== 'jobs' && activeNav !== 'delivery' && activeNav !== 'settings' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
       {(activeNav === 'jobs' || activeNav === 'delivery') && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask} delivery={activeNav === 'delivery'} /></div>}
       </section>

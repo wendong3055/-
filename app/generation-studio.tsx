@@ -8,6 +8,7 @@ type Config = { configured: boolean; model: string; regions: { cn: boolean; inte
 
 export function useGenerations() {
   const [config, setConfig] = useState<Config | null>(null);
+  const [configRevision, setConfigRevision] = useState(0);
   const [tasks, setTasks] = useState<GenerationTask[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export function useGenerations() {
       const payload = await response.json() as Config & { error?: string };
       if (!response.ok) throw new Error(payload.error || '无法读取接口配置。');
       setConfig(payload);
+      setConfigRevision((value) => value + 1);
     } catch (cause) { setError(cause instanceof Error ? cause.message : '无法读取接口配置。'); }
   }, []);
 
@@ -109,7 +111,7 @@ export function useGenerations() {
     } catch { setError('解除锁定没有完成，请稍后重试。'); }
   }
 
-  return { config, tasks, error, loading, submitting, paused, submit, resume, refresh, refreshConfig, resolveUnknown,
+  return { config, configRevision, tasks, error, loading, submitting, paused, submit, resume, refresh, refreshConfig, resolveUnknown,
     busy: submitting || tasks.some((task) => isActiveGeneration(task.status) || task.status === 'unknown') };
 }
 
@@ -136,7 +138,7 @@ export function RunningHubSettings({ config, onRefresh, region, busy, member = f
       {region === 'cn' ? <div className="rh-key-form"><label htmlFor="rh-api-key">消费级-会员 API Key<input id="rh-api-key" type="password" autoComplete="off" spellCheck={false} maxLength={512} value={apiKey} disabled={saving || busy || !config?.canSaveKey} onChange={(event) => setApiKey(event.target.value)} placeholder={configured ? '填写新密钥可替换当前配置' : '粘贴 RunningHub 中国站会员 Key'} /></label><button type="button" disabled={saving || busy || !config?.canSaveKey || apiKey.trim().length < 16} onClick={save}>{saving ? '正在安全保存…' : '加密保存密钥'}</button><small>密钥加密保存在服务端，仅供当前账号使用；不会返回浏览器或写入图片记录。</small>{!config?.canSaveKey && <p>安全存储尚未准备好，请等待页面发布完成，或联系工作台管理员。</p>}<a href="https://www.runninghub.cn/enterprise-api/consumerApi" target="_blank" rel="noreferrer">获取 API Key（仅用于配置账号）↗</a></div> : <p>沿用原有国际站服务端密钥。中国站密钥不会自动用于国际站，历史任务仍使用原站点查询。</p>}
       {message && <p role="status">{message}</p>}
       <p>配置存在不代表验证通过；模型权限及费用以 RunningHub 账户为准。</p>
-      <div><button type="button" onClick={onRefresh}>重新检查配置</button></div>
+      <div><button type="button" disabled={saving || busy} onClick={onRefresh}>重新检查配置</button></div>
     </div>
   </details>;
 }
