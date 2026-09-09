@@ -161,6 +161,7 @@ export default function Home() {
       if (lastCompletedPreview.current !== previewTask.id) {
         lastCompletedPreview.current = previewTask.id;
         setViewedTaskId('');
+        setImportedResult(null);
       }
       setPreviewReady(true);
       setPreviewError('');
