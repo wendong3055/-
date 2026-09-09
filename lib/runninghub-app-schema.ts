@@ -23,8 +23,14 @@ export async function parseAppSpec(appId: string, data: unknown): Promise<AppSpe
     if (!['IMAGE', 'STRING', 'LIST', 'INT', 'FLOAT', 'BOOLEAN'].includes(type)) throw new Error('该应用包含暂不支持的输入类型，请换一个图像应用。');
     let fieldData: unknown = node.fieldData;
     if (typeof fieldData === 'string') { try { fieldData = JSON.parse(fieldData); } catch { fieldData = []; } }
+    // ComfyUI input descriptors wrap enum choices as [choices, widgetConfig].
+    // Only unwrap this specific shape; widget defaults are not extra choices.
+    if (Array.isArray(fieldData) && Array.isArray(fieldData[0]) &&
+        (fieldData.length === 1 || (fieldData.length === 2 && fieldData[1] !== null &&
+          typeof fieldData[1] === 'object' && !Array.isArray(fieldData[1])))) fieldData = fieldData[0];
     const options = type === 'LIST' && Array.isArray(fieldData) ? fieldData.flatMap((item: unknown) => {
       if (typeof item === 'string') return [item];
+      if (typeof item === 'number' && Number.isFinite(item)) return [String(item)];
       if (item && typeof item === 'object' && 'index' in item && ['string', 'number'].includes(typeof item.index)) return [String(item.index)];
       return [];
     }).filter((value) => value.length < 300).slice(0, 100) : [];
