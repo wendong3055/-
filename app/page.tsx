@@ -577,9 +577,9 @@ export default function Home() {
 
         <div className="sidebar-spacer" />
         <section className="storage-card">
-          <div className="storage-title"><span>生图服务</span><b>RunningHub</b></div>
+          <div className="storage-title"><span>生图接口</span><b>RunningHub API</b></div>
           <p>{generations.config ? modelConfigured ? '当前通道已配置' : '当前通道待配置' : '正在检查当前通道'}</p>
-          <button onClick={() => setActiveNav('settings')}>后台设置 →</button>
+          <button onClick={() => setActiveNav('settings')}>配置 API →</button>
         </section>
         <div className="profile-row">
           <span className="avatar">徐</span>
@@ -708,7 +708,7 @@ export default function Home() {
         </ResizableWorkspace>
 
         {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
-          <header><h2>生图服务配置</h2><p>在这里连接账号、绑定应用输入；图片比例与清晰度在新品页调整。</p></header>
+          <header><h2>RunningHub API 设置</h2><p>仅通过 API Key 调用，不提供 RunningHub 账号登录。在这里配置密钥、绑定应用输入；图片比例与清晰度在新品页调整。</p></header>
           <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
             <legend>当前调用应用</legend>
             <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
@@ -717,7 +717,7 @@ export default function Home() {
           {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={production?.frameUrl || frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
           {model.note && <p className="generation-warning">{model.note}</p>}
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-          <footer><span>连接信息加密保存在账号下；当前页面的参数调整返回后继续保留。</span><button className="primary-button" onClick={returnToStudio}>返回做图，调整图片比例 →</button></footer>
+          <footer><span>API 密钥加密保存在当前工作台账号下；当前页面的参数调整返回后继续保留。</span><button className="primary-button" onClick={returnToStudio}>返回做图，调整图片比例 →</button></footer>
         </section>}
 
         {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
