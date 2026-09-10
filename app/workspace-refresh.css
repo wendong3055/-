@@ -56,8 +56,12 @@ button, input, select, textarea { font-family: inherit; }
 .home-library-footer > span, .home-library-footer button, .inline-upload { font-size: 14px; line-height: 1.5; }
 .content-grid .home-frame-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .content-grid .home-frame-card { grid-template-columns: minmax(0, 1fr); align-content: start; padding: 12px; gap: 8px; min-height: 170px; }
-.content-grid .home-frame-thumb { height: 100px; width: 100%; background: #f7f8f5; border-radius: 6px; }
-.home-frame-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.content-grid .home-frame-thumb { position: relative; display: block; height: clamp(220px, 28vw, 300px); width: 100%; min-width: 0; min-height: 0; flex: none; background: #fff; border-radius: 6px; }
+.content-grid .home-frame-thumb img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; object-position: center; padding: 8px; box-sizing: border-box; }
+.content-grid .home-frame-thumb > i { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.content-grid .home-frame-grid .option-card-wrap { display: flex; flex-direction: column; }
+.content-grid .home-frame-grid .home-frame-card { height: auto; flex: 1; }
+.frame-original-link { display: block; padding: 9px 4px; font-size: 14px; color: #365d49; text-align: center; text-underline-offset: 3px; }
 .content-grid .home-frame-card strong { font-size: 15px; line-height: 1.5; }
 .content-grid .home-frame-card small { display: none; }
 .home-frame-card.selected { border-color: #366448; background: #edf4ee; }

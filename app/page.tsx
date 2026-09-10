@@ -144,7 +144,7 @@ export default function Home() {
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
   const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
   const homeArtworks = [selected, ...homeSampleIds.filter((id) => id !== selected?.id).map((id) => visibleLibraryItems.find((item) => item.id === id))].filter((item): item is typeof artworks[number] => Boolean(item)).slice(0, 3);
-  const homeFrames = [frame, ...visibleFrameOptions.filter((item) => item.id !== frame?.id)].filter(Boolean).slice(0, 4);
+  const homeFrames = [frame, ...visibleFrameOptions.filter((item) => item.id !== frame?.id)].filter(Boolean);
   const currentIntent = studioIntents.find((item) => item.id === intent)!;
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
@@ -646,7 +646,7 @@ export default function Home() {
                 <div><p>FRAME OPTIONS</p><h2>框架选项</h2></div>
                 <button className="upload-button" onClick={() => setActiveNav('frames')}>更多框架 <span>→</span></button>
               </div>
-              <p className="home-gallery-note">优先显示已选框架。完整款式和规格原图保留在框架库。</p>
+              <p className="home-gallery-note">可选 {homeFrames.length} 款框架，每款展示一个合并框架；点击图片选择，查看原图可放大检查完整结构。</p>
               <div className="home-frame-grid">
                 {homeFrames.map((item) => <div className="option-card-wrap" key={item.id}>
                   <button className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
@@ -654,6 +654,7 @@ export default function Home() {
                     <span><strong>{item.name}</strong><small>{item.tone}</small></span>
                     {frameId === item.id && <b>✓</b>}
                   </button>
+                  {item.file && <a className="frame-original-link" href={item.file} target="_blank" rel="noopener noreferrer" aria-label={`查看${item.name}完整框架原图`}>查看完整原图 ↗</a>}
                 </div>)}
               </div>
             </section>
@@ -668,7 +669,7 @@ export default function Home() {
             <section className="generation-parameters" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generatePreview(); } }}>
               <div className="row-label"><label htmlFor="generation-instruction">制作要求</label><b>{currentIntent.label}</b></div>
               <p className="brief-help">说清楚想保留什么、调整什么；图案、框架和木色会自动带入。</p>
-              <div className="brief-tools"><button disabled={previewGenerating} onClick={() => changeInstruction(currentIntent.instruction)}>填入用途示例</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
+              <div className="brief-tools"><button disabled={previewGenerating} onClick={() => { if (!instruction.trim() || instruction === currentIntent.instruction || window.confirm('用整理好的默认要求替换当前文字？替换后可撤回。')) changeInstruction(currentIntent.instruction); }}>填入我的默认要求</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
