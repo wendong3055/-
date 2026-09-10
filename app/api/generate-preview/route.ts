@@ -8,6 +8,7 @@ import { appOutputSetting, compileAppInputs, type AppSetup, type AppSpec } from 
 import { cleanAppSetup } from '../../../lib/app-setup-storage';
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
+import { productionContext, claimProductionItem, ProductionError } from '../../../db/production';
 
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
@@ -43,7 +44,19 @@ export async function POST(request: Request) {
     const intent = field('intent', 'composition');
     if (!isStudioIntent(intent)) return NextResponse.json({ error: '请选择有效的出图用途。' }, { status: 400 });
     const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction'), ...(quality ? { quality } : {}) }));
-    const prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
+    let prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
+    const productionItemId=field('productionItemId');
+    let productionTitle='';
+    if(productionItemId) {
+      const context=await productionContext(owner,productionItemId), saved=context.workspace.sample!.recipe!;
+      productionTitle=context.row.title;
+      if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
+      recipe.productionItemId=productionItemId;
+      prompt=context.row.kind==='size'
+        ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
+        : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
+      if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
+    }
     let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
     if (model.apiMode === 'member-app') {
       try {
@@ -58,7 +71,7 @@ export async function POST(request: Request) {
       } catch (error) { return NextResponse.json({ error: error instanceof Error && !/JSON|Unexpected/i.test(error.message) ? error.message : '应用参数格式不正确，请重新读取。' }, { status: 400 }); }
     }
     await listTasks(owner);
-    const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${artworkName} · ${frameName} · ${colorName}`,
+    const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${productionTitle ? `${productionTitle} · ` : ''}${artworkName} · ${frameName} · ${colorName}`,
       status: 'uploading', model: model.id, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
       asset_id: null, error: '', last_polled_at: 0, created_at: Date.now(), updated_at: Date.now() };
     if (!await insertTask(row)) {
@@ -67,6 +80,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '已有生成任务或待核对的提交，请先在生成任务中处理。' }, { status: 409 });
     }
     inserted = true;
+    if(productionItemId) await claimProductionItem(owner,productionItemId,id);
     // Re-read after acquiring the owner's active-task lock. Key replacement is
     // atomically blocked while this task is active, keeping submit/query aligned.
     connection = await runningHubConnection(owner, model.id);
@@ -83,7 +97,7 @@ export async function POST(request: Request) {
     return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });
   } catch (error) {
     if (error instanceof FormLimitError) return NextResponse.json({ error: error.message }, { status: 413 });
-    const message = error instanceof RunningHubError ? error.message : '服务暂时不可用，请稍后查看任务记录。';
+    const message = error instanceof RunningHubError || error instanceof ProductionError ? error.message : '服务暂时不可用，请稍后查看任务记录。';
     const uncertain = submitted && (!(error instanceof RunningHubError) || error.uncertain);
     if (inserted) await updateTask(owner, id, acceptedRemoteId ? 'queued' : uncertain ? 'unknown' : 'failed', message, acceptedRemoteId).catch(() => undefined);
     return NextResponse.json({ error: message, requestId: id || undefined, uncertain }, { status: 502 });

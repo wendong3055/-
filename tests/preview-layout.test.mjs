@@ -70,7 +70,7 @@ assert.match(css, /\.reference-pair-preview \{[^}]*grid-template-columns: repeat
 assert.ok(css.includes('.trial-dialog > .reference-pair-preview { flex: 1; min-height: 0;'));
 assert.ok(!css.includes('.dual-preview-grid'));
 const page = readFileSync('app/page.tsx', 'utf8');
-assert.ok(page.includes('将这张效果图保存为新品'));
+assert.ok(page.includes('确认样图，进入新品制作'));
 assert.ok(!page.includes('B 窗口'));
 assert.ok(page.indexOf('<details className="local-preview-import">') > page.indexOf('<TrialCanvas'));
 console.log('PASS: single output window, two equal full-height reference cells, missing references, full-window results/imports, safe history selection and unchanged generation.');

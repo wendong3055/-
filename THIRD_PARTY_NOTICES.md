@@ -15,3 +15,5 @@ Official documentation checked 2026-09-09:
 - https://www.runninghub.cn/runninghub-api-doc-cn/api-425749007
 - https://www.runninghub.cn/runninghub-api-doc-cn/api-425749010
 - https://www.runninghub.cn/runninghub-api-doc-cn/api-425767306
+- ZIP delivery packaging uses `fflate` 0.8.3 (MIT): https://github.com/101arrowz/fflate
+  The browser ZIP API is used to bundle approved images and manifests. No remote service receives delivery images during packaging.

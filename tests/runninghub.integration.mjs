@@ -207,7 +207,7 @@ await check('confirmed products retain the owned sample and repeated saves are i
   const row = sqlite.prepare('SELECT * FROM products').get();
   assert.equal(row.sample_asset_id, first); assert.equal(row.status, 'approved');
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM products').get().n, 1);
-  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM jobs').get().n, 3);
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM jobs').get().n, 0); // no placeholder production before plan confirmation
 });
 await check('ambiguous billable timeout is locked and is never automatically resubmitted', async () => {
   first = crypto.randomUUID(); failSubmit = true;
@@ -453,5 +453,46 @@ await check('member preferences persist per owner and model, reject cross-site a
   assert.equal((await preferences.POST(post({ ...setup, values: { api_key: 'secret' } }), ctx)).status, 400);
   assert.equal((await preferences.POST(post({ x: 'x'.repeat(50001) }), ctx)).status, 413);
   testContext.user = null; assert.equal((await preferences.GET(new Request(origin), ctx)).status, 401);
+});
+await check('new product plans preserve versions, enforce real specification sources and do not submit generation', async () => {
+  testContext.user = { userId: 'owner-1', email: 'test@example.invalid' };
+  sqlite.exec("UPDATE generation_tasks SET status = 'failed' WHERE status NOT IN ('succeeded','failed')");
+  sqlite.prepare("INSERT INTO assets (id,owner_id,name,category,tags,tone,mime_type,object_key,size,created_at) VALUES ('spec-source','owner-1','框架','框架模板','所属款式:框架;原始文件名:60宽_200高.png','','image/png','fixture.png',1,1)").run();
+  const work=await load('app/api/products/[id]/workspace/route.ts'), itemRoute=await load('app/api/production/[id]/route.ts');
+  const id=sqlite.prepare('SELECT id FROM products LIMIT 1').get().id, ctx=context(id), before=submissions;
+  const initial=await (await work.GET(new Request(origin),ctx)).json();
+  assert.equal(initial.sizes[0].widthCm,60);assert.equal(initial.plans.length,0);
+  const body={name:'测试新品',expectedVersion:0,confirmed:true,rule:'upper',notes:'不改变柜门',main:['白底主图'],details:['规格选择'],sizes:[{widthCm:61,heightCm:207,sourceIds:['spec-source']}]};
+  const post=(bodyValue=body)=>new Request(origin,{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(bodyValue)});
+  assert.equal((await work.POST(post({...body,confirmed:false}),ctx)).status,400);
+  assert.equal((await work.POST(post({...body,sizes:[{widthCm:61,heightCm:207,sourceIds:['foreign-owner']}] }),ctx)).status,400);
+  const made=await work.POST(post(),ctx);assert.equal(made.status,200);
+  const saved=await made.json();assert.equal(saved.plans[0].items.length,3);assert.equal(submissions,before);
+  assert.equal((await work.POST(post(),ctx)).status,409);
+  const version2=await (await work.POST(post({...body,expectedVersion:1,notes:'新版本要求'}),ctx)).json();
+  assert.equal(version2.plans.length,2);assert.equal(version2.plans[1].config.notes,'不改变柜门');
+  const sizeItem=version2.plans[0].items.find(i=>i.kind==='size');
+  const prepared=await (await itemRoute.GET(new Request(origin),context(sizeItem.id))).json();
+  assert.equal(prepared.frameUrl,'/api/files/spec-source');assert.equal(prepared.spec.heightCm,207);assert.equal(submissions,before);
+  const taskId=crypto.randomUUID();
+  const generated=await create.POST(request(taskId,{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}));
+  assert.equal(generated.status,202);assert.equal(submissions,before+1);
+  assert.equal((await generated.json()).recipe.productionItemId,sizeItem.id);
+  assert.equal((await create.POST(request(taskId,{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}))).status,200);
+  assert.equal(submissions,before+1);
+  const review=(generationId,review,note='')=>new Request(origin,{method:'POST',headers:{origin},body:JSON.stringify({generationId,review,note})});
+  assert.equal((await itemRoute.POST(review(taskId,'accepted'),context(sizeItem.id))).status,400);
+  sqlite.prepare("UPDATE generation_tasks SET status='succeeded',asset_id=? WHERE id=?").run(taskId,taskId);
+  assert.equal((await itemRoute.POST(review('stale-id','accepted'),context(sizeItem.id))).status,409);
+  assert.equal((await itemRoute.POST(review(taskId,'accepted'),context(sizeItem.id))).status,200);
+  const duplicate=await create.POST(request(crypto.randomUUID(),{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}));
+  assert.equal(duplicate.status,502);assert.equal(submissions,before+1);
+  assert.equal((await itemRoute.POST(review(taskId,'rework','颜色偏黄'),context(sizeItem.id))).status,200);
+  assert.equal((await create.POST(request(crypto.randomUUID(),{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}))).status,202);
+  assert.equal(submissions,before+2);
+  testContext.user={userId:'owner-2',email:'other@example.invalid'};
+  assert.equal((await work.GET(new Request(origin),ctx)).status,404);
+  assert.equal((await itemRoute.GET(new Request(origin),context(sizeItem.id))).status,404);
+  testContext.user=null;assert.equal((await work.POST(post(),ctx)).status,401);
 });
 sqlite.close();

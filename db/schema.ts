@@ -39,6 +39,18 @@ export const jobs = sqliteTable('jobs', {
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => [index('jobs_product_idx').on(table.productId)]);
 
+export const productionPlans = sqliteTable('production_plans', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), productId: text('product_id').notNull(),
+  version: integer('version').notNull(), planJson: text('plan_json').notNull(), createdAt: integer('created_at').notNull(),
+}, (table) => [uniqueIndex('production_plan_version_idx').on(table.productId, table.version), index('production_plan_owner_idx').on(table.ownerId, table.productId)]);
+
+export const productionItems = sqliteTable('production_items', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), planId: text('plan_id').notNull(),
+  title: text('title').notNull(), kind: text('kind').notNull(), brief: text('brief').notNull(),
+  specJson: text('spec_json').notNull().default('null'), generationId: text('generation_id'),
+  review: text('review').notNull().default('pending'), note: text('note').notNull().default(''),
+}, (table) => [index('production_item_plan_idx').on(table.ownerId, table.planId)]);
+
 export const hiddenOptions = sqliteTable('hidden_options', {
   id: text('id').primaryKey(),
   ownerId: text('owner_id').notNull(),

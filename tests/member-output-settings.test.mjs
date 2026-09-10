@@ -75,5 +75,5 @@ const source = readFileSync('app/page.tsx', 'utf8');
 assert.ok(source.indexOf('useMemberApp({') < source.indexOf('<main className="app-shell">'));
 assert.ok(source.indexOf('<RunningHubSettings') > source.indexOf("{activeNav === 'settings'"));
 assert.ok(source.includes("form.set('appSetup', JSON.stringify(memberInputs.setup))"));
-assert.ok(source.includes("activeNav !== 'settings' && <SecondaryView"));
+assert.ok(source.includes("['gallery','frames','colors'].includes(activeNav) && <SecondaryView"));
 console.log('PASS: prominent output controls, backend-only wiring, honest unavailable states, real supported settings in payload and summary, reference mapping, existing validation.');

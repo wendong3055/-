@@ -13,6 +13,7 @@ import { generationLabels, isActiveGeneration, type GenerationTask } from '../li
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 import { frameSources, frameStyle, groupFrameOptions, validFrameStyleName, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
 import { syncHiddenOptions } from '../lib/hidden-options-client';
+import { ProductWorkspaceView } from './product-workspace';
 
 type FrameOption = { id: string; name: string; styleKey?: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
@@ -91,6 +92,7 @@ const cabinetFrameStyles: FrameOption[] = [
 
 const navItems = [
   ['new', '新品项目', '08'],
+  ['products', '我的新品', ''],
   ['gallery', '图库收纳', '128'],
   ['frames', '框架库', '10'],
   ['colors', '颜色库', '06'],
@@ -130,6 +132,9 @@ export default function Home() {
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
+  const [productId, setProductId] = useState('');
+  const [production, setProduction] = useState<{itemId:string;productId:string;title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask}|null>(null);
+  const [productionLoading, setProductionLoading] = useState(false);
   const [notice, setNotice] = useState('');
   const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
   const visibleCabinetFrames = useMemo(() => groupFrameOptions([...uploadedFrames, ...cabinetFrameStyles], hiddenFrameIds), [hiddenFrameIds, uploadedFrames]);
@@ -145,17 +150,32 @@ export default function Home() {
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
   const modelConfigured = Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
-  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: frame?.file ? 2 : 1, configRevision: generations.configRevision });
+  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: production?.frameUrl || frame?.file ? 2 : 1, configRevision: generations.configRevision });
   const memberInputs = memberApp.inputs;
   let appReady = model.apiMode !== 'member-app';
   if (model.apiMode === 'member-app' && memberInputs && !memberApp.review && memberInputs.spec.appId === model.appId) {
     try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
   }
-  const canGenerate = Boolean(selected && frame) && !previewGenerating && !generations.busy && modelConfigured && appReady;
+  const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && appReady && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
   const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
   const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
   const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
   useEffect(() => () => { if (importedResult) URL.revokeObjectURL(importedResult.url); }, [importedResult]);
+  useEffect(() => {
+    const query=new URLSearchParams(window.location.search), item=query.get('production'), saved=query.get('product');
+    if(saved){setProductId(saved);setActiveNav('products');}
+    if(!item)return;
+    const controller=new AbortController();setProductionLoading(true);
+    fetch(`/api/production/${encodeURIComponent(item)}`,{signal:controller.signal}).then(async r=>{const b=await r.json() as NonNullable<typeof production>&{error?:string};if(!r.ok||!b.sample?.recipe)throw new Error(b.error||'制作项信息不完整。');return b;}).then(b=>{
+      const recipe=b.sample.recipe!;
+      setProduction(b);setProductId(b.productId);setSelectedId(recipe.artworkId);setFrameId(recipe.frameId);setFrameColorId(recipe.colorId);
+      setInstruction(b.brief.slice(0,1500));setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
+      setModelId(b.sample.model);setAspectRatio(b.sample.aspectRatio);setResolution(b.sample.resolution);
+      if(recipe.appSetup)memberApp.restore(b.sample.model,recipe.appSetup);
+      setActiveNav('new');
+    }).catch(e=>{if(!controller.signal.aborted)setPreviewError(e instanceof Error?e.message:'制作项读取失败。');}).finally(()=>{if(!controller.signal.aborted)setProductionLoading(false);});
+    return()=>controller.abort();
+  },[]);
 
   useEffect(() => {
     if (!previewTask) return;
@@ -241,7 +261,8 @@ export default function Home() {
     setProductSaving(true);
     const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: savedArtwork.id, artworkName: savedArtwork.name, frameId: savedFrame.id, frameName: `${savedFrame.name}·${savedColor.name}`, sampleAssetId: displayedTask.assetId }) }).catch(() => null);
     setProductSaving(false);
-    setNotice(response?.ok ? `“${savedArtwork.name} · ${savedFrame.name}”已连同效果图保存，后续制作任务尚未启动。` : '新品保存失败，请稍后重试；生成的效果图仍然保留。');
+    if(response?.ok){const p=await response.json() as {id:string};setProductId(p.id);setActiveNav('products');setNotice('样图已保存。请核对这个新品的规格与制作清单，保存清单不会扣费。');}
+    else setNotice('新品保存失败，请稍后重试；生成的效果图仍然保留。');
     window.setTimeout(() => setNotice(''), 3600);
   }
 
@@ -269,6 +290,7 @@ export default function Home() {
   }
 
   function reuseTask(task: GenerationTask) {
+    if(production){setNotice('当前正在制作新品清单项；请先返回新品清单或退出此项制作。');return;}
     if (generations.busy || previewGenerating || submitGuard.current) { setNotice('请先等待当前任务完成，再使用历史设置。'); return; }
     const recipe = task.recipe;
     if (!recipe) return;
@@ -318,7 +340,8 @@ export default function Home() {
   }
 
   async function generatePreview() {
-    if (!selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
+    if (!canGenerate || !selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
+    if(production && !window.confirm(`本次仅生成“${production.title}”一张，使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。按 RunningHub 应用权益和额外费用规则扣费，工作台不能保证免费。确认提交？`))return;
     submitGuard.current = true;
     setImportedResult(null);
     setViewedTaskId('');
@@ -331,8 +354,8 @@ export default function Home() {
         if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
         const form = new FormData();
         form.set('artwork', await referenceUpload(await artworkResponse.blob(), selected.name));
-        if (frame.file) {
-          const frameResponse = await fetch(frame.file);
+        if (production?.frameUrl || frame.file) {
+          const frameResponse = await fetch(production?.frameUrl || frame.file!);
           if (!frameResponse.ok) throw new Error('所选框架暂时无法读取。');
           form.set('frame', await referenceUpload(await frameResponse.blob(), frame.name));
         }
@@ -351,6 +374,7 @@ export default function Home() {
         if (model.qualities.length) form.set('quality', quality);
         form.set('instruction', instruction);
         form.set('intent', intent);
+        if(production)form.set('productionItemId',production.itemId);
         const task = await generations.submit(form);
         setPreviewTaskId(task.id);
         setPreviewGenerating(isActiveGeneration(task.status));
@@ -365,18 +389,21 @@ export default function Home() {
   }
 
   function selectArtwork(id: string) {
+    if(production){setNotice('此项沿用确认样图的搭配，请返回新品清单调整版本。');return;}
     if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换图案。'); return; }
     setSelectedId(id);
     resetPreview();
   }
 
   function selectFrame(id: string) {
+    if(production){setNotice('此项使用已确认的框架，请返回新品清单调整版本。');return;}
     if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换框架。'); return; }
     setFrameId(id);
     resetPreview();
   }
 
   function selectFrameColor(id: string) {
+    if(production){setNotice('此项沿用新品已确认木色；更换颜色请另存新品样图。');return;}
     if (previewGenerating || submitGuard.current) { setNotice('当前组合正在生成，请完成后再更换颜色。'); return; }
     setFrameColorId(id);
     resetPreview();
@@ -472,6 +499,7 @@ export default function Home() {
       setNotice('请先填写明确的款式名称，再选文件夹。不能只用“成品PNG / images / sku”，也不要包含分号、冒号或路径符号。');
       return;
     }
+    if(!window.confirm('确认这张样图的产品结构、画芯位置和木色均正确，并作为新品制作标准？保存后仍可保留旧版并另做新版本，不会立即收费生成。'))return;
     const styleKey = frameStyle(folderName);
     const matchingMembers = [...uploadedFrames, ...cabinetFrameStyles, ...frames].filter((item) => (item.styleKey || frameStyle(item.name)) === styleKey);
     if ([`style:${styleKey}`, ...matchingMembers.flatMap((item) => [item.id, ...(item.memberIds || [])])].some((id) => hiddenFrameIds.includes(id))) {
@@ -542,7 +570,7 @@ export default function Home() {
             <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
               <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
               <span>{label}</span>
-              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : id === 'colors' ? frameColors.length : id === 'jobs' ? generations.tasks.length : id === 'delivery' ? generations.tasks.filter((task) => task.status === 'succeeded').length : ''}</em>
+              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : id === 'colors' ? frameColors.length : id === 'jobs' ? generations.tasks.length : ''}</em>
             </button>
           ))}
         </nav>
@@ -572,6 +600,7 @@ export default function Home() {
         </header>
 
         {activeNav === 'new' && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
+        {activeNav === 'new' && production && <div className="production-context"><strong>当前制作：{production.title}</strong><span>沿用确认样图与对应规格原图，结果自动归入这个新品的制作清单。</span><a href={`/?product=${production.productId}`}>返回新品清单</a><a href="/">退出此项，做其他新品</a></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
             <section className="studio-output-panel" aria-label="模型与出图设置">
@@ -659,7 +688,7 @@ export default function Home() {
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
-              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(frame?.file ? [{ src: frame.file, label: '框架原图' }] : [])]}
+              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : [])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
@@ -672,7 +701,7 @@ export default function Home() {
               </div>
               <p>{instruction || '使用默认制作要求'}</p>
             </details>
-            {!importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '将这张效果图保存为新品'} <span>→</span></button><p className="approval-note">按当前效果图当时的搭配保存，其他试稿继续保留。</p></>}
+            {!production && !importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认样图，进入新品制作'} <span>→</span></button><p className="approval-note">按当前效果图当时的搭配保存，其他试稿继续保留。</p></>}
             <details className="local-preview-import"><summary>可选：预览本地图片</summary><div className="official-result-import"><label>选择本地图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；工作台生成的结果自动保存，无需手动导入。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div></details>
           </aside>
         </ResizableWorkspace>
@@ -684,15 +713,16 @@ export default function Home() {
             <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
           </fieldset>
           <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />
-          {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
+          {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={production?.frameUrl || frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
           {model.note && <p className="generation-warning">{model.note}</p>}
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
           <footer><span>连接信息加密保存在账号下；当前页面的参数调整返回后继续保留。</span><button className="primary-button" onClick={returnToStudio}>返回做图，调整图片比例 →</button></footer>
         </section>}
 
-        {activeNav !== 'new' && activeNav !== 'jobs' && activeNav !== 'delivery' && activeNav !== 'settings' && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
+        {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
-      {(activeNav === 'jobs' || activeNav === 'delivery') && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask} delivery={activeNav === 'delivery'} /></div>}
+      {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
+      {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask}/></div>}
       </section>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
