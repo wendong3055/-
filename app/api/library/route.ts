@@ -1,9 +1,10 @@
 import { env } from 'cloudflare:workers';
-import { desc, eq } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getChatGPTUser } from '../../chatgpt-auth';
 import { getDb } from '../../../db';
 import { assets } from '../../../db/schema';
+import { libraryAssetFilter } from '../../../db/library-filter';
 import { classifyArtworkCategory } from '../../../lib/artwork-category';
 
 function ownerId(userId: string | undefined) {
@@ -12,8 +13,8 @@ function ownerId(userId: string | undefined) {
 
 export async function GET() {
   const user = await getChatGPTUser();
-  const rows = await getDb().select().from(assets).where(eq(assets.ownerId, ownerId(user?.userId))).orderBy(desc(assets.createdAt));
-  return NextResponse.json(rows.map((row) => ({ ...row, url: `/api/files/${row.id}` })));
+  const rows = await getDb().select().from(assets).where(libraryAssetFilter(ownerId(user?.userId))).orderBy(desc(assets.createdAt));
+  return NextResponse.json(rows.map((row) => ({ ...row, url: `/api/files/${row.id}` })), { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function POST(request: Request) {
