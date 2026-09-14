@@ -16,6 +16,7 @@ import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 import { frameSources, frameStyle, groupFrameOptions, validFrameStyleName, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
 import { syncHiddenOptions } from '../lib/hidden-options-client';
 import { ProductWorkspaceView } from './product-workspace';
+import { consentKey, consentSettings, readConsent, consentCovers, createConsent, consumeConsent, type ProductionConsent } from '../lib/production-consent';
 
 type FrameOption = { id: string; name: string; styleKey?: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
@@ -139,7 +140,8 @@ export default function Home() {
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
   const [productId, setProductId] = useState('');
-  const [production, setProduction] = useState<{itemId:string;productId:string;title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask}|null>(null);
+  const [production, setProduction] = useState<{itemId:string;productId:string;planId:string;planVersion:number;generationId:string|null;pendingItemIds:string[];title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask}|null>(null);
+  const [productionConsent,setProductionConsent] = useState<ProductionConsent|null>(null);
   const [productionLoading, setProductionLoading] = useState(false);
   const [notice, setNotice] = useState('');
   const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
@@ -166,6 +168,23 @@ export default function Home() {
   const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
   const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
   const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
+  const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:outputRatio,resolution:outputResolution,quality,
+    appSetup:model.apiMode==='member-app'?memberInputs?.setup:null});
+  const consentActive = !!production && !!productionConsent && productionConsent.planId===production.planId && productionConsent.settings===confirmationSettings;
+  useEffect(()=>{
+    if(!production)return;
+    const load=()=>{try{setProductionConsent(readConsent(window.localStorage,production.planId));}catch{setProductionConsent(null);}};
+    load();window.addEventListener('storage',load);
+    return()=>window.removeEventListener('storage',load);
+  },[production?.planId]);
+  function storeProductionConsent(value:ProductionConsent|null) {
+    if(!production)return;
+    try {
+      if(value)window.localStorage.setItem(consentKey(production.planId),JSON.stringify(value));
+      else window.localStorage.removeItem(consentKey(production.planId));
+      setProductionConsent(value);
+    } catch {setProductionConsent(null);setNotice('浏览器未允许保存确认方式，本次仍可生成；下次会重新询问。');}
+  }
   useEffect(() => () => { if (importedResult) URL.revokeObjectURL(importedResult.url); }, [importedResult]);
   useEffect(() => {
     const query=new URLSearchParams(window.location.search), item=query.get('production'), saved=query.get('product');
@@ -347,15 +366,29 @@ export default function Home() {
 
   async function generatePreview() {
     if (!canGenerate || !selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
-    if ((production || customConfig) && !window.confirm(`本次生成一张${production ? `“${production.title}”` : '效果图'}，使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。参考图与制作要求将发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按该服务商规则计费。确认提交？`)) return;
     submitGuard.current = true;
-    setImportedResult(null);
-    setViewedTaskId('');
-    setPreviewTaskId('');
-    setPreviewReady(false);
     setPreviewGenerating(true);
     setPreviewError('');
     try {
+        let receipt:ProductionConsent|null=null;
+        const pricing=`使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。参考图和制作要求发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按服务商实际规则计费；当前无法保证固定总价。`;
+        if(production){
+          // Refresh ownership and attempt state before honoring a remembered dialog choice.
+          const r=await fetch(`/api/production/${encodeURIComponent(production.itemId)}`,{cache:'no-store'});
+          const fresh=await r.json() as NonNullable<typeof production>&{error?:string};
+          if(!r.ok||fresh.planId!==production.planId||fresh.productId!==production.productId||!Array.isArray(fresh.pendingItemIds))throw new Error(fresh.error||'清单已变化，请刷新后重新确认。');
+          setProduction(fresh);
+          const scope={planId:fresh.planId,productId:fresh.productId,settings:confirmationSettings};
+          try{receipt=readConsent(window.localStorage,fresh.planId);}catch{receipt=null;}
+          if(fresh.generationId || (receipt?.settings===scope.settings && !receipt.remaining.includes(fresh.itemId))){
+            if(!window.confirm(`重新提交“${fresh.title}”可能再次计费，不包含在本套首次制作确认中。${pricing}\n请先确认旧任务已失败或已标记重做；状态不明时不要重试。确认仅重做此项？`)){setPreviewGenerating(false);return;}
+          }else if(!consentCovers(receipt,scope,fresh.itemId,false)){
+            if(!window.confirm(`一次确认本套 v${fresh.planVersion} 剩余 ${fresh.pendingItemIds.length} 项的首次制作，每项一张。\n${pricing}\n同一版本、同一参数下不再逐张弹窗；更换参数、新版本、失败重试或重做需重新确认。\n仍需点击生成才会提交，不会因刷新或打开页面自动扣费。可随时撤销本套确认。\n确认本套，并开始当前这一项？`)){setPreviewGenerating(false);return;}
+            receipt=createConsent(scope,fresh.pendingItemIds);
+            storeProductionConsent(receipt);
+          }
+        }else if(customConfig && !window.confirm(`${pricing}确认生成一张效果图？`)){setPreviewGenerating(false);return;}
+        setImportedResult(null);setViewedTaskId('');setPreviewTaskId('');setPreviewReady(false);
         const artworkResponse = await fetch(selected.file);
         if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
         const form = new FormData();
@@ -382,6 +415,8 @@ export default function Home() {
         form.set('instruction', instruction);
         form.set('intent', intent);
         if(production)form.set('productionItemId',production.itemId);
+        // Consume BEFORE submission: ambiguous failures must never silently retry a paid item.
+        if(receipt && production)storeProductionConsent(consumeConsent(receipt,production.itemId));
         const task = await generations.submit(form);
         setPreviewTaskId(task.id);
         setPreviewGenerating(isActiveGeneration(task.status));
@@ -682,6 +717,7 @@ export default function Home() {
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
               {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
               <p className="generation-privacy">生成时将发送所选参考图与制作要求，按当前应用权益与费用规则计费。</p>
+              {production&&<div className="production-confirmation" role="status"><strong>{consentActive?'本套已确认 · 不再逐张弹窗':'本套只需确认一次'}</strong><p>此浏览器记住同一版本、同一模型参数的首次制作确认。点击生成才会提交；重做另行确认，刷新不会自动扣费。</p>{productionConsent&&<button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{storeProductionConsent(null);setNotice('已撤销本套确认。不会撤回或取消已经提交的任务。');}}>撤销本套确认</button>}</div>}
               <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{generateLabel} <span>→</span></button>
               <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 不跳转官网 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}

@@ -73,6 +73,9 @@ button, input, select, textarea { font-family: inherit; }
 .content-grid .frame-color-options strong { font-size: 14px; line-height: 1.5; }
 .frame-color-options button > b { position: absolute; right: 4px; top: 4px; font-size: 12px; }
 .brief-help, .brief-rules, .brief-tools button, .brief-tools span, .generation-privacy, .generation-shortcut, .generation-method-note { font-size: 14px; color: #53645a; }
+.production-confirmation { margin:16px 0; padding:16px; border:1px solid #c5d8cb; border-radius:12px; background:#f1f7f3; font-size:16px; line-height:1.6; }
+.production-confirmation p { margin:6px 0; }
+.production-confirmation button { font:inherit; padding:6px 12px; border:1px solid #8ca699; border-radius:8px; background:white; cursor:pointer; }
 .generation-parameters textarea { font-size: 16px; line-height: 1.7; }
 .generation-methods legend, .image-output-options legend { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
 .generation-method-options strong { font-size: 16px; }
