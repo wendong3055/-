@@ -71,6 +71,17 @@ export const customImageProviders = sqliteTable('custom_image_providers', {
   updatedAt: integer('updated_at').notNull(),
 }, table => [index('custom_image_providers_owner_idx').on(table.ownerId)]);
 
+export const rhCreatorKeys = sqliteTable('rh_creator_keys', {
+  ownerId: text('owner_id').primaryKey(), encryptedKey: text('encrypted_key').notNull(), updatedAt: integer('updated_at').notNull(),
+});
+export const rhCreatorTasks = sqliteTable('rh_creator_tasks', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), name: text('name').notNull(),
+  endpoint: text('endpoint').notNull(), kind: text('kind').notNull(), status: text('status').notNull(),
+  remoteId: text('remote_id'), inputsJson: text('inputs_json').notNull(), outputsJson: text('outputs_json').notNull().default('[]'),
+  error: text('error').notNull().default(''), cost: text('cost').notNull().default(''),
+  lease: integer('lease').notNull().default(0), createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
+}, t => [index('rh_creator_owner_created').on(t.ownerId,t.createdAt), uniqueIndex('rh_creator_owner_active').on(t.ownerId).where(sql`${t.status} IN ('uploading','submitting','queued','running','saving','unknown')`)]);
+
 export const memberAppPreferences = sqliteTable('member_app_preferences', {
   id: text('id').primaryKey(),
   ownerId: text('owner_id').notNull(),

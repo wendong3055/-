@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     let ratio = field('aspectRatio', '16:9');
     let resolution = field('resolution', '2k');
     const requestedModel = field('model', RUNNINGHUB_MODEL);
+    if (isCustomModel(requestedModel)) return NextResponse.json({ error: '工作台现仅使用 RunningHub。其他平台的新生成已关闭，历史记录仍保留。' }, { status: 410 });
     const custom = isCustomModel(requestedModel) ? await customProvider(owner, requestedModel.slice(7)) : null;
     const model = custom ? customImageModel(custom.config) : getImageModel(requestedModel);
     if (custom && (refs as File[]).reduce((sum,file) => sum+file.size,0) > 8*1024*1024) return NextResponse.json({ error: '自定义接口的参考图总大小请控制在8MB以内。' }, { status: 413 });

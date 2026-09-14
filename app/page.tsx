@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
-import { CustomApiSettings, useCustomProviders } from './custom-api-settings';
+import RhCreator from './rh-creator';
+import type { CustomImageConfig } from '../lib/custom-image-config';
 import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
 import { MemberAppSettings, MemberOutputOptions, useMemberApp } from './member-app-settings';
@@ -93,20 +94,21 @@ const cabinetFrameStyles: FrameOption[] = [
 
 const navItems = [
   ['new', '新品项目', '08'],
+  ['creator', 'RunningHub 创作', ''],
   ['products', '我的新品', ''],
   ['gallery', '图库收纳', '128'],
   ['frames', '框架库', '10'],
   ['colors', '颜色库', '06'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
-  ['settings', '后台设置', ''],
+  ['settings', '连接设置', ''],
 ];
 
 
 export default function Home() {
   const generations = useGenerations();
-  const customProviders = useCustomProviders();
-  const availableModels = [...imageModels, ...customProviders.models];
+  const customProviders = { providers: [] as CustomImageConfig[] };
+  const availableModels = imageModels;
   const [importedResult, setImportedResult] = useState<{ url: string; name: string } | null>(null);
   const [previewTaskId, setPreviewTaskId] = useState('');
   const [modelId, setModelId] = useState(defaultImageModel.id);
@@ -612,11 +614,11 @@ export default function Home() {
               <div className="row-label"><strong>模型与出图设置</strong><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
               <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
                 <legend className="sr-only">选择生成模型和图片参数</legend>
-                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="RunningHub · 会员应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="RunningHub · 国际站">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="自定义 API · 我的接口">{customProviders.models.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+                <label className="model-select">RunningHub 模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="新品制作应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有 RunningHub 模型">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
                 {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
                 {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
                 {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
-                <button className="api-add-link" type="button" onClick={() => setActiveNav('settings')}>＋ 接入其他生图 API</button>
+                <button className="api-add-link" type="button" onClick={() => setActiveNav('creator')}>打开 RunningHub 创作中心</button>
               </fieldset>
             </section>
             <fieldset className="intent-picker" disabled={previewGenerating}>
@@ -714,22 +716,24 @@ export default function Home() {
         </ResizableWorkspace>
 
         {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
-          <header><h2>生图 API 设置</h2><p>选择 RunningHub，或接入你自己的服务商。各接口独立保存密钥和模型配置，按所选服务商计费。</p></header>
-          <CustomApiSettings controller={customProviders} busy={generations.busy || previewGenerating} onSelect={id => { chooseModel(id); returnToStudio(); }} />
+          <header><h2>RunningHub 连接设置</h2><p>只需要配置 RunningHub，不用填写接口地址、传输格式或域名。</p></header>
+          <RhCreator settingsOnly />
+          <details><summary>原有新品制作连接（已配置通常不用改）</summary>
           <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
             <legend>当前调用应用</legend>
-            <label className="model-select">调用模型 / 应用<select value={modelId} onChange={event => chooseModel(event.target.value)}><optgroup label="RunningHub · 会员应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="RunningHub · 国际站">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="自定义 API · 我的接口">{customProviders.models.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+            <label className="model-select">RunningHub 模型 / 应用<select value={modelId} onChange={event => chooseModel(event.target.value)}>{imageModels.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           </fieldset>
           {!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />}
           {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={production?.frameUrl || frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
           {model.note && <p className="generation-warning">{model.note}</p>}
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-          <footer><span>API 密钥加密保存在当前工作台账号下；当前页面的参数调整返回后继续保留。</span><button className="primary-button" onClick={returnToStudio}>返回做图，调整图片比例 →</button></footer>
+          </details><footer><span>Key 加密保存在当前账号下，历史作品不受影响。</span><button className="primary-button" onClick={()=>setActiveNav('creator')}>进入 RunningHub 创作 →</button></footer>
         </section>}
 
         {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
       {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
+      {activeNav === 'creator' && <RhCreator />}
       {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask}/></div>}
       </section>
 

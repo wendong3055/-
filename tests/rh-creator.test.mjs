@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {readFileSync,readdirSync} from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import {build} from 'esbuild';
+const db=new DatabaseSync(':memory:');
+for(const file of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync(`drizzle/${file}`,'utf8'));
+const prepare=sql=>({bind(...args){
+  const s=db.prepare(sql);
+  return {first:async()=>s.get(...args)||null,all:async()=>({results:s.all(...args)}),run:async()=>({meta:{changes:s.run(...args).changes}})};
+}});
+globalThis.__RH_TEST_ENV={DB:{prepare},CREDENTIAL_ENCRYPTION_KEY:Buffer.alloc(32,4).toString('base64')};
+const built=await build({stdin:{contents:"export * from './lib/rh-creator-schema';export * from './lib/rh-creator-catalog';export * from './lib/rh-creator-provider';export * from './db/rh-creator';",resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,format:'esm',platform:'node',plugins:[{name:'env',setup(b){b.onResolve({filter:/^cloudflare:workers$/},()=>({path:'env',namespace:'mock'}));b.onLoad({filter:/.*/,namespace:'mock'},()=>({contents:'export const env=globalThis.__RH_TEST_ENV;'}));}}]});
+const m=await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString('base64')}`);
+assert.equal(m.rhCatalog.length,420);assert.deepEqual(new Set(m.rhCatalog.map(m=>m.output_type)),new Set(['image','video','audio','3d','string']));
+assert.equal(m.appIdFrom('https://www.runninghub.cn/ai-detail/1877265245566922800'),'1877265245566922800');assert.equal(m.appIdFrom('https://evil.com/ai-detail/1877265245566922800'),'');
+const model={params:[{key:'prompt',type:'STRING',required:true},{key:'imageUrls',type:'IMAGE',required:true,multiple:true,maxCount:2},{key:'duration',type:'INT',min:1,max:10},{key:'quality',type:'LIST',options:['high','low']},{key:'permissionPublic',type:'BOOLEAN',default:true}]};
+assert.throws(()=>m.validateParams(model,{},{}),/制作要求/);assert.throws(()=>m.validateParams(model,{prompt:'中文'},{}),/参考图片/);assert.throws(()=>m.validateParams(model,{prompt:'中文',duration:'99'},{imageUrls:1}),/范围/);assert.throws(()=>m.validateParams(model,{prompt:'中文',quality:'invented'},{imageUrls:1}),/选项/);
+assert.deepEqual({...m.validateParams(model,{prompt:'中文',duration:'5',quality:'high',apiKey:'never-pass'},{imageUrls:2})},{prompt:'中文',duration:5,quality:'high',permissionPublic:false});
+await m.saveCreatorKey('alice','test-key-never-real-123');assert.equal(await m.creatorKey('alice'),'test-key-never-real-123');assert.equal((await m.creatorKeyStatus('bob')).configured,false);assert.equal(JSON.stringify(db.prepare('SELECT * FROM rh_creator_keys').get()).includes('test-key-never-real'),false);
+const id=crypto.randomUUID();await m.insertCreator({id,owner:'alice',name:'音频',kind:'audio',endpoint:'audio-endpoint',inputs:{prompt:'中文'}});await assert.rejects(m.insertCreator({id:crypto.randomUUID(),owner:'alice',name:'重复',kind:'audio',endpoint:'x',inputs:{}}));await assert.rejects(m.saveCreatorKey('alice','another-test-key-123'));assert.equal(await m.creatorTask('bob',id),null);
+await m.setCreator('alice',id,'queued','', 'remote-1');const lease=await m.creatorLease('alice',id);assert.ok(lease);assert.equal(await m.creatorLease('alice',id),0);await m.setCreator('alice',id,'saving','',undefined,[{text:'结果'}],undefined,lease);await m.setCreator('alice',id,'succeeded','',undefined,undefined,undefined,lease);await m.setCreator('alice',id,'running');assert.equal((await m.creatorTask('alice',id)).status,'succeeded');
+let calls=0;const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{calls++;assert.ok(String(url).startsWith('https://www.runninghub.cn/'));assert.equal(options.redirect,'error');return Response.json({taskId:'remote-id',status:'QUEUED'});};assert.equal((await m.rhRequest('fake-key','/openapi/v2/test',{prompt:'中文'},true)).taskId,'remote-id');assert.equal(calls,1);
+globalThis.fetch=async()=>{calls++;throw Error('timeout');};await assert.rejects(m.rhRequest('fake-key','/openapi/v2/test',{},true),e=>e.uncertain);assert.equal(calls,2);
+globalThis.fetch=async()=>Response.json({code:0,data:{webappName:'测试应用',nodeInfoList:[{nodeId:'1',fieldName:'video',fieldType:'VIDEO',description:'上传视频',fieldValue:'demo.mp4'},{nodeId:'2',fieldName:'audio',fieldType:'AUDIO',description:'可选音频',fieldValue:'demo.mp3'},{nodeId:'3',fieldName:'ratio',fieldType:'LIST',fieldValue:'1:1',fieldData:JSON.stringify([['1:1','9:16'],{default:'1:1'}])}]}});const app=await m.creatorApp('fake-key','1877265245566922800');assert.equal(app.params[0].type,'VIDEO');assert.equal(app.params[0].default,'');assert.equal(app.params[1].required,false);assert.deepEqual(app.params[2].options,['1:1','9:16']);
+globalThis.fetch=original;db.close();delete globalThis.__RH_TEST_ENV;
+const page=readFileSync('app/page.tsx','utf8');assert.ok(!page.includes('接入其他生图 API'));assert.ok(!page.includes('<CustomApiSettings'));assert.ok(page.includes("activeNav === 'creator'"));
+console.log('PASS: 420-endpoint catalogue, all media categories, typed parameters, private defaults, encrypted keys, ownership, concurrency, leases, no paid retry, dynamic video/audio app inputs, and removal of other API controls. Offline only.');
