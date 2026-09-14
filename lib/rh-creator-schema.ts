@@ -25,13 +25,15 @@ export const mediaParam = (p:RhParam) => ['IMAGE','VIDEO','AUDIO'].includes(p.ty
 export const hiddenParam = (p:RhParam) => /api.?key|password|secret|authorization|clientToken|permission|stream|webSearch/i.test(p.key);
 export const commonParam = (p:RhParam) => p.required || mediaParam(p) || /^(prompt|text|text_prompt|textPrompt|resolution|aspectRatio|duration|quality|size|voice|voice_id|voiceId|lyrics)$/.test(p.key);
 export function paramLabel(p:RhParam) { return p.label && /[\u4e00-\u9fff]/.test(p.label) ? p.label : labels[p.key] || (mediaParam(p)? ({IMAGE:'参考图片',VIDEO:'参考视频',AUDIO:'参考音频'}[p.type]!) : '模型补充设置'); }
-export function defaultValues(model:RhModel) { return Object.fromEntries(model.params.filter(p=>!hiddenParam(p)&&!mediaParam(p)).map(p=>[p.key,p.default===undefined?'':String(p.default)])); }
+const contentParam = (p:RhParam) => p.type==='STRING' && !p.options?.length && (/prompt|text|lyrics|instructions|description|storyboard/i.test(`${p.key} ${p.fieldName||''}`) || /提示词|文案|歌词|文本|制作要求/.test(p.label||''));
+const initialValue = (p:RhParam) => contentParam(p)||p.default===undefined?'':String(p.default);
+export function defaultValues(model:RhModel) { return Object.fromEntries(model.params.filter(p=>!hiddenParam(p)&&!mediaParam(p)).map(p=>[p.key,initialValue(p)])); }
 export function validateParams(model:RhModel, values:Record<string,unknown>, media:Record<string,number> = {}) {
   const result:Record<string,unknown> = Object.create(null);
   for (const p of model.params) {
     if (hiddenParam(p)) { if(p.type==='BOOLEAN') result[p.key]=false; continue; }
     if (mediaParam(p)) { const count=media[p.key]||0; if(p.required&&!count) throw new Error(`请提供${paramLabel(p)}。`); if(count>(p.multiple?(p.maxCount||10):1)) throw new Error(`${paramLabel(p)}数量过多。`); continue; }
-    const v=values[p.key] ?? (p.default===undefined?'':String(p.default));
+    const v=values[p.key] ?? initialValue(p);
     if(typeof v!=='string' || v.length>Math.min(p.maxLength||12000,20000)) throw new Error(`${paramLabel(p)}内容无效或过长。`);
     if(!v.trim()) { if(p.required)throw new Error(`请填写${paramLabel(p)}。`); continue; }
     if(p.options?.length && p.type!=='SIZE' && !p.options.some(o=>String(o)===v)) throw new Error(`${paramLabel(p)}不支持这个选项。`);
