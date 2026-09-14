@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { artworkRules, mainOptions, detailOptions, type ProductWorkspace, type ProductionPlanInput, type ProductionPlan, type ProductionItem } from '../lib/production-plan';
 import { generationLabels } from '../lib/generation-types';
 import { downloadBlob, exportProduction, publicationImage } from '../lib/production-export';
+import {sharedScene,canReuseScene,type SizeMarks} from '../lib/production-scene';
+import {SizeMarksEditor} from './size-marks-editor';
 async function responseData<T>(r:Response):Promise<T>{const b=await r.json() as T&{error?:string};if(!r.ok)throw new Error(b.error||'请求未完成，请重试。');return b;}
 
 export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen}:{productId?:string;delivery?:boolean;onNew:()=>void;onOpen:(id:string)=>void}){
@@ -17,11 +19,16 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen}:
   }catch(e){setError(e instanceof Error?e.message:'读取失败。');}finally{setLoading(false);}}
   useEffect(()=>{setEditor(null);setData(null);void reload();},[productId]); // project boundary resets its draft
   const plan=data?.plans.find(p=>p.id===version)||data?.plans[0];
-  function edit(){if(!data)return;setEditor(plan?{...plan.config,expectedVersion:data.plans[0]?.version||0,confirmed:false}:{name:data.product.name,expectedVersion:0,rule:'all',notes:'',sizes:data.sizes.map(s=>({...s,sourceIds:s.sourceIds.slice(0,1),sourceUrls:s.sourceUrls.slice(0,1)})),main:['白底主图'],details:['新品形象','规格选择','选购须知'],confirmed:false});}
+  function edit(){if(!data)return;setEditor(plan?{...plan.config,sceneTitle:plan.config.sceneTitle||'客厅场景',main:Array.from(new Set([...plan.config.main,plan.config.sceneTitle||'客厅场景'])),expectedVersion:data.plans[0]?.version||0,confirmed:false}:{name:data.product.name,expectedVersion:0,rule:'all',notes:'',sceneTitle:'客厅场景',sizes:data.sizes.map(s=>({...s,sourceIds:s.sourceIds.slice(0,1),sourceUrls:s.sourceUrls.slice(0,1)})),main:['客厅场景'],details:['新品形象','规格选择','选购须知'],confirmed:false});}
   async function save(){if(!editor||!data)return;setBusy(true);setError('');try{const r=await fetch(`/api/products/${data.product.id}/workspace`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(editor)});const b=await responseData<ProductWorkspace>(r);setData(b);setVersion(b.plans[0].id);setEditor(null);}catch(e){setError(e instanceof Error?e.message:'保存失败，内容仍然保留。');}finally{setBusy(false);}}
   async function show(item:ProductionItem){if(!data||!plan)return;setBusy(true);try{setPreview({url:URL.createObjectURL(await publicationImage(item,data,plan)),title:item.title});}catch(e){setError(String(e));}finally{setBusy(false);}}
   async function review(item:ProductionItem,value:'accepted'|'rework',note:string){setBusy(true);setError('');try{const r=await fetch(`/api/production/${item.id}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({generationId:item.generationId,review:value,note})});await responseData(r);const selected=version;await reload();setVersion(selected);}catch(e){setError(String(e));}finally{setBusy(false);}}
   async function exportZip(){if(!data||!plan)return;setBusy(true);setError('');try{await exportProduction(data,plan,setError);setError('交付包已整理，请查看浏览器下载。');}catch(e){setError(String(e));}finally{setBusy(false);}}
+  async function sizeAction(item:ProductionItem,marks?:SizeMarks){if(!data||!plan)return;setBusy(true);setError('');try{
+    const r=await fetch(`/api/production/${item.id}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(marks?{action:'save-marks',generationId:item.generationId,marks}:{action:'reuse-scene',sceneGenerationId:sharedScene(plan)?.generationId})});await responseData(r);
+    const next=await responseData<ProductWorkspace>(await fetch(`/api/products/${data.product.id}/workspace`,{cache:'no-store'}));setData(next);
+    if(marks){const nextPlan=next.plans.find(p=>p.id===plan.id)!,nextItem=nextPlan.items.find(i=>i.id===item.id)!;setPreview({url:URL.createObjectURL(await publicationImage(nextItem,next,nextPlan)),title:item.title});}
+  }catch(e){setError(String(e));}finally{setBusy(false);}}
   return <section className="product-workspace" aria-label={delivery?'新品交付中心':'新品制作清单'}>
     <header className="product-head"><div><p>{delivery?'按新品和版本交付':'样图确认后，围绕新品组织制作'}</p><h2>{data?.product.name||(delivery?'新品交付中心':'我的新品')}</h2></div><div className="product-actions">{productId&&<button disabled={busy} onClick={()=>onOpen('')}>全部新品</button>}<button disabled={busy} onClick={()=>void reload()}>刷新</button><button onClick={onNew}>返回选图做新品</button></div></header>
     {error&&<p role="status" className="product-message">{error}</p>}
@@ -32,6 +39,7 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen}:
       {!data.sample?.recipe&&<p role="alert">这份旧新品缺少原始搭配记录。请回到做图页重新确认样图；原图仍保留。</p>}
       {editor&&<div className="plan-editor"><h3>制作清单 · 新版本 v{editor.expectedVersion+1}</h3><label>新品名称<input value={editor.name} maxLength={120} onChange={e=>setEditor({...editor,name:e.target.value})}/></label><label>图案放置规则<select value={editor.rule} onChange={e=>setEditor({...editor,rule:e.target.value as ProductionPlanInput['rule']})}>{Object.entries(artworkRules).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label><label>结构、颜色与排版补充要求<textarea value={editor.notes} maxLength={1000} onChange={e=>setEditor({...editor,notes:e.target.value})} placeholder="例如：柜门保持无图案；暖白不要偏黄；全套详情统一留白风格。"/></label>
         <fieldset><legend>主图与场景图</legend>{mainOptions.map(x=><label className="plan-check" key={x}><input type="checkbox" checked={editor.main.includes(x)} onChange={e=>setEditor({...editor,main:e.target.checked?[...editor.main,x]:editor.main.filter(i=>i!==x)})}/>{x}</label>)}</fieldset>
+        <label>主图与尺寸图共用背景<select value={editor.sceneTitle||'客厅场景'} onChange={e=>setEditor({...editor,sceneTitle:e.target.value,main:Array.from(new Set([...editor.main,e.target.value]))})}><option>客厅场景</option><option>玄关场景</option></select></label><p>先制作并验收场景主图，再复用到尺寸图。GPT Image 2 · 2K；主图、尺寸图 1:1，详情按竖版模板排版。</p>
         <fieldset><legend>重新设计详情页模块</legend>{detailOptions.map(x=><label className="plan-check" key={x}><input type="checkbox" checked={editor.details.includes(x)} onChange={e=>setEditor({...editor,details:e.target.checked?[...editor.details,x]:editor.details.filter(i=>i!==x)})}/>{x}</label>)}</fieldset>
         <h4>单尺寸图 · {editor.sizes.length} 个规格</h4><p>单位 cm。宽度填写产品总宽，连屏另填扇数。每个规格绑定一张真实框架原图；不需要尺寸图可移除全部规格。</p>
         {(data.unknown>0||data.missing>0)&&<p className="product-message">有 {data.unknown} 张原图未识别尺寸，另有 {data.missing} 张可能缺失。请核对下表；不会猜测缺失尺寸。</p>}
@@ -41,17 +49,21 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen}:
       </div>}
       {plan&&!editor&&<><div className="plan-version"><label>制作版本<select value={plan.id} onChange={e=>setVersion(e.target.value)}>{data.plans.map(p=><option key={p.id} value={p.id}>v{p.version} · {p.config.name}</option>)}</select></label><strong>{plan.items.filter(i=>i.review==='accepted').length}/{plan.items.length} 项已验收</strong><button disabled={busy||!plan.items.some(i=>i.review==='accepted')} onClick={()=>void exportZip()}>下载{plan.items.every(i=>i.review==='accepted')?'完整交付包':'已验收部分'} ZIP</button></div>
       <p>尺寸标识使用确认数值排版；详情配图重新生成后统一添加模块标题。请先预览交付排版，再验收。同一版本、同一模型参数只需确认一次，后续首次制作不再逐张弹窗；仍需点击生成，重做另行确认。</p>
-      <div className="production-list">{plan.items.map(item=><ProductionCard key={`${item.id}:${item.generationId}`} item={item} busy={busy} onPreview={()=>void show(item)} onReview={(v,n)=>void review(item,v,n)} onDownload={()=>{setBusy(true);void publicationImage(item,data,plan).then(b=>downloadBlob(b,`${item.title}.${b.type==='image/png'?'png':b.type==='image/webp'?'webp':'jpg'}`)).catch(e=>setError(String(e))).finally(()=>setBusy(false));}}/>)}</div></>}
+      {plan.config.sceneTitle&&<div className="product-message"><strong>共用场景：{plan.config.sceneTitle}</strong><p>{sharedScene(plan)?'场景主图已确认。相同规格直接共用此图加标注；其他规格按自己的真实框架沿用该场景。':'先完成并验收场景主图，再制作尺寸图。'}</p>{sharedScene(plan)?.task?.url&&<img src={sharedScene(plan)!.task!.url!} alt="主图和尺寸图共用场景" style={{width:200,height:200,objectFit:'contain'}}/>}</div>}
+      <div className="production-list">{plan.items.map(item=><ProductionCard key={`${item.id}:${item.generationId}:${JSON.stringify(item.spec?.marks)}`} item={item} busy={busy} sceneMode={!!plan.config.sceneTitle} sceneReady={!!sharedScene(plan)} canReuse={!item.generationId&&canReuseScene(item,data,plan)} onReuse={()=>void sizeAction(item)} onMarks={marks=>void sizeAction(item,marks)} onPreview={()=>void show(item)} onReview={(v,n)=>void review(item,v,n)} onDownload={()=>{setBusy(true);void publicationImage(item,data,plan).then(b=>downloadBlob(b,`${item.title}.${b.type==='image/png'?'png':b.type==='image/webp'?'webp':'jpg'}`)).catch(e=>setError(String(e))).finally(()=>setBusy(false));}}/>)}</div></>}
     </>}
     {preview&&<dialog open className="publication-preview" aria-label="交付排版预览"><button onClick={()=>setPreview(null)}>关闭预览</button><h3>{preview.title}</h3><img src={preview.url} alt={preview.title}/></dialog>}
   </section>;
 }
-function ProductionCard({item,busy,onPreview,onReview,onDownload}:{item:ProductionItem;busy:boolean;onPreview:()=>void;onReview:(v:'accepted'|'rework',n:string)=>void;onDownload:()=>void}) {
+function ProductionCard({item,busy,onPreview,onReview,onDownload,sceneMode,sceneReady,canReuse,onReuse,onMarks}:{item:ProductionItem;busy:boolean;onPreview:()=>void;onReview:(v:'accepted'|'rework',n:string)=>void;onDownload:()=>void;sceneMode:boolean;sceneReady:boolean;canReuse:boolean;onReuse:()=>void;onMarks:(marks:SizeMarks)=>void}) {
   const [note,setNote]=useState(item.note),[checked,setChecked]=useState(false);
   const ready=!item.task||item.task.status==='failed'||item.review==='rework';
   return <article className="production-card"><div>{item.task?.url?<img src={item.task.url} alt={item.title}/>:<span>{item.task?generationLabels[item.task.status]:'待制作'}</span>}</div><section><small>{{main:'主图',size:'单尺寸图',detail:'详情模块'}[item.kind]}</small><h3>{item.title}</h3><p>{item.review==='accepted'?'已验收':item.review==='rework'?'已标记重做':item.task?.status==='succeeded'?'待人工验收':item.task?generationLabels[item.task.status]:'清单已确认，尚未生成'}</p>{item.task?.error&&<p role="status">{item.task.error}</p>}
     <details><summary>本项制作要求</summary><p>{item.brief}</p></details>
-    {ready&&<a className="production-start" href={`/?production=${item.id}`}>{item.task?'准备重做此项':'准备制作此项'} →</a>}
+    {ready&&(!sceneMode||item.kind!=='size'||sceneReady)&&<a className="production-start" href={`/?production=${item.id}`}>{item.task?'准备重做此项':'准备制作此项'} →</a>}
+    {sceneMode&&item.kind==='size'&&!sceneReady&&<p>请先完成并验收共用场景主图。</p>}
+    {canReuse&&<button disabled={busy} onClick={onReuse}>共用场景主图，直接加尺寸（不再生图）</button>}
+    {sceneMode&&item.kind==='size'&&item.task?.url&&<SizeMarksEditor item={item} busy={busy} onSave={onMarks}/>}
     {item.task?.url&&<><div className="product-actions"><button disabled={busy} onClick={onPreview}>预览交付排版</button><button disabled={busy} onClick={onDownload}>下载本项</button></div><label>验收备注 / 重做原因<textarea value={note} maxLength={600} onChange={e=>setNote(e.target.value)} placeholder="例如：柜门数量正确，画芯完整；暖白仍偏黄需重做。"/></label><label className="plan-check"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/>已核对交付排版、产品结构、图案、颜色与尺寸</label><div className="product-actions"><button disabled={busy||!checked} onClick={()=>onReview('accepted',note)}>验收通过</button><button disabled={busy||!note.trim()} onClick={()=>onReview('rework',note)}>标记重做</button></div></>}
   </section></article>;
 }

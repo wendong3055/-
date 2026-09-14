@@ -1,5 +1,6 @@
 import type { FrameSize } from './frame-catalog';
 import type { GenerationTask } from './generation-types';
+import type { SizeMarks } from './production-scene';
 
 export const artworkRules = {
   upper: '只在上方屏芯装画，柜门、抽屉和其余木质部件不加图案。',
@@ -11,9 +12,9 @@ export const mainOptions = ['白底主图', '玄关场景', '客厅场景'] as c
 export const detailOptions = ['新品形象', '画芯设计', '框架与配色', '空间搭配', '规格选择', '选购须知'] as const;
 export type ProductionPlanInput = {
   name: string; expectedVersion: number; rule: keyof typeof artworkRules; notes: string;
-  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean;
+  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean; sceneTitle?:string;
 };
-export type ProductionItem = { id: string; title: string; kind: 'main'|'size'|'detail'; brief: string; spec: FrameSize|null;
+export type ProductionItem = { id: string; title: string; kind: 'main'|'size'|'detail'; brief: string; spec: (FrameSize&{marks?:SizeMarks})|null;
   generationId: string|null; review: string; note: string; task: GenerationTask|null };
 export type ProductionPlan = { id: string; version: number; createdAt: number; config: ProductionPlanInput; items: ProductionItem[] };
 export type ProductWorkspace = { product: {id:string;name:string;frameName:string;artworkName:string;sampleAssetId:string};
@@ -39,15 +40,16 @@ export function validateProductionPlan(value: unknown, sources: string[]): Produ
   });
   if (new Set(sizes.map(s=>s.key)).size !== sizes.length) throw new Error('有重复规格，请合并后再确认。');
   const main = choices(p.main, mainOptions), details = choices(p.details, detailOptions);
+  if(p.sceneTitle && (!['客厅场景','玄关场景'].includes(p.sceneTitle)||!main.includes(p.sceneTitle)))throw new Error('请在主图中勾选共用场景，再保存清单。');
   if (!main.length && !details.length && !sizes.length) throw new Error('请至少选择一个制作项目。');
-  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true};
+  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(p.sceneTitle?{sceneTitle:p.sceneTitle}:{})};
 }
 export function planItems(plan: ProductionPlanInput) {
   const lock = `${artworkRules[plan.rule]} ${plan.notes}`;
   return [
-    ...plan.main.map(title=>({title,kind:'main' as const,spec:null,brief:`以确认样图为产品标准，制作${title}。保留产品结构、画芯和框架色，完整展示产品，不添加尺寸或营销文字。${lock}`})),
+    ...plan.main.map(title=>({title,kind:'main' as const,spec:null,brief:`以确认样图为产品标准，制作${title}。保留产品结构、画芯和框架色，完整展示产品，不添加尺寸或营销文字。${title===plan.sceneTitle?'此图同时作为尺寸图的共用场景：正方形构图，产品正面为主，侧面进深适度可见，机位端正，背景简洁明亮，产品四周保留标注空间，不被其他家具遮挡。':''}${lock}`})),
     ...plan.sizes.map(spec=>({title:`宽${spec.widthCm} × 高${spec.heightCm}cm${spec.panelCount ? ` · ${spec.panelCount}扇`:''}`,kind:'size' as const,spec,
-      brief:`依据这张规格框架原图制作白底产品净图，宽${spec.widthCm}cm，高${spec.heightCm}cm${spec.depthCm ? `，深${spec.depthCm}cm`:''}。保持该规格原图结构和透视，不拉伸确认样图替代。不要生成文字或尺寸箭头，尺寸标识在下载时由确认数据准确排版。${lock}`})),
+      brief:`依据这张规格框架原图制作${plan.sceneTitle?`沿用${plan.sceneTitle}背景的正方形场景图`:'白底产品净图'}，宽${spec.widthCm}cm，高${spec.heightCm}cm${spec.depthCm ? `，深${spec.depthCm}cm`:''}。保持该规格原图结构和透视，不拉伸确认样图替代。不要生成文字或尺寸箭头；根据确认数据添加标注，成品预览与下载一致。${lock}`})),
     ...plan.details.map(title=>({title,kind:'detail' as const,spec:null,brief:`根据确认产品，重新设计电商详情页的“${title}”模块。保留产品结构、画芯及木色，版式清晰有留白，不照搬原详情页，不编造材质、认证、承重或尺寸参数。生成不带文字的模块配图；模块标题和已确认参数在交付时排版。${lock}`})),
   ];
 }

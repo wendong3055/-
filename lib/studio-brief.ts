@@ -8,7 +8,7 @@ export const studioIntents = [
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];
-export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; appSetup?: AppSetup; productionItemId?: string };
+export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; appSetup?: AppSetup; productionItemId?: string; sceneGenerationId?:string };
 export function isStudioIntent(value: string): value is StudioIntent { return studioIntents.some((item) => item.id === value); }
 
 export function parseRecipe(value: string | null | undefined): GenerationRecipe | null {
@@ -18,6 +18,7 @@ export function parseRecipe(value: string | null | undefined): GenerationRecipe 
     if (!data || typeof data !== 'object' || !(['artworkId', 'frameId', 'colorId'] as const).every((key) => typeof data[key] === 'string' && data[key]!.length > 0 && data[key]!.length <= 160) || typeof data.intent !== 'string' || !isStudioIntent(data.intent) || typeof data.instruction !== 'string' || data.instruction.length > 1500) return null;
     return { artworkId: data.artworkId!, frameId: data.frameId!, colorId: data.colorId!, intent: data.intent, instruction: data.instruction,
       ...(typeof data.productionItemId === 'string' && /^[a-f0-9-]{36}$/i.test(data.productionItemId) ? {productionItemId:data.productionItemId}:{}),
+      ...(typeof data.sceneGenerationId === 'string' && /^[a-f0-9-]{36}$/i.test(data.sceneGenerationId) ? {sceneGenerationId:data.sceneGenerationId}:{}),
       ...(typeof data.quality === 'string' && /^[a-zA-Z0-9_-]{1,30}$/.test(data.quality) ? { quality: data.quality } : {}), ...(cleanAppSetup(data.appSetup) ? { appSetup: cleanAppSetup(data.appSetup)! } : {}) };
   } catch { return null; }
 }

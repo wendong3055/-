@@ -59,7 +59,9 @@ export const imageModels: readonly ImageModel[] = [
   },
 ];
 
-export const defaultImageModel = imageModels[0];
+// New work uses the owner's selected official GPT Image 2 channel.
+// Historical tasks keep their recorded model and are never silently migrated.
+export const defaultImageModel = imageModels.find(model => model.id === 'gpt-image-2')!;
 export function getImageModel(id: string) { return imageModels.find((model) => model.id === id); }
 export const qualityLabels: Record<string, string> = { low: '快速', medium: '标准', high: '精细' };
 

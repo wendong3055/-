@@ -115,9 +115,9 @@ export default function Home() {
   const [modelId, setModelId] = useState(defaultImageModel.id);
   const model = availableModels.find(item => item.id === modelId) || defaultImageModel;
   const customConfig = customProviders.providers.find(p => `custom-${p.id}` === modelId);
-  const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [aspectRatio, setAspectRatio] = useState('1:1');
   const [resolution, setResolution] = useState('2k');
-  const [quality, setQuality] = useState('');
+  const [quality, setQuality] = useState('medium');
   const [intent, setIntent] = useState<StudioIntent>('composition');
   const [instruction, setInstruction] = useState<string>(studioIntents[0].instruction);
   const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
@@ -140,7 +140,7 @@ export default function Home() {
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
   const [productId, setProductId] = useState('');
-  const [production, setProduction] = useState<{itemId:string;productId:string;planId:string;planVersion:number;generationId:string|null;pendingItemIds:string[];title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask}|null>(null);
+  const [production, setProduction] = useState<{itemId:string;productId:string;planId:string;planVersion:number;generationId:string|null;pendingItemIds:string[];title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask;sceneTitle?:string;sceneUrl?:string|null}|null>(null);
   const [productionConsent,setProductionConsent] = useState<ProductionConsent|null>(null);
   const [productionLoading, setProductionLoading] = useState(false);
   const [notice, setNotice] = useState('');
@@ -195,8 +195,8 @@ export default function Home() {
       const recipe=b.sample.recipe!;
       setProduction(b);setProductId(b.productId);setSelectedId(recipe.artworkId);setFrameId(recipe.frameId);setFrameColorId(recipe.colorId);
       setInstruction(b.brief.slice(0,1500));setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
-      setModelId(b.sample.model);setAspectRatio(b.sample.aspectRatio);setResolution(b.sample.resolution);
-      if(recipe.appSetup)memberApp.restore(b.sample.model,recipe.appSetup);
+      // The sample locks the product, not obsolete 4K/PRO generation parameters.
+      setModelId(defaultImageModel.id);setAspectRatio(b.kind==='detail'?'3:4':'1:1');setResolution('2k');setQuality('medium');
       setActiveNav('new');
     }).catch(e=>{if(!controller.signal.aborted)setPreviewError(e instanceof Error?e.message:'制作项读取失败。');}).finally(()=>{if(!controller.signal.aborted)setProductionLoading(false);});
     return()=>controller.abort();
@@ -733,7 +733,7 @@ export default function Home() {
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
-              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : [])]}
+              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}

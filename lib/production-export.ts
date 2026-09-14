@@ -1,6 +1,7 @@
 import { strToU8, zipSync } from 'fflate';
 import type { ProductionItem, ProductionPlan, ProductWorkspace } from './production-plan';
 import { drawSizeAnnotations, detailCaptions } from './production-annotations';
+import { validSizeMarks } from './production-scene';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
 export function downloadBlob(blob:Blob,name:string) {
   const url=URL.createObjectURL(blob), link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -14,6 +15,16 @@ export async function publicationImage(item:ProductionItem,workspace:ProductWork
   if(!item.task?.url)throw new Error('图片尚未完成。');
   const blob=await ownedImage(item.task.url);
   if(item.kind==='main')return blob;
+  if(item.kind==='size'&&plan.config.sceneTitle){
+    if(!item.spec||!validSizeMarks(item.spec.marks,item.generationId||'',!!item.spec.depthCm))throw new Error('请先保存尺寸标注位置，再查看或下载成品。');
+    const bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=2048;canvas.height=2048;
+    const ctx=canvas.getContext('2d');if(!ctx){bitmap.close();throw new Error('浏览器无法排版图片。');}
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,2048,2048);
+    const scale=Math.min(2048/bitmap.width,2048/bitmap.height),w=bitmap.width*scale,h=bitmap.height*scale;
+    ctx.drawImage(bitmap,(2048-w)/2,(2048-h)/2,w,h);bitmap.close();
+    drawSceneSizeMarks(ctx,item,(2048-w)/2,(2048-h)/2,w,h);
+    return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('尺寸图排版失败。')),'image/png'));
+  }
   const bitmap=await createImageBitmap(blob,{resizeWidth:790,resizeQuality:'high'});
   const canvas=document.createElement('canvas');canvas.width=790;
   const imageHeight=Math.min(1100,Math.max(460,bitmap.height));
@@ -36,6 +47,21 @@ export async function publicationImage(item:ProductionItem,workspace:ProductWork
   }else{ctx.font='bold 23px sans-serif';ctx.fillText(plan.config.name||workspace.product.name,36,y,718);ctx.font='22px sans-serif';
     for(const line of captions){y+=38;ctx.fillText(line,36,y,718);}}
   return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('图片排版失败。')),'image/png'));
+}
+export function drawSceneSizeMarks(ctx:CanvasRenderingContext2D,item:ProductionItem,x:number,y:number,w:number,h:number){
+  const s=item.spec!,p=s.marks!.points;
+  ctx.save();ctx.strokeStyle='#b52228';ctx.fillStyle='#b52228';ctx.lineWidth=5;
+  for(let i=0;i<p.length;i+=2){
+    const a={x:x+p[i].x*w,y:y+p[i].y*h},b={x:x+p[i+1].x*w,y:y+p[i+1].y*h};
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    const angle=Math.atan2(b.y-a.y,b.x-a.x);
+    for(const [pt,theta] of [[a,angle+Math.PI],[b,angle]] as const){ctx.beginPath();ctx.moveTo(pt.x,pt.y);ctx.lineTo(pt.x-20*Math.cos(theta-.42),pt.y-20*Math.sin(theta-.42));ctx.lineTo(pt.x-20*Math.cos(theta+.42),pt.y-20*Math.sin(theta+.42));ctx.closePath();ctx.fill();}
+    ctx.font='bold 42px sans-serif';ctx.textAlign='center';
+    const label=i===0?`宽 ${s.widthCm} cm`:i===2?`高 ${s.heightCm} cm`:`深 ${s.depthCm} cm`;
+    const tx=Math.max(175,Math.min(1873,(a.x+b.x)/2)),ty=Math.max(55,Math.min(1990,(a.y+b.y)/2-26));
+    ctx.lineWidth=10;ctx.strokeStyle='#fff';ctx.strokeText(label,tx,ty);ctx.fillText(label,tx,ty);ctx.strokeStyle='#b52228';ctx.lineWidth=5;
+  }
+  ctx.restore();
 }
 export async function exportProduction(workspace:ProductWorkspace,plan:ProductionPlan,onProgress:(s:string)=>void) {
   const accepted=plan.items.filter(i=>i.review==='accepted'&&i.task?.status==='succeeded'&&i.task.url);

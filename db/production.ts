@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { getTask, publicTask, type TaskRow } from './generation-tasks';
 import { assetStyle, frameSources, frameStyle, type FrameAsset } from '../lib/frame-catalog';
 import { planItems, validateProductionPlan, type ProductWorkspace, type ProductionPlanInput } from '../lib/production-plan';
+import { sharedScene, canReuseScene, validSizeMarks } from '../lib/production-scene';
 export class ProductionError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function productWorkspace(owner:string,id:string): Promise<ProductWorkspace> {
   const p = await env.DB.prepare('SELECT * FROM products WHERE owner_id = ? AND id = ?').bind(owner,id).first<Record<string,string>>();
@@ -49,4 +50,29 @@ export async function claimProductionItem(owner:string,itemId:string,taskId:stri
     (generation_id IS NULL OR EXISTS (SELECT 1 FROM generation_tasks g WHERE g.id = production_items.generation_id AND g.owner_id = ? AND
     (g.status = 'failed' OR (g.status = 'succeeded' AND production_items.review = 'rework'))))`).bind(taskId,owner,itemId,owner).run();
   if(!result.meta.changes) throw new ProductionError('此项已生成或正在处理；需要重做时先在新品清单标记重做。',409);
+}
+export async function productionSceneFile(owner:string,context:Awaited<ReturnType<typeof productionContext>>) {
+  const plan=context.workspace.plans.find(p=>p.id===context.row.plan_id)!;
+  const scene=sharedScene(plan);
+  if(!scene?.task?.assetId)throw new ProductionError('请先完成并验收共用场景主图，再制作其他尺寸。');
+  const asset=await env.DB.prepare('SELECT object_key,mime_type FROM assets WHERE owner_id=? AND id=?').bind(owner,scene.task.assetId).first<{object_key:string;mime_type:string}>();
+  if(!asset)throw new ProductionError('共用场景文件不存在，请检查原图。');
+  const object=await env.FILES.get(asset.object_key);
+  if(!object||object.size>10*1024*1024)throw new ProductionError('共用场景无法读取或超过 10 MB，请使用 2K 主图。');
+  return {file:new File([await object.arrayBuffer()],'shared-scene.png',{type:asset.mime_type}),generationId:scene.generationId!};
+}
+export async function updateSizeLayout(owner:string,itemId:string,b:{action?:string;generationId?:string;marks?:unknown;sceneGenerationId?:string}) {
+  const context=await productionContext(owner,itemId),{row,workspace,spec}=context;
+  const plan=workspace.plans.find(p=>p.id===row.plan_id)!;
+  if(row.kind!=='size'||!spec)throw new ProductionError('此操作只适用于尺寸图。');
+  if(b.action==='reuse-scene') {
+    const item=plan.items.find(i=>i.id===row.id)!,scene=sharedScene(plan);
+    if(!canReuseScene(item,workspace,plan)||scene?.generationId!==b.sceneGenerationId)throw new ProductionError('仅与代表框架原图一致的规格可直接共用主图；其他规格需要按各自原图生成。');
+    const result=await env.DB.prepare("UPDATE production_items SET generation_id=?,review='pending',spec_json=? WHERE owner_id=? AND id=? AND generation_id IS NULL").bind(scene!.generationId,JSON.stringify({...spec,marks:undefined}),owner,itemId).run();
+    if(!result.meta.changes)throw new ProductionError('此项已有结果，请刷新查看，未覆盖原图。',409);
+  }else{
+    if(b.generationId!==row.generation_id||!validSizeMarks(b.marks,row.generation_id,!!spec.depthCm))throw new ProductionError('图片已变化或标注位置无效，请重新读取。',409);
+    const result=await env.DB.prepare("UPDATE production_items SET spec_json=?,review='pending' WHERE owner_id=? AND id=? AND generation_id=? AND EXISTS (SELECT 1 FROM generation_tasks g WHERE g.id=? AND g.owner_id=? AND g.status='succeeded')").bind(JSON.stringify({...spec,marks:b.marks}),owner,itemId,b.generationId,b.generationId,owner).run();
+    if(!result.meta.changes)throw new ProductionError('只有完成的图片可以保存标注。',409);
+  }
 }

@@ -12,7 +12,9 @@ import { appOutputSetting, compileAppInputs, type AppSetup, type AppSpec } from 
 import { cleanAppSetup } from '../../../lib/app-setup-storage';
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
-import { productionContext, claimProductionItem, ProductionError } from '../../../db/production';
+import { productionContext, claimProductionItem, productionSceneFile, ProductionError } from '../../../db/production';
+import { artworkRules } from '../../../lib/production-plan';
+import { sceneSizeBrief } from '../../../lib/production-scene';
 
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
@@ -65,6 +67,14 @@ export async function POST(request: Request) {
         ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
         : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
       if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
+      if(context.config.sceneTitle) {
+        if(model.id!=='gpt-image-2'||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('本套使用 GPT Image 2、2K；主图和尺寸图需为 1:1。');
+        if(context.row.kind==='size') {
+          const scene=await productionSceneFile(owner,context);
+          refs.push(scene.file);recipe.sceneGenerationId=scene.generationId;
+          prompt=sceneSizeBrief(context.spec,artworkRules[context.config.rule],`${context.config.notes} 框架木色：${colorName}。本次补充：${field('instruction')}`);
+        }
+      }
     }
     let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
     if (model.apiMode === 'member-app') {
