@@ -1,3 +1,4 @@
+import { fetchWithoutRedirect } from './safe-http';
 import { publicHttps, type CustomImageConfig } from './custom-image-config';
 
 export class CustomImageError extends Error {
@@ -17,7 +18,7 @@ export function publicAddress(address: string) {
 export async function checkDestination(value: string, fetcher: typeof fetch = fetch) {
   const url = publicHttps(value);
   const answers = await Promise.all(['A','AAAA'].map(async type => {
-    const r = await fetcher(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(url.hostname)}&type=${type}`, { headers: { accept: 'application/dns-json' }, redirect: 'error', signal: AbortSignal.timeout(10000) });
+    const r = await fetchWithoutRedirect(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(url.hostname)}&type=${type}`, { headers: { accept: 'application/dns-json' }, signal: AbortSignal.timeout(10000) }, fetcher);
     if (!r.ok) throw new CustomImageError('接口域名暂时无法安全校验，请稍后重试。');
     const data = await r.json() as { Status?: number; Answer?: { type: number; data: string }[] };
     if (data.Status !== 0) throw new CustomImageError('接口域名解析失败，请检查地址。');
@@ -65,7 +66,7 @@ export async function editCustomImage(config: CustomImageConfig, apiKey: string,
   const destination = await checkDestination(`${config.baseUrl}${config.editPath}`, fetcher);
   const input = await buildEditBody(config, refs, prompt, size, quality);
   let response: Response;
-  try { response = await fetcher(destination, { method: 'POST', headers: { ...input.headers, Authorization: `Bearer ${apiKey}` }, body: input.body, redirect: 'error', signal: AbortSignal.timeout(300000) }); }
+  try { response = await fetchWithoutRedirect(destination, { method: 'POST', headers: { ...input.headers, Authorization: `Bearer ${apiKey}` }, body: input.body, signal: AbortSignal.timeout(300000) }, fetcher); }
   catch { throw new CustomImageError('提交结果未确认，请先在所选服务商后台核对，避免重复扣费。', true); }
   if (!response.ok) {
     await response.body?.cancel();
@@ -86,7 +87,7 @@ export async function editCustomImage(config: CustomImageConfig, apiKey: string,
     if (![new URL(config.baseUrl).hostname, ...config.imageHosts].includes(url.hostname)) throw new CustomImageError('图片来自未配置的结果域名，请在服务商后台下载，并在下次使用前补充该域名。', true);
     await checkDestination(`${url.origin}${url.pathname}`, fetcher);
     // Never send the API key to a result image or follow redirects.
-    const downloaded = await fetcher(url, { redirect: 'error', signal: AbortSignal.timeout(60000) });
+    const downloaded = await fetchWithoutRedirect(url, { signal: AbortSignal.timeout(60000) }, fetcher);
     if (!downloaded.ok) throw new CustomImageError('图片已生成但下载失败，请在服务商后台下载，勿重复生图。', true);
     bytes = await limitedBytes(downloaded, 16*1024*1024);
   } else throw new CustomImageError('此接口未直接返回 data[0].b64_json 或 url，当前不支持它的异步任务格式。请核对平台记录。', true);

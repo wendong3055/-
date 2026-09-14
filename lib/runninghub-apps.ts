@@ -1,3 +1,4 @@
+import { fetchWithoutRedirect } from './safe-http';
 export const runningHubAppsSource = 'https://www.runninghub.cn/ai-apps';
 export type RunningHubApp = { id: string; name: string; url: string; kind: '图像生成' | '图片处理'; source: 'verified' | 'directory' };
 
@@ -43,7 +44,7 @@ export function parseRunningHubApps(html: string): RunningHubApp[] {
 }
 
 export async function readRunningHubApps(fetcher: typeof fetch = fetch) {
-  const response = await fetcher(runningHubAppsSource, { headers: { Accept: 'text/html' }, redirect: 'error', signal: AbortSignal.timeout(15000) });
+  const response = await fetchWithoutRedirect(runningHubAppsSource, { headers: { Accept: 'text/html' }, signal: AbortSignal.timeout(15000) }, fetcher);
   if (!response.ok || !response.body) throw new Error('官网应用目录暂时无法读取，请稍后刷新。');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

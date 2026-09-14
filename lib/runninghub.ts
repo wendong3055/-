@@ -1,3 +1,4 @@
+import { fetchWithoutRedirect, transportMessage } from './safe-http';
 import { env } from 'cloudflare:workers';
 import { defaultImageModel, getImageModel, validModelSettings } from './generation-models';
 import { chinaKey } from './runninghub-credentials';
@@ -52,13 +53,13 @@ async function call(path: string, body: FormData | Record<string, unknown>, bill
   if (!key) throw new RunningHubError('尚未配置 RUNNINGHUB_API_KEY，请在站点服务端添加密钥。');
   let response: Response;
   try {
-    response = await fetch(`${connection?.origin || RUNNINGHUB_ORIGIN}${path}`, {
-      method: 'POST', redirect: 'error', signal: AbortSignal.timeout(45_000),
+    response = await fetchWithoutRedirect(`${connection?.origin || RUNNINGHUB_ORIGIN}${path}`, {
+      method: 'POST', signal: AbortSignal.timeout(45_000),
       headers: { authorization: `Bearer ${key}`, ...(body instanceof FormData ? {} : { 'content-type': 'application/json' }) },
       body: body instanceof FormData ? body : JSON.stringify(body),
     });
-  } catch {
-    throw new RunningHubError(billable ? '提交结果尚未确认。请先在 RunningHub 任务记录核对，避免重复扣费。' : '连接 RunningHub 超时，请稍后恢复查询。', billable);
+  } catch (error) {
+    throw new RunningHubError(billable ? '提交结果尚未确认。请先在 RunningHub 任务记录核对，避免重复扣费。' : transportMessage(error, '连接 RunningHub 暂时失败，请稍后恢复查询。'), billable);
   }
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
   if (!response.ok || !payload) throw new RunningHubError(friendlyError(payload?.errorCode ?? payload?.code, payload?.errorMessage ?? payload?.message, response.status), billable && (response.status >= 500 || !payload));
@@ -161,7 +162,7 @@ export async function downloadResult(value: string) {
   const allowedHosts = ['rh-images-1252422369.cos.ap-beijing.myqcloud.com', 'rh-images-switch-1252422369.cos.ap-guangzhou.myqcloud.com', 'rh-images.xiaoyaoyou.com'];
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
     !(allowedHosts.includes(url.hostname) || allowedRoots.some((root) => url.hostname === root || url.hostname.endsWith(`.${root}`)))) throw new RunningHubError('生成已完成，但图片地址未通过安全校验。请在 RunningHub 任务记录下载，勿重新生成。');
-  const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(40_000) });
+  const response = await fetchWithoutRedirect(url, { signal: AbortSignal.timeout(40_000) });
   const mime = (response.headers.get('content-type') || '').split(';')[0];
   if (!response.ok || !['image/png', 'image/jpeg', 'image/webp'].includes(mime) || !response.body) throw new RunningHubError('生成已完成，图片暂时无法保存。可恢复查询，不会再次生图。');
   const reader = response.body.getReader();
