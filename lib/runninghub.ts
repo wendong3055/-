@@ -81,6 +81,16 @@ export async function uploadReference(file: File, connection?: RunningHubConnect
   if (url.protocol !== 'https:') throw new RunningHubError('平台返回了无效的参考图地址。');
   return url.href;
 }
+// Official non-generating account endpoint. Keep raw account response server-only.
+export async function checkAccount(connection: RunningHubConnection) {
+  const path = '/uc/openapi/accountStatus';
+  const payload = await call(path, { apikey: connection.key }, false, connection) as { code?: number; msg?: string; data?: { remainMoney?: unknown; currency?: unknown; apiType?: unknown } };
+  if (![0, 200].includes(payload.code ?? -1)) throw new RunningHubError(friendlyError(payload.code, payload.msg, 200) + diagnosticSuffix(path, payload.code, 200));
+  const money = String(payload.data?.remainMoney ?? '');
+  const currency = String(payload.data?.currency ?? '');
+  const type = String(payload.data?.apiType ?? '');
+  return { balance: /^\d{1,12}(\.\d{1,8})?$/.test(money) ? money : null, currency: /^(CNY|USD)$/.test(currency) ? currency : '', keyType: /^(NORMAL|SHARED|ENTERPRISE|CONSUMER)$/.test(type) ? type : '未识别' };
+}
 export async function submitGeneration(input: { prompt: string; imageUrls: string[]; aspectRatio: string; resolution: string; model?: string; quality?: string }, connection?: RunningHubConnection) {
   const model = getImageModel(input.model || RUNNINGHUB_MODEL);
   if (!model || !validModelSettings(model, input.aspectRatio, input.resolution, input.quality)) throw new RunningHubError('所选模型不支持这组生成参数。');
