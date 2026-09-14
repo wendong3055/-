@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import type { ProductionItem, ProductionPlan, ProductWorkspace } from './production-plan';
+import { drawSizeAnnotations, detailCaptions } from './production-annotations';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
 export function downloadBlob(blob:Blob,name:string) {
   const url=URL.createObjectURL(blob), link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -16,20 +17,24 @@ export async function publicationImage(item:ProductionItem,workspace:ProductWork
   const bitmap=await createImageBitmap(blob,{resizeWidth:790,resizeQuality:'high'});
   const canvas=document.createElement('canvas');canvas.width=790;
   const imageHeight=Math.min(1100,Math.max(460,bitmap.height));
-  const extra=item.kind==='size'?150:item.title==='规格选择'?Math.max(120,Math.ceil(plan.config.sizes.length/2)*36+70):70;
+  const captions=detailCaptions[item.title]||[];
+  const extra=item.kind==='size'?170:item.title==='规格选择'?Math.max(120,Math.ceil(plan.config.sizes.length/2)*36+70):100+captions.length*38;
   canvas.height=110+imageHeight+extra;
   const ctx=canvas.getContext('2d');if(!ctx){bitmap.close();throw new Error('浏览器无法排版图片。');}
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#203c33';ctx.font='bold 34px sans-serif';ctx.textAlign='left';
   ctx.fillText(item.kind==='size'?'产品规格':item.title,36,65,718);
   const scale=Math.min(718/bitmap.width,imageHeight/bitmap.height);
-  ctx.drawImage(bitmap,(790-bitmap.width*scale)/2,100,bitmap.width*scale,bitmap.height*scale);bitmap.close();
+  const imageBox={x:(790-bitmap.width*scale)/2,y:100,width:bitmap.width*scale,height:bitmap.height*scale};
+  ctx.drawImage(bitmap,imageBox.x,imageBox.y,imageBox.width,imageBox.height);bitmap.close();
+  if(item.kind==='size')drawSizeAnnotations(ctx,item,imageBox);
   let y=110+imageHeight+32;ctx.font='24px sans-serif';
   if(item.spec){const s=item.spec;ctx.fillText(`宽 ${s.widthCm} cm × 高 ${s.heightCm} cm`,36,y,718);y+=38;
     ctx.fillText(`${s.depthCm?`进深 ${s.depthCm} cm　`:''}${s.panelCount?`${s.panelCount} 扇`:''}`,36,y,718);y+=38;ctx.font='18px sans-serif';ctx.fillText('尺寸以本版本确认清单为准；请核对实物后上架。',36,y,718);
   }else if(item.title==='规格选择'){
     ctx.font='20px sans-serif';if(!plan.config.sizes.length)ctx.fillText('请根据商品实际规格选购。',36,y);
     plan.config.sizes.forEach((s,i)=>ctx.fillText(`宽${s.widthCm} × 高${s.heightCm}cm${s.panelCount?` / ${s.panelCount}扇`:''}`,36+(i%2)*370,y+Math.floor(i/2)*36,350));
-  }else{ctx.font='20px sans-serif';ctx.fillText(plan.config.name||workspace.product.name,36,y,718);}
+  }else{ctx.font='bold 23px sans-serif';ctx.fillText(plan.config.name||workspace.product.name,36,y,718);ctx.font='22px sans-serif';
+    for(const line of captions){y+=38;ctx.fillText(line,36,y,718);}}
   return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('图片排版失败。')),'image/png'));
 }
 export async function exportProduction(workspace:ProductWorkspace,plan:ProductionPlan,onProgress:(s:string)=>void) {
