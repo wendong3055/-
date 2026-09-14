@@ -118,8 +118,19 @@ export function useGenerations() {
 export function RunningHubSettings({ config, onRefresh, region, busy, member = false }: { config: Config | null; onRefresh: () => void; region: 'cn' | 'international'; busy: boolean; member?: boolean }) {
   const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState('');
   const configured = Boolean(config?.regions?.[region]);
+  async function check() {
+    if (checking || saving || busy) return;
+    setChecking(true); setMessage('正在检查连接与测试文件上传，不会提交生图…');
+    try {
+      const response = await fetch(`/api/runninghub/check?region=${region}`, { method: 'POST' });
+      const result = await response.json() as { message?: string; error?: string };
+      setMessage(result.error || result.message || '检查未完成。');
+    } catch { setMessage('连接检查中断。没有提交生图。'); }
+    finally { setChecking(false); }
+  }
   async function save() {
     if (saving || busy) return;
     setSaving(true); setMessage('');
@@ -138,7 +149,7 @@ export function RunningHubSettings({ config, onRefresh, region, busy, member = f
       {region === 'cn' ? <div className="rh-key-form"><label htmlFor="rh-api-key">消费级-会员 API Key<input id="rh-api-key" type="password" autoComplete="off" spellCheck={false} maxLength={512} value={apiKey} disabled={saving || busy || !config?.canSaveKey} onChange={(event) => setApiKey(event.target.value)} placeholder={configured ? '填写新密钥可替换当前配置' : '粘贴 RunningHub 中国站会员 Key'} /></label><button type="button" disabled={saving || busy || !config?.canSaveKey || apiKey.trim().length < 16} onClick={save}>{saving ? '正在安全保存…' : '加密保存密钥'}</button><small>密钥加密保存在服务端，仅供当前工作台账号使用；不会返回浏览器或写入图片记录。</small>{!config?.canSaveKey && <p>安全存储尚未准备好，请等待页面发布完成，或联系工作台管理员。</p>}<a href="https://www.runninghub.cn/enterprise-api/consumerApi" target="_blank" rel="noreferrer">前往官网获取 API Key ↗</a></div> : <p>沿用原有国际站服务端密钥。中国站密钥不会自动用于国际站，历史任务仍使用原站点查询。</p>}
       {message && <p role="status">{message}</p>}
       <p>配置存在不代表验证通过；模型权限及费用以 RunningHub 账户为准。</p>
-      <div><button type="button" disabled={saving || busy} onClick={onRefresh}>重新检查配置</button></div>
+      <div><button type="button" disabled={saving || busy || checking} onClick={onRefresh}>重新检查配置</button><button type="button" disabled={saving || busy || checking || !configured} onClick={check}>{checking ? '连接检查中…' : '检查连接（不生图）'}</button></div>
     </div>
   </details>;
 }

@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+const text=await readFile(new URL('../lib/runninghub-diagnostic.ts',import.meta.url),'utf8');
+const {diagnosticSuffix}=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(text,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
+assert.match(diagnosticSuffix('/media/upload/binary',802,200),/上传参考图.*802/);
+assert.match(diagnosticSuffix('/query',1004,401),/查询任务.*401/);
+assert.ok(!diagnosticSuffix('/model','secret-key-example',200).includes('secret-key-example'));
+const route=await readFile(new URL('../app/api/runninghub/check/route.ts',import.meta.url),'utf8');
+assert.ok(!route.includes('submitGeneration'));assert.ok(route.includes('generationOwner(request)'));
+console.log('safe diagnostics and upload-only connection check passed');

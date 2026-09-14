@@ -4,6 +4,7 @@ import { defaultImageModel, getImageModel, validModelSettings } from './generati
 import { chinaKey } from './runninghub-credentials';
 import { parseAppSpec, type AppSpec } from './runninghub-app-schema';
 import { readMemberTask } from './runninghub-member-query';
+import { diagnosticSuffix } from './runninghub-diagnostic';
 
 // https://www.runninghub.ai/runninghub-api-doc-en/api-448969336
 // Model V2 and member AI App envelopes are normalized by separate adapters.
@@ -62,15 +63,15 @@ async function call(path: string, body: FormData | Record<string, unknown>, bill
     throw new RunningHubError(billable ? '提交结果尚未确认。请先在 RunningHub 任务记录核对，避免重复扣费。' : transportMessage(error, '连接 RunningHub 暂时失败，请稍后恢复查询。'), billable);
   }
   const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
-  if (!response.ok || !payload) throw new RunningHubError(friendlyError(payload?.errorCode ?? payload?.code, payload?.errorMessage ?? payload?.message, response.status), billable && (response.status >= 500 || !payload));
+  if (!response.ok || !payload) throw new RunningHubError(friendlyError(payload?.errorCode ?? payload?.code, payload?.errorMessage ?? payload?.message ?? payload?.msg, response.status) + diagnosticSuffix(path, payload?.errorCode ?? payload?.code, response.status), billable && (response.status >= 500 || !payload));
   return payload;
 }
 
 export async function uploadReference(file: File, connection?: RunningHubConnection, asFilename = false) {
   const form = new FormData();
   form.set('file', file, `reference.${file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/webp' ? 'webp' : 'png'}`);
-  const payload = await call('/openapi/v2/media/upload/binary', form, false, connection) as { code?: number; message?: string; data?: { download_url?: string; fileName?: string } };
-  if (![0, 200].includes(payload.code ?? -1)) throw new RunningHubError(friendlyError(payload.code, payload.message, 200));
+  const payload = await call('/openapi/v2/media/upload/binary', form, false, connection) as { code?: number; message?: string; msg?: string; data?: { download_url?: string; fileName?: string } };
+  if (![0, 200].includes(payload.code ?? -1)) throw new RunningHubError(friendlyError(payload.code, payload.message ?? payload.msg, 200) + diagnosticSuffix('/media/upload/', payload.code, 200));
   if (asFilename) {
     if (typeof payload.data?.fileName !== 'string' || !payload.data.fileName || payload.data.fileName.length > 600) throw new RunningHubError('平台没有返回应用需要的参考图文件名，未提交生图。');
     return payload.data.fileName;
@@ -88,7 +89,7 @@ export async function submitGeneration(input: { prompt: string; imageUrls: strin
     prompt: input.prompt, imageUrls: input.imageUrls, aspectRatio: input.aspectRatio, resolution: input.resolution,
     ...(model.qualities.length ? { quality: input.quality || 'medium' } : {}),
   }, true, connection) as ProviderResult;
-  if (!payload.taskId) throw new RunningHubError(friendlyError(payload.errorCode, payload.errorMessage, 200), !payload.errorCode);
+  if (!payload.taskId) throw new RunningHubError(friendlyError(payload.errorCode, payload.errorMessage, 200) + diagnosticSuffix(model.endpoint, payload.errorCode, 200), !payload.errorCode);
   return payload;
 }
 export async function queryGeneration(taskId: string, connection?: RunningHubConnection) {
