@@ -4,6 +4,7 @@ import { generationOwner } from '../../../../lib/generation-auth';
 import { claimPoll, completeTask, getTask, publicTask, releasePoll, updateTask } from '../../../../db/generation-tasks';
 import { downloadResult, providerError, queryGeneration, queryMemberApp, runningHubConnection, RunningHubError } from '../../../../lib/runninghub';
 import { getImageModel } from '../../../../lib/generation-models';
+import { isCustomModel } from '../../../../lib/custom-image-config';
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const owner = await generationOwner();
@@ -12,6 +13,24 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     const row = await getTask(owner, id);
     if (!row) return NextResponse.json({ error: '没有找到此任务。' }, { status: 404 });
+    if (isCustomModel(row.model)) {
+      if (!['succeeded','failed'].includes(row.status)) {
+        const key = `${owner}/generated-previews/${id}/result`;
+        const image = await env.FILES.head(key);
+        if (!image && row.status === 'submitting' && row.updated_at < Date.now() - 600000) {
+          await updateTask(owner, id, 'unknown', '提交结果尚未确认。请先在所选服务商的记录中核对，避免重复扣费。');
+        }
+        if (image && ['image/png','image/jpeg','image/webp'].includes(image.httpMetadata?.contentType || '')) {
+          if (['submitting','unknown'].includes(row.status)) await updateTask(owner, id, 'queued', '', 'custom-result');
+          const customLease = await claimPoll(owner, id);
+          if (customLease) {
+            try { await updateTask(owner, id, 'saving', '', null, customLease); await completeTask(row, image.httpMetadata!.contentType!, image.size, key, customLease); }
+            finally { await releasePoll(owner, id, customLease); }
+          }
+        }
+      }
+      return NextResponse.json(publicTask((await getTask(owner, id))!), { headers: { 'cache-control': 'no-store' } });
+    }
     const lease = row.remote_task_id ? await claimPoll(owner, id) : null;
     if (row.remote_task_id && lease) {
       try {

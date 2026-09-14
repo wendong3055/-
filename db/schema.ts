@@ -65,6 +65,12 @@ export const runningHubCredentials = sqliteTable('runninghub_credentials', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+export const customImageProviders = sqliteTable('custom_image_providers', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
+  configJson: text('config_json').notNull(), encryptedKey: text('encrypted_key').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+}, table => [index('custom_image_providers_owner_idx').on(table.ownerId)]);
+
 export const memberAppPreferences = sqliteTable('member_app_preferences', {
   id: text('id').primaryKey(),
   ownerId: text('owner_id').notNull(),

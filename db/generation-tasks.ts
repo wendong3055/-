@@ -25,7 +25,7 @@ export async function listTasks(owner: string) {
   // Uploading is safe to expire: the billable call starts only after the submitting transition.
   await env.DB.prepare("UPDATE generation_tasks SET status = 'failed', error = '参考图上传中断，请重新生成。', updated_at = ? WHERE owner_id = ? AND status = 'uploading' AND updated_at < ?")
     .bind(Date.now(), owner, Date.now() - 300_000).run();
-  await env.DB.prepare("UPDATE generation_tasks SET status = 'unknown', error = '提交结果尚未确认。请先在 RunningHub 任务记录核对，避免重复扣费。', updated_at = ? WHERE owner_id = ? AND status = 'submitting' AND updated_at < ?")
+  await env.DB.prepare("UPDATE generation_tasks SET status = 'unknown', error = '提交结果尚未确认。请先在所选服务商的记录中核对，避免重复扣费。', updated_at = ? WHERE owner_id = ? AND status = 'submitting' AND updated_at < ? - CASE WHEN model LIKE 'custom-%' THEN 480000 ELSE 0 END")
     .bind(Date.now(), owner, Date.now() - 120_000).run();
   const { results } = await env.DB.prepare('SELECT * FROM generation_tasks WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100').bind(owner).all<TaskRow>();
   return results;
@@ -66,9 +66,9 @@ export async function releasePoll(owner: string, id: string, lease: number) {
 export async function completeTask(row: TaskRow, mime: string, size: number, key: string, lease: number) {
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO assets (id, owner_id, name, category, tags, tone, mime_type, object_key, size, created_at)
-      SELECT ?, ?, ?, '生成效果图', 'RunningHub;组合效果', ?, ?, ?, ?, ? WHERE EXISTS
+      SELECT ?, ?, ?, '生成效果图', ?, ?, ?, ?, ?, ? WHERE EXISTS
       (SELECT 1 FROM generation_tasks WHERE id = ? AND owner_id = ? AND status = 'saving' AND last_polled_at = ?) ON CONFLICT(id) DO NOTHING`)
-      .bind(row.id, row.owner_id, row.name, row.color_name, mime, key, size, Date.now(), row.id, row.owner_id, lease),
+      .bind(row.id, row.owner_id, row.name, row.model.startsWith('custom-') ? '自定义API;组合效果' : 'RunningHub;组合效果', row.color_name, mime, key, size, Date.now(), row.id, row.owner_id, lease),
     env.DB.prepare("UPDATE generation_tasks SET status = 'succeeded', asset_id = ?, error = '', updated_at = ? WHERE id = ? AND owner_id = ? AND status = 'saving' AND last_polled_at = ?")
       .bind(row.id, Date.now(), row.id, row.owner_id, lease),
   ]);

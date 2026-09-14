@@ -64,6 +64,13 @@
       "when": 1789005934063,
       "tag": "0008_worthless_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789350292169,
+      "tag": "0009_fat_brother_voodoo",
+      "breakpoints": true
     }
   ]
 }

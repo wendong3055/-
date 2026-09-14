@@ -63,10 +63,10 @@ export function useGenerations() {
     async function poll() {
       if (Date.now() - pollingStarted.current > 20 * 60_000) { setPaused(true); return; }
       if (document.visibilityState !== 'hidden') {
-        const pending = tasksRef.current.filter((task) => isActiveGeneration(task.status));
+        const pending = tasksRef.current.filter((task) => isActiveGeneration(task.status) || task.model.startsWith('custom-') && task.status === 'unknown');
         try {
           for (const task of pending) {
-            if (!task.remoteTaskId) { await refresh(); continue; }
+            if (!task.remoteTaskId && !task.model.startsWith('custom-')) { await refresh(); continue; }
             const response = await fetch(`/api/generations/${task.id}`, { cache: 'no-store' });
             const payload = await response.json() as GenerationTask & { error?: string };
             if (!response.ok) throw new Error(payload.error || '状态查询中断。');
@@ -103,7 +103,7 @@ export function useGenerations() {
   }
 
   async function resolveUnknown(task: GenerationTask) {
-    if (!window.confirm('仅当你已在 RunningHub 核实这次请求没有创建任务时，才解除锁定。若任务已存在，请先联系管理员核对，避免再次扣费。确认没有创建任务？')) return;
+    if (!window.confirm('仅当你已在所选服务商后台核实这次请求没有创建任务或生成图片时，才解除锁定。若已有结果，请先联系管理员核对，避免再次扣费。确认没有创建任务或图片？')) return;
     try {
       const response = await fetch(`/api/generations/${task.id}/resolve`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ confirmedNoTask: true }) });
       if (!response.ok) throw new Error('解除锁定没有完成，请稍后重试。');
@@ -159,7 +159,7 @@ export function GenerationHistory({ tasks, loading, error, paused, onRefresh, on
   });
   const compared = tasks.filter((task) => compareIds.includes(task.id) && task.url);
   return <section className="generation-history">
-    <header><div><p className="eyebrow">{delivery ? 'GENERATED ASSETS' : 'RUNNINGHUB TASKS'}</p><h2>{delivery ? '生成结果' : '生成任务'}</h2><p>{delivery ? '已保存的组合效果图，可查看或下载。' : '显示实际提交记录；离开页面不会取消平台任务。'}</p></div><button className="ghost-button" onClick={onRefresh}>{paused ? '恢复查询' : '刷新记录'}</button></header>
+    <header><div><p className="eyebrow">{delivery ? 'GENERATED ASSETS' : 'GENERATION TASKS'}</p><h2>{delivery ? '生成结果' : '生成任务'}</h2><p>{delivery ? '已保存的组合效果图，可查看或下载。' : '显示实际提交记录；离开页面不会取消平台任务。'}</p></div><button className="ghost-button" onClick={onRefresh}>{paused ? '恢复查询' : '刷新记录'}</button></header>
     {(error || paused) && <p className="generation-warning" role="status">{error || '已暂停自动查询。点击「恢复查询」继续，不会重新扣费。'}</p>}
     <div className="generation-stats"><span>全部 <b>{tasks.length}</b></span><span>进行中 <b>{tasks.filter((task) => isActiveGeneration(task.status)).length}</b></span><span>已完成 <b>{tasks.filter((task) => task.status === 'succeeded').length}</b></span></div>
     <div className="history-toolbar"><label className="history-search"><span>查找记录</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索图案、框架或制作要求" /></label>{!delivery && <div className="history-filters" aria-label="按任务状态筛选">{[['all', '全部'], ['active', '进行中'], ['succeeded', '已完成'], ['attention', '待处理']].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>}</div>

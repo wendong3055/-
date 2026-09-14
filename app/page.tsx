@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
+import { CustomApiSettings, useCustomProviders } from './custom-api-settings';
 import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
 import { MemberAppSettings, MemberOutputOptions, useMemberApp } from './member-app-settings';
@@ -104,10 +105,13 @@ const navItems = [
 
 export default function Home() {
   const generations = useGenerations();
+  const customProviders = useCustomProviders();
+  const availableModels = [...imageModels, ...customProviders.models];
   const [importedResult, setImportedResult] = useState<{ url: string; name: string } | null>(null);
   const [previewTaskId, setPreviewTaskId] = useState('');
   const [modelId, setModelId] = useState(defaultImageModel.id);
-  const model = getImageModel(modelId) || defaultImageModel;
+  const model = availableModels.find(item => item.id === modelId) || defaultImageModel;
+  const customConfig = customProviders.providers.find(p => `custom-${p.id}` === modelId);
   const [aspectRatio, setAspectRatio] = useState('16:9');
   const [resolution, setResolution] = useState('2k');
   const [quality, setQuality] = useState('');
@@ -149,7 +153,7 @@ export default function Home() {
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
-  const modelConfigured = Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
+  const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
   const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: production?.frameUrl || frame?.file ? 2 : 1, configRevision: generations.configRevision });
   const memberInputs = memberApp.inputs;
   let appReady = model.apiMode !== 'member-app';
@@ -306,13 +310,13 @@ export default function Home() {
     setIntent(recipe.intent);
     setInstruction(recipe.instruction);
     setPreviousInstruction(null);
-    const savedModel = getImageModel(task.model);
+    const savedModel = availableModels.find(item => item.id === task.model);
     if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
     setModelId(savedModel.id);
     if (savedModel.apiMode === 'member-app' && recipe.appSetup) memberApp.restore(savedModel.id, recipe.appSetup);
-    setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : '16:9');
-    setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : '2k');
-    setQuality(savedModel.qualities.length ? recipe.quality || 'medium' : '');
+    setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : savedModel.ratios[0] || '16:9');
+    setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : savedModel.resolutions[0] || '2k');
+    setQuality(savedModel.qualities.includes(recipe.quality || '') ? recipe.quality! : savedModel.qualities[0] || '');
     if (task.status === 'succeeded' && task.url) {
       setPreviewTaskId(task.id);
       setPreviewReady(true);
@@ -329,19 +333,19 @@ export default function Home() {
 
   function chooseModel(id: string) {
     if (previewGenerating || generations.busy) return;
-    const next = getImageModel(id);
+    const next = availableModels.find(item => item.id === id);
     if (!next) return;
     memberApp.cancelRestore();
     setModelId(next.id);
     if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
     if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
-    setQuality(next.qualities.length ? 'medium' : '');
+    setQuality(next.qualities.includes('medium') ? 'medium' : next.qualities[0] || '');
     resetPreview();
   }
 
   async function generatePreview() {
     if (!canGenerate || !selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
-    if(production && !window.confirm(`本次仅生成“${production.title}”一张，使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。按 RunningHub 应用权益和额外费用规则扣费，工作台不能保证免费。确认提交？`))return;
+    if ((production || customConfig) && !window.confirm(`本次生成一张${production ? `“${production.title}”` : '效果图'}，使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。参考图与制作要求将发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按该服务商规则计费。确认提交？`)) return;
     submitGuard.current = true;
     setImportedResult(null);
     setViewedTaskId('');
@@ -370,6 +374,7 @@ export default function Home() {
         form.set('aspectRatio', aspectRatio);
         form.set('resolution', resolution);
         form.set('model', model.id);
+        if (customConfig) form.set('providerRevision', customConfig.revision);
         if (model.apiMode === 'member-app' && memberInputs) form.set('appSetup', JSON.stringify(memberInputs.setup));
         if (model.qualities.length) form.set('quality', quality);
         form.set('instruction', instruction);
@@ -378,7 +383,7 @@ export default function Home() {
         const task = await generations.submit(form);
         setPreviewTaskId(task.id);
         setPreviewGenerating(isActiveGeneration(task.status));
-        setNotice('任务已提交给 RunningHub，可在「生成任务」查看进度。');
+        setNotice(task.status === 'succeeded' ? '图片已生成并保存，可在生成记录查看。' : '任务已提交给所选服务商，可在「生成任务」查看进度。');
     } catch (error) {
       setPreviewGenerating(false);
       setPreviewError(error instanceof Error ? error.message : '提交状态未确认，请先查看任务记录，不要重复生成。');
@@ -577,7 +582,7 @@ export default function Home() {
 
         <div className="sidebar-spacer" />
         <section className="storage-card">
-          <div className="storage-title"><span>生图接口</span><b>RunningHub API</b></div>
+          <div className="storage-title"><span>生图接口</span><b>{customConfig?.name || 'RunningHub API'}</b></div>
           <p>{generations.config ? modelConfigured ? '当前通道已配置' : '当前通道待配置' : '正在检查当前通道'}</p>
           <button onClick={() => setActiveNav('settings')}>配置 API →</button>
         </section>
@@ -594,7 +599,7 @@ export default function Home() {
             <h1>{navItems.find(([id]) => id === activeNav)?.[1] || '新品项目'}</h1>
           </div>
           <div className="top-actions">
-            <span className="sync-state">RunningHub 图像生成</span>
+            <span className="sync-state">{customConfig?.name || 'RunningHub'} 图像生成</span>
             <button className="ghost-button" onClick={() => setActiveNav(activeNav === 'new' ? 'jobs' : 'new')}>{activeNav === 'new' ? '查看生成记录' : '返回组合生图'}</button>
           </div>
         </header>
@@ -607,10 +612,11 @@ export default function Home() {
               <div className="row-label"><strong>模型与出图设置</strong><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
               <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
                 <legend className="sr-only">选择生成模型和图片参数</legend>
-                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
-                {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
-                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item]}</option>)}</select></label>}
-                {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前国际站通道尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
+                <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="RunningHub · 会员应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="RunningHub · 国际站">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="自定义 API · 我的接口">{customProviders.models.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+                {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
+                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
+                {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
+                <button className="api-add-link" type="button" onClick={() => setActiveNav('settings')}>＋ 接入其他生图 API</button>
               </fieldset>
             </section>
             <fieldset className="intent-picker" disabled={previewGenerating}>
@@ -708,12 +714,13 @@ export default function Home() {
         </ResizableWorkspace>
 
         {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
-          <header><h2>RunningHub API 设置</h2><p>仅通过 API Key 调用，不提供 RunningHub 账号登录。在这里配置密钥、绑定应用输入；图片比例与清晰度在新品页调整。</p></header>
+          <header><h2>生图 API 设置</h2><p>选择 RunningHub，或接入你自己的服务商。各接口独立保存密钥和模型配置，按所选服务商计费。</p></header>
+          <CustomApiSettings controller={customProviders} busy={generations.busy || previewGenerating} onSelect={id => { chooseModel(id); returnToStudio(); }} />
           <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
             <legend>当前调用应用</legend>
-            <label className="model-select">调用模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="消费级-会员 Key · AI 应用接口">{imageModels.filter((item) => item.apiMode === 'member-app').map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有国际站 API（独立配置，不使用会员 Key）">{imageModels.filter((item) => !item.region).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
+            <label className="model-select">调用模型 / 应用<select value={modelId} onChange={event => chooseModel(event.target.value)}><optgroup label="RunningHub · 会员应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="RunningHub · 国际站">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="自定义 API · 我的接口">{customProviders.models.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
           </fieldset>
-          <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />
+          {!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />}
           {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={production?.frameUrl || frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
           {model.note && <p className="generation-warning">{model.note}</p>}
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}

@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import { readFileSync } from 'node:fs';
+const compiled = await build({ stdin: { contents: `export * from './lib/custom-image-config'; export * from './lib/custom-image-provider';`, resolveDir: process.cwd(), loader: 'ts' }, bundle:true, write:false, platform:'node', format:'esm' });
+const api = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+const config = api.cleanCustomConfig({ name:'测试接口', baseUrl:'https://api.vendor.com/v1/', modelName:'provider/image-model', format:'multipart', sizes:'auto, 1024x1536', qualities:'', imageHosts:'cdn.vendor.com' }, '00000000-0000-4000-8000-000000000001','revision-1');
+assert.equal(config.baseUrl,'https://api.vendor.com/v1');
+for(const url of ['http://api.vendor.com','https://127.0.0.1','https://2130706433','https://[::1]','https://localhost','https://host.internal','https://api.vendor.com:8443','https://key@api.vendor.com','https://api.vendor.com?key=secret','https://api.vendor.com/#secret']) assert.throws(()=>api.publicHttps(url));
+for(const ip of ['127.0.0.1','10.1.2.3','169.254.169.254','172.16.1.1','192.168.1.1','100.64.0.1','::1','fc00::1','fe80::1','2001:db8::1','::ffff:127.0.0.1']) assert.equal(api.publicAddress(ip),false,ip);
+for(const ip of ['1.1.1.1','8.8.8.8','2606:4700:4700::1111']) assert.equal(api.publicAddress(ip),true,ip);
+assert.throws(()=>api.cleanCustomConfig({...config, editPath:'//other.com/x'},config.id,'r2'));
+assert.throws(()=>api.cleanCustomConfig({...config, sizes:['99999x99999']},config.id,'r2'));
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aH0cAAAAASUVORK5CYII=','base64');
+const refs = [new File([png],'frame.png',{type:'image/png'}),new File([png],'artwork.png',{type:'image/png'})];
+const input = await api.buildEditBody(config,refs,'中文组合要求','1024x1536','');
+assert.equal(input.body.get('model'),'provider/image-model'); assert.equal(input.body.get('n'),'1');
+assert.equal(input.body.get('quality'),null); assert.equal(input.body.get('resolution'),null); assert.equal(input.body.get('aspectRatio'),null);
+assert.deepEqual(input.body.getAll('image[]').map(f=>f.name),['reference-1.png','reference-2.png']);
+assert.equal(input.headers['content-type'],undefined);
+const json = await api.buildEditBody({...config,format:'json',qualities:['high']},refs,'中文','auto','high');
+const parsed = JSON.parse(json.body); assert.equal(parsed.images.length,2); assert.ok(parsed.images[0].image_url.startsWith('data:image/png;base64,')); assert.equal(parsed.quality,'high');
+await assert.rejects(api.buildEditBody(config,refs,'test','8192x8192',''));
+await assert.rejects(api.buildEditBody(config,refs,'test','auto','high'));
+const dns = url => new URL(url).hostname === 'cloudflare-dns.com';
+const dnsResponse = url => Response.json({Status:0,Answer:[{type:new URL(url).searchParams.get('type') === 'A'?1:28,data:new URL(url).searchParams.get('type') === 'A'?'1.1.1.1':'2606:4700:4700::1111'}]});
+let paidCalls=0;
+const result = await api.editCustomImage(config,'fake-test-key',refs,'中文','auto','',async (url,options)=>{
+  if(dns(url)) { assert.equal(options.headers.Authorization,undefined); return dnsResponse(url); }
+  paidCalls++; assert.equal(String(url),'https://api.vendor.com/v1/images/edits'); assert.equal(options.headers.Authorization,'Bearer fake-test-key'); assert.equal(options.redirect,'error');
+  return Response.json({data:[{b64_json:png.toString('base64')}]});
+});
+assert.equal(paidCalls,1); assert.equal(result.mime,'image/png'); assert.deepEqual(Buffer.from(result.bytes),png);
+for(const [status,uncertain] of [[400,false],[401,false],[403,false],[404,false],[429,false],[500,true],[408,true]]) {
+  paidCalls=0;
+  await assert.rejects(api.editCustomImage(config,'secret-not-echoed',refs,'中文','auto','',async(url)=>{if(dns(url))return dnsResponse(url);paidCalls++;return new Response('secret-not-echoed',{status});}),e=>e.uncertain===uncertain && !e.message.includes('secret-not-echoed'));
+  assert.equal(paidCalls,1);
+}
+paidCalls=0;
+await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>{if(dns(url))return dnsResponse(url);paidCalls++;throw new Error('timeout secret');}),e=>e.uncertain && !e.message.includes('secret'));
+assert.equal(paidCalls,1);
+paidCalls=0;
+await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>{if(dns(url))return Response.json({Status:0,Answer:[{type:1,data:'169.254.169.254'}]});paidCalls++;}),/公网/);
+assert.equal(paidCalls,0);
+let downloads=0;
+await api.editCustomImage(config,'never-on-cdn',refs,'中文','auto','',async(url,options)=>{if(dns(url))return dnsResponse(url);if(String(url).includes('/images/edits'))return Response.json({data:[{url:'https://cdn.vendor.com/output.png?signature=abc'}]});downloads++;assert.equal(options.headers,undefined);assert.equal(options.redirect,'error');return new Response(png);});
+assert.equal(downloads,1);
+await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>dns(url)?dnsResponse(url):Response.json({data:[{url:'https://unknown-cdn.com/a.png'}]})),/未配置/);
+await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>dns(url)?dnsResponse(url):Response.json({taskId:'unsupported-async'})),e=>e.uncertain);
+assert.throws(()=>api.imageMime(new TextEncoder().encode('<html>bad</html>')));
+await assert.rejects(api.limitedBytes(new Response('over-limit'),3));
+const route=readFileSync('app/api/generate-preview/route.ts','utf8');
+assert.ok(route.indexOf('claimSubmission(owner, id)') < route.indexOf('editCustomImage(fresh.config'));
+assert.ok(route.includes('fresh.config.revision !== custom.config.revision'));
+assert.ok(route.indexOf('await env.FILES.put') < route.indexOf("acceptedRemoteId = 'custom-result'"));
+const configRoute=readFileSync('app/api/image-providers/route.ts','utf8'); assert.ok(configRoute.includes('generationOwner(request)'));
+console.log('PASS: custom API validation, private-address guard, exact reference order, optional parameters, multipart/JSON, returned image bytes, no credential redirects, no automatic paid retries, and recovery contracts. No live requests.');

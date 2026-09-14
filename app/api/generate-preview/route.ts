@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import { env } from 'cloudflare:workers';
+import { customProvider } from '../../../db/custom-image-providers';
+import { customImageModel, isCustomModel } from '../../../lib/custom-image-config';
+import { CustomImageError, editCustomImage } from '../../../lib/custom-image-provider';
 import { FormLimitError, limitedFormData } from '../../../lib/limited-form';
 import { generationOwner } from '../../../lib/generation-auth';
 import { compositionPrompt } from '../../../lib/composition-prompt';
@@ -31,13 +35,17 @@ export async function POST(request: Request) {
     const field = (name: string, fallback = '') => String(form.get(name) || fallback).trim().slice(0, name === 'instruction' ? 1500 : 160);
     let ratio = field('aspectRatio', '16:9');
     let resolution = field('resolution', '2k');
-    const model = getImageModel(field('model', RUNNINGHUB_MODEL));
+    const requestedModel = field('model', RUNNINGHUB_MODEL);
+    const custom = isCustomModel(requestedModel) ? await customProvider(owner, requestedModel.slice(7)) : null;
+    const model = custom ? customImageModel(custom.config) : getImageModel(requestedModel);
+    if (custom && (refs as File[]).reduce((sum,file) => sum+file.size,0) > 8*1024*1024) return NextResponse.json({ error: '自定义接口的参考图总大小请控制在8MB以内。' }, { status: 413 });
+    if (custom && field('providerRevision') !== custom.config.revision) return NextResponse.json({ error: '接口配置已更新，请刷新模型列表并重新核对后生成。' }, { status: 409 });
     const quality = field('quality', model?.qualities.length ? 'medium' : '');
     if (!model || (model.apiMode !== 'member-app' && !validModelSettings(model, ratio, resolution, quality))) return NextResponse.json({ error: '所选模型不支持这组比例、清晰度或质量设置。' }, { status: 400 });
     let connection;
-    try { connection = await runningHubConnection(owner, model.id); }
+    try { connection = custom ? undefined : await runningHubConnection(owner, model.id); }
     catch (error) { return NextResponse.json({ error: error instanceof RunningHubError ? error.message : '请先配置当前模型的 API Key。' }, { status: 503 }); }
-    if (model.id !== 'gpt-image-2' && refs.some((file) => (file as File).type === 'image/webp')) return NextResponse.json({ error: '此模型需要 JPG 或 PNG 参考图，请刷新页面后重试格式转换。' }, { status: 400 });
+    if (!custom && model.id !== 'gpt-image-2' && refs.some((file) => (file as File).type === 'image/webp')) return NextResponse.json({ error: '此模型需要 JPG 或 PNG 参考图，请刷新页面后重试格式转换。' }, { status: 400 });
     const artworkName = field('artworkName', '画芯');
     const frameName = field('frameName', '屏风框架');
     const colorName = field('colorName', '胡桃木色');
@@ -64,7 +72,7 @@ export async function POST(request: Request) {
         if (rawSetup.length > 50000 || !rawSetup) throw new Error('请先读取并确认会员应用参数。');
         appSetup = cleanAppSetup(JSON.parse(rawSetup));
         if (!appSetup) throw new Error('应用参数格式不正确，请重新读取。');
-        appSpec = await loadMemberApp(model.appId!, connection);
+        appSpec = await loadMemberApp(model.appId!, connection!);
         compileAppInputs(appSpec, appSetup, refs.map((_, index) => `pending-${index}`), prompt);
         ratio = appOutputSetting(appSpec, appSetup, 'ratio'); resolution = appOutputSetting(appSpec, appSetup, 'resolution');
         if (recipe) recipe.appSetup = appSetup;
@@ -81,6 +89,19 @@ export async function POST(request: Request) {
     }
     inserted = true;
     if(productionItemId) await claimProductionItem(owner,productionItemId,id);
+    if (custom) {
+      // Acquiring the same owner task lock also prevents concurrent key/config changes.
+      const fresh = await customProvider(owner, custom.config.id, true);
+      if (fresh.config.revision !== custom.config.revision) throw new CustomImageError('接口配置刚刚改变，请重新核对后生成。');
+      if (!await claimSubmission(owner, id)) throw new CustomImageError('任务已过期，请重新创建。');
+      submitted = true;
+      const result = await editCustomImage(fresh.config, fresh.apiKey, refs as File[], prompt, resolution, quality);
+      // Persist first. If the database write fails, GET can recover this exact image without another paid call.
+      await env.FILES.put(`${owner}/generated-previews/${id}/result`, result.bytes, { httpMetadata: { contentType: result.mime } });
+      acceptedRemoteId = 'custom-result';
+      await updateTask(owner, id, 'queued', '', acceptedRemoteId);
+      return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });
+    }
     // Re-read after acquiring the owner's active-task lock. Key replacement is
     // atomically blocked while this task is active, keeping submit/query aligned.
     connection = await runningHubConnection(owner, model.id);
@@ -97,8 +118,8 @@ export async function POST(request: Request) {
     return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });
   } catch (error) {
     if (error instanceof FormLimitError) return NextResponse.json({ error: error.message }, { status: 413 });
-    const message = error instanceof RunningHubError || error instanceof ProductionError ? error.message : '服务暂时不可用，请稍后查看任务记录。';
-    const uncertain = submitted && (!(error instanceof RunningHubError) || error.uncertain);
+    const message = error instanceof RunningHubError || error instanceof CustomImageError || error instanceof ProductionError ? error.message : '服务暂时不可用，请稍后查看任务记录。';
+    const uncertain = submitted && (!(error instanceof RunningHubError || error instanceof CustomImageError) || error.uncertain);
     if (inserted) await updateTask(owner, id, acceptedRemoteId ? 'queued' : uncertain ? 'unknown' : 'failed', message, acceptedRemoteId).catch(() => undefined);
     return NextResponse.json({ error: message, requestId: id || undefined, uncertain }, { status: 502 });
   }

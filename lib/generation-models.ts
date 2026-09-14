@@ -12,7 +12,7 @@ export type ImageModel = {
   region?: 'cn' | 'international';
   appId?: string;
   note?: string;
-  apiMode?: 'member-app';
+  apiMode?: 'member-app' | 'openai-compatible';
 };
 
 const commonRatios = ['1:1', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4', '9:16', '16:9', '21:9'];
