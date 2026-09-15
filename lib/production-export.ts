@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'fflate';
 import type { ProductionItem, ProductionPlan, ProductWorkspace } from './production-plan';
 import { drawSizeAnnotations, detailCaptions } from './production-annotations';
-import { validSizeMarks } from './production-scene';
+import { validSizeMarks, preservesSourceSizeMarks } from './production-scene';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
 export function downloadBlob(blob:Blob,name:string) {
   const url=URL.createObjectURL(blob), link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -14,6 +14,8 @@ async function ownedImage(url:string) {
 export async function publicationImage(item:ProductionItem,workspace:ProductWorkspace,plan:ProductionPlan):Promise<Blob> {
   if(!item.task?.url)throw new Error('图片尚未完成。');
   const blob=await ownedImage(item.task.url);
+  // Source-preserved images already have their annotations; never overlay twice.
+  if(preservesSourceSizeMarks(item))return blob;
   if(item.kind==='main')return blob;
   if(item.kind==='size'&&plan.config.sceneTitle){
     if(!item.spec||!validSizeMarks(item.spec.marks,item.generationId||'',!!item.spec.depthCm))throw new Error('请先保存尺寸标注位置，再查看或下载成品。');

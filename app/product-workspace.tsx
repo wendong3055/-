@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { artworkRules, mainOptions, detailOptions, type ProductWorkspace, type ProductionPlanInput, type ProductionPlan, type ProductionItem } from '../lib/production-plan';
 import { generationLabels } from '../lib/generation-types';
 import { downloadBlob, exportProduction, publicationImage } from '../lib/production-export';
-import {sharedScene,canReuseScene,type SizeMarks} from '../lib/production-scene';
+import {sharedScene,canReuseScene,preservesSourceSizeMarks,sizeProductionBrief,type SizeMarks} from '../lib/production-scene';
 import {SizeMarksEditor} from './size-marks-editor';
 async function responseData<T>(r:Response):Promise<T>{const b=await r.json() as T&{error?:string};if(!r.ok)throw new Error(b.error||'请求未完成，请重试。');return b;}
 
@@ -48,9 +48,9 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen}:
         <div className="plan-confirm"><strong>本版共 {editor.main.length+editor.details.length+editor.sizes.length} 张：主图 {editor.main.length}、单尺寸图 {editor.sizes.length}、详情模块 {editor.details.length}</strong><label className="plan-check"><input type="checkbox" checked={editor.confirmed} onChange={e=>setEditor({...editor,confirmed:e.target.checked})}/>我已核对样图、装画规则、规格与对应原图</label><p>保存清单不生成、不扣费。首次制作时统一确认本套模型、参数与计费方式，同一参数的后续项目不再逐张弹窗。</p><button disabled={busy||!editor.confirmed} onClick={()=>void save()}>保存确认清单</button><button disabled={busy} onClick={()=>setEditor(null)}>取消修改</button></div>
       </div>}
       {plan&&!editor&&<><div className="plan-version"><label>制作版本<select value={plan.id} onChange={e=>setVersion(e.target.value)}>{data.plans.map(p=><option key={p.id} value={p.id}>v{p.version} · {p.config.name}</option>)}</select></label><strong>{plan.items.filter(i=>i.review==='accepted').length}/{plan.items.length} 项已验收</strong><button disabled={busy||!plan.items.some(i=>i.review==='accepted')} onClick={()=>void exportZip()}>下载{plan.items.every(i=>i.review==='accepted')?'完整交付包':'已验收部分'} ZIP</button></div>
-      <p>尺寸标识使用确认数值排版；详情配图重新生成后统一添加模块标题。请先预览交付排版，再验收。同一版本、同一模型参数只需确认一次，后续首次制作不再逐张弹窗；仍需点击生成，重做另行确认。</p>
-      {plan.config.sceneTitle&&<div className="product-message"><strong>共用场景：{plan.config.sceneTitle}</strong><p>{sharedScene(plan)?'场景主图已确认。相同规格直接共用此图加标注；其他规格按自己的真实框架沿用该场景。':'先完成并验收场景主图，再制作尺寸图。'}</p>{sharedScene(plan)?.task?.url&&<img src={sharedScene(plan)!.task!.url!} alt="主图和尺寸图共用场景" style={{width:200,height:200,objectFit:'contain'}}/>}</div>}
-      <div className="production-list">{plan.items.map(item=><ProductionCard key={`${item.id}:${item.generationId}:${JSON.stringify(item.spec?.marks)}`} item={item} busy={busy} sceneMode={!!plan.config.sceneTitle} sceneReady={!!sharedScene(plan)} canReuse={!item.generationId&&canReuseScene(item,data,plan)} onReuse={()=>void sizeAction(item)} onMarks={marks=>void sizeAction(item,marks)} onPreview={()=>void show(item)} onReview={(v,n)=>void review(item,v,n)} onDownload={()=>{setBusy(true);void publicationImage(item,data,plan).then(b=>downloadBlob(b,`${item.title}.${b.type==='image/png'?'png':b.type==='image/webp'?'webp':'jpg'}`)).catch(e=>setError(String(e))).finally(()=>setBusy(false));}}/>)}</div></>}
+      <p>新制作或重做的尺寸图保留框架原图尺寸标注，沿用本套统一场景，不再另加一套箭头。旧成品及原有排版保留。请核对原图标注、产品结构和统一背景后再验收。同一版本、同一模型参数只需确认一次，后续首次制作不再逐张弹窗；仍需点击生成，重做另行确认。</p>
+      {plan.config.sceneTitle&&<div className="product-message"><strong>共用场景：{plan.config.sceneTitle}</strong><p>{sharedScene(plan)?'场景主图已确认。各尺寸使用对应的带标注框架原图，只沿用此图的场景背景，不直接拿主图替代尺寸图。':'先完成并验收场景主图，再制作尺寸图。'}</p>{sharedScene(plan)?.task?.url&&<img src={sharedScene(plan)!.task!.url!} alt="主图和尺寸图共用场景" style={{width:200,height:200,objectFit:'contain'}}/>}</div>}
+      <div className="production-list">{plan.items.map(item=><ProductionCard key={`${item.id}:${item.generationId}:${JSON.stringify(item.spec?.marks)}`} item={item.kind==='size'&&item.spec?{...item,brief:sizeProductionBrief(item.spec,artworkRules[plan.config.rule],plan.config.notes,plan.config.sceneTitle)}:item} busy={busy} sceneMode={!!plan.config.sceneTitle} sceneReady={!!sharedScene(plan)} canReuse={!item.generationId&&canReuseScene(item,data,plan)} onReuse={()=>void sizeAction(item)} onMarks={marks=>void sizeAction(item,marks)} onPreview={()=>void show(item)} onReview={(v,n)=>void review(item,v,n)} onDownload={()=>{setBusy(true);void publicationImage(item,data,plan).then(b=>downloadBlob(b,`${item.title}.${b.type==='image/png'?'png':b.type==='image/webp'?'webp':'jpg'}`)).catch(e=>setError(String(e))).finally(()=>setBusy(false));}}/>)}</div></>}
     </>}
     {preview&&<dialog open className="publication-preview" aria-label="交付排版预览"><button onClick={()=>setPreview(null)}>关闭预览</button><h3>{preview.title}</h3><img src={preview.url} alt={preview.title}/></dialog>}
   </section>;
@@ -59,11 +59,12 @@ function ProductionCard({item,busy,onPreview,onReview,onDownload,sceneMode,scene
   const [note,setNote]=useState(item.note),[checked,setChecked]=useState(false);
   const ready=!item.task||item.task.status==='failed'||item.review==='rework';
   return <article className="production-card"><div>{item.task?.url?<img src={item.task.url} alt={item.title}/>:<span>{item.task?generationLabels[item.task.status]:'待制作'}</span>}</div><section><small>{{main:'主图',size:'单尺寸图',detail:'详情模块'}[item.kind]}</small><h3>{item.title}</h3><p>{item.review==='accepted'?'已验收':item.review==='rework'?'已标记重做':item.task?.status==='succeeded'?'待人工验收':item.task?generationLabels[item.task.status]:'清单已确认，尚未生成'}</p>{item.task?.error&&<p role="status">{item.task.error}</p>}
-    <details><summary>本项制作要求</summary><p>{item.brief}</p></details>
+    <details><summary>{item.kind==='size'&&item.task?'下次制作要求（旧成品不变）':'本项制作要求'}</summary><p>{item.brief}</p></details>
     {ready&&(!sceneMode||item.kind!=='size'||sceneReady)&&<a className="production-start" href={`/?production=${item.id}`}>{item.task?'准备重做此项':'准备制作此项'} →</a>}
     {sceneMode&&item.kind==='size'&&!sceneReady&&<p>请先完成并验收共用场景主图。</p>}
     {canReuse&&<button disabled={busy} onClick={onReuse}>共用场景主图，直接加尺寸（不再生图）</button>}
-    {sceneMode&&item.kind==='size'&&item.task?.url&&<SizeMarksEditor item={item} busy={busy} onSave={onMarks}/>}
+    {sceneMode&&item.kind==='size'&&item.task?.url&&!preservesSourceSizeMarks(item)&&<SizeMarksEditor item={item} busy={busy} onSave={onMarks}/>}
+    {preservesSourceSizeMarks(item)&&<p>保留框架原图标注：请逐项核对数字、单位和箭头，下载时不再叠加标注。</p>}
     {item.task?.url&&<><div className="product-actions"><button disabled={busy} onClick={onPreview}>预览交付排版</button><button disabled={busy} onClick={onDownload}>下载本项</button></div><label>验收备注 / 重做原因<textarea value={note} maxLength={600} onChange={e=>setNote(e.target.value)} placeholder="例如：柜门数量正确，画芯完整；暖白仍偏黄需重做。"/></label><label className="plan-check"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/>已核对交付排版、产品结构、图案、颜色与尺寸</label><div className="product-actions"><button disabled={busy||!checked} onClick={()=>onReview('accepted',note)}>验收通过</button><button disabled={busy||!note.trim()} onClick={()=>onReview('rework',note)}>标记重做</button></div></>}
   </section></article>;
 }

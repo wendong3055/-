@@ -1,6 +1,7 @@
 import type { FrameSize } from './frame-catalog';
 import type { GenerationTask } from './generation-types';
 import type { SizeMarks } from './production-scene';
+import { sizeProductionBrief } from './production-scene';
 
 export const artworkRules = {
   upper: '只在上方屏芯装画，柜门、抽屉和其余木质部件不加图案。',
@@ -49,7 +50,7 @@ export function planItems(plan: ProductionPlanInput) {
   return [
     ...plan.main.map(title=>({title,kind:'main' as const,spec:null,brief:`以确认样图为产品标准，制作${title}。保留产品结构、画芯和框架色，完整展示产品，不添加尺寸或营销文字。${title===plan.sceneTitle?'此图同时作为尺寸图的共用场景：正方形构图，产品正面为主，侧面进深适度可见，机位端正，背景简洁明亮，产品四周保留标注空间，不被其他家具遮挡。':''}${lock}`})),
     ...plan.sizes.map(spec=>({title:`宽${spec.widthCm} × 高${spec.heightCm}cm${spec.panelCount ? ` · ${spec.panelCount}扇`:''}`,kind:'size' as const,spec,
-      brief:`依据这张规格框架原图制作${plan.sceneTitle?`沿用${plan.sceneTitle}背景的正方形场景图`:'白底产品净图'}，宽${spec.widthCm}cm，高${spec.heightCm}cm${spec.depthCm ? `，深${spec.depthCm}cm`:''}。保持该规格原图结构和透视，不拉伸确认样图替代。不要生成文字或尺寸箭头；根据确认数据添加标注，成品预览与下载一致。${lock}`})),
+      brief:sizeProductionBrief(spec,artworkRules[plan.rule],plan.notes,plan.sceneTitle)})),
     ...plan.details.map(title=>({title,kind:'detail' as const,spec:null,brief:`根据确认产品，重新设计电商详情页的“${title}”模块。保留产品结构、画芯及木色，版式清晰有留白，不照搬原详情页，不编造材质、认证、承重或尺寸参数。生成不带文字的模块配图；模块标题和已确认参数在交付时排版。${lock}`})),
   ];
 }

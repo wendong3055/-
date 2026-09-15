@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       productionTitle=context.row.title;
       if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
       recipe.productionItemId=productionItemId;
+      if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
       prompt=context.row.kind==='size'
         ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
         : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
@@ -77,7 +78,8 @@ export async function POST(request: Request) {
         if(context.row.kind==='size') {
           const scene=await productionSceneFile(owner,context);
           refs.push(scene.file);recipe.sceneGenerationId=scene.generationId;
-          prompt=sceneSizeBrief(context.spec,artworkRules[context.config.rule],`${context.config.notes} 框架木色：${colorName}。本次补充：${field('instruction')}`);
+          prompt=sceneSizeBrief(context.spec,artworkRules[context.config.rule],`${context.config.notes} 框架木色：${colorName}。本次补充：${field('instruction')}${context.row.review==='rework'&&context.row.note?` 上一稿重做原因：${context.row.note}`:''}`);
+          recipe.sizeAnnotationMode='source-preserved-v1';
         }
       }
     }
