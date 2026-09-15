@@ -10,6 +10,7 @@ const plan={config:{sceneTitle:'客厅场景'},items:[scene]};
 const item={kind:'size',spec};const workspace={sample:{recipe:{frameId:'uploaded-frame-representative'}}};
 assert.equal(sharedScene(plan),scene);assert.equal(sharedScene({...plan,items:[{...scene,review:'rework'}]}),undefined);
 assert.ok(canReuseScene(item,workspace,plan));assert.ok(!canReuseScene({...item,spec:{...spec,sourceIds:['other']}},workspace,plan));
+assert.ok(canReuseScene(item,workspace,{...plan,items:[{...scene,task:{...scene.task,model:'gpt-image-2.5-sunburst'}}]}));
 assert.ok(!canReuseScene(item,workspace,{...plan,items:[{...scene,task:{...scene.task,model:'other'}}]}));
 const marks={generationId:'g',points:[{x:.3,y:.8},{x:.6,y:.8},{x:.2,y:.1},{x:.2,y:.8},{x:.6,y:.8},{x:.7,y:.75}]};
 assert.ok(validSizeMarks(marks,'g',true));assert.ok(!validSizeMarks(marks,'other',true));assert.ok(!validSizeMarks({...marks,points:Array(6)},'g',true));

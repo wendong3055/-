@@ -8,6 +8,10 @@ export type ImageModel = {
   ratios: readonly string[];
   resolutions: readonly string[];
   qualities: readonly string[];
+  backgrounds?: readonly string[];
+  outputFormats?: readonly string[];
+  maxImages?: number;
+  maxPromptLength?: number;
   source: string;
   region?: 'cn' | 'international';
   appId?: string;
@@ -38,6 +42,16 @@ export const imageModels: readonly ImageModel[] = [
     source: 'https://www.runninghub.cn/runninghub-api-doc-cn/api-448183218', note: '支持 4K/8K，费用与低价渠道不同，请确认账号接口权限。',
   },
   {
+    id: 'gpt-image-2.5-sunburst', name: 'GPT Image 2.5 Sunburst · 图片编辑',
+    endpoint: '/openapi/v2/rhart-image-g-2.5-official-token/sunburst/edit',
+    ratios: [...commonRatios, '1:2', '2:1', '1:3', '3:1', '9:21'],
+    resolutions: ['1k', '2k', '4k'], qualities: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    backgrounds: ['auto', 'transparent', 'opaque'], outputFormats: ['png', 'jpeg', 'webp'],
+    maxImages: 16, maxPromptLength: 32000,
+    source: 'https://www.runninghub.ai/zh-cn/call-api/api-detail/2133100000000800376',
+    note: '沿用国际站企业级共享 Key。高质量档位会增加耗时与 token 用量，按实际用量计费；透明背景请选择 PNG 或 WebP。',
+  },
+  {
     id: 'gpt-image-2', name: 'GPT Image 2',
     endpoint: '/openapi/v2/rhart-image-g-2-official/image-to-image',
     ratios: [...commonRatios, '1:2', '2:1', '1:3', '3:1', '9:21'],
@@ -63,9 +77,13 @@ export const imageModels: readonly ImageModel[] = [
 // Historical tasks keep their recorded model and are never silently migrated.
 export const defaultImageModel = imageModels.find(model => model.id === 'gpt-image-2')!;
 export function getImageModel(id: string) { return imageModels.find((model) => model.id === id); }
-export const qualityLabels: Record<string, string> = { low: '快速', medium: '标准', high: '精细' };
+export const qualityLabels: Record<string, string> = { auto: '自动', low: '快速', medium: '标准', high: '精细', xhigh: '超精细 · 用量更高', max: '最高质量 · 用量更高' };
+export const backgroundLabels: Record<string, string> = { auto: '自动', transparent: '透明背景', opaque: '不透明背景' };
 
-export function validModelSettings(model: ImageModel, ratio: string, resolution: string, quality?: string) {
+export function validModelSettings(model: ImageModel, ratio: string, resolution: string, quality?: string, background?: string, outputFormat?: string) {
   return model.ratios.includes(ratio) && model.resolutions.includes(resolution)
-    && (model.qualities.length ? model.qualities.includes(quality || 'medium') : !quality);
+    && (model.qualities.length ? model.qualities.includes(quality || 'medium') : !quality)
+    && (model.backgrounds?.length ? model.backgrounds.includes(background || 'auto') : !background)
+    && (model.outputFormats?.length ? model.outputFormats.includes(outputFormat || 'png') : !outputFormat)
+    && !(background === 'transparent' && outputFormat === 'jpeg');
 }

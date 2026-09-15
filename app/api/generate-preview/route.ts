@@ -45,7 +45,9 @@ export async function POST(request: Request) {
     if (custom && (refs as File[]).reduce((sum,file) => sum+file.size,0) > 8*1024*1024) return NextResponse.json({ error: '自定义接口的参考图总大小请控制在8MB以内。' }, { status: 413 });
     if (custom && field('providerRevision') !== custom.config.revision) return NextResponse.json({ error: '接口配置已更新，请刷新模型列表并重新核对后生成。' }, { status: 409 });
     const quality = field('quality', model?.qualities.length ? 'medium' : '');
-    if (!model || (model.apiMode !== 'member-app' && !validModelSettings(model, ratio, resolution, quality))) return NextResponse.json({ error: '所选模型不支持这组比例、清晰度或质量设置。' }, { status: 400 });
+    const background = field('background', model?.backgrounds?.length ? 'auto' : '');
+    const outputFormat = field('outputFormat', model?.outputFormats?.length ? 'png' : '');
+    if (!model || (model.apiMode !== 'member-app' && !validModelSettings(model, ratio, resolution, quality, background, outputFormat))) return NextResponse.json({ error: '所选模型不支持这组图片设置；透明背景请选择 PNG 或 WebP。' }, { status: 400 });
     let connection;
     const credentialId = !custom && model.region !== 'cn' ? await latestInternationalKeyId(owner) : null;
     try { connection = custom ? undefined : await runningHubConnection(owner, model.id, credentialId); }
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     const colorName = field('colorName', '胡桃木色');
     const intent = field('intent', 'composition');
     if (!isStudioIntent(intent)) return NextResponse.json({ error: '请选择有效的出图用途。' }, { status: 400 });
-    const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction'), ...(quality ? { quality } : {}) }));
+    const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction'), ...(quality ? { quality } : {}), ...(background ? {background}:{}), ...(outputFormat ? {outputFormat}:{}) }));
     let prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     const productionItemId=field('productionItemId');
     let productionTitle='';
@@ -70,7 +72,8 @@ export async function POST(request: Request) {
         : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
       if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
       if(context.config.sceneTitle) {
-        if(model.id!=='gpt-image-2'||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('本套使用 GPT Image 2、2K；主图和尺寸图需为 1:1。');
+        if(!['gpt-image-2','gpt-image-2.5-sunburst'].includes(model.id)||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('共用场景请使用 GPT Image 2 或 2.5、2K；主图和尺寸图需为 1:1。');
+        if(background==='transparent')throw new ProductionError('本套需要保留场景背景，请选择自动或不透明背景。');
         if(context.row.kind==='size') {
           const scene=await productionSceneFile(owner,context);
           refs.push(scene.file);recipe.sceneGenerationId=scene.generationId;
@@ -79,6 +82,7 @@ export async function POST(request: Request) {
       }
     }
     let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
+    if (background === 'transparent') prompt += '\n背景设置优先：本次输出透明背景，去除环境和纯白底，仅保留完整产品；产品结构、画芯与木色要求保持不变。';
     if (model.apiMode === 'member-app') {
       try {
         const rawSetup = String(form.get('appSetup') || '');
@@ -125,7 +129,7 @@ export async function POST(request: Request) {
     // Never retry this billable request automatically.
     const result = appSpec && appSetup
       ? await submitMemberApp(model.appId!, compileAppInputs(appSpec, appSetup, imageUrls, prompt), connection)
-      : await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution, model: model.id, quality }, connection);
+      : await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution, model: model.id, quality, background, outputFormat }, connection);
     acceptedRemoteId = result.taskId!;
     await updateTask(owner, id, result.status === 'FAILED' ? 'failed' : 'queued', result.status === 'FAILED' ? providerError(result) : '', acceptedRemoteId);
     return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });

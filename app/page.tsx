@@ -9,7 +9,7 @@ import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
 import { MemberAppSettings, MemberOutputOptions, useMemberApp } from './member-app-settings';
 import { appOutputSetting, compileAppInputs } from '../lib/runninghub-app-schema';
-import { defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
+import { backgroundLabels, defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
 import { referenceUpload } from '../lib/reference-upload';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
@@ -118,6 +118,8 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [resolution, setResolution] = useState('2k');
   const [quality, setQuality] = useState('medium');
+  const [background, setBackground] = useState('auto');
+  const [outputFormat, setOutputFormat] = useState('png');
   const [intent, setIntent] = useState<StudioIntent>('composition');
   const [instruction, setInstruction] = useState<string>(studioIntents[0].instruction);
   const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
@@ -169,6 +171,7 @@ export default function Home() {
   const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
   const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
   const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:outputRatio,resolution:outputResolution,quality,
+    ...(model.backgrounds?.length ? {background}:{}), ...(model.outputFormats?.length ? {outputFormat}:{}),
     appSetup:model.apiMode==='member-app'?memberInputs?.setup:null});
   const consentActive = !!production && !!productionConsent && productionConsent.planId===production.planId && productionConsent.settings===confirmationSettings;
   useEffect(()=>{
@@ -338,6 +341,8 @@ export default function Home() {
     setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : savedModel.ratios[0] || '16:9');
     setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : savedModel.resolutions[0] || '2k');
     setQuality(savedModel.qualities.includes(recipe.quality || '') ? recipe.quality! : savedModel.qualities[0] || '');
+    setBackground(savedModel.backgrounds?.includes(recipe.background || '') ? recipe.background! : 'auto');
+    setOutputFormat(savedModel.outputFormats?.includes(recipe.outputFormat || '') ? recipe.outputFormat! : 'png');
     if (task.status === 'succeeded' && task.url) {
       setPreviewTaskId(task.id);
       setPreviewReady(true);
@@ -361,6 +366,7 @@ export default function Home() {
     if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
     if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
     setQuality(next.qualities.includes('medium') ? 'medium' : next.qualities[0] || '');
+    setBackground('auto');setOutputFormat('png');
     resetPreview();
   }
 
@@ -412,6 +418,8 @@ export default function Home() {
         if (customConfig) form.set('providerRevision', customConfig.revision);
         if (model.apiMode === 'member-app' && memberInputs) form.set('appSetup', JSON.stringify(memberInputs.setup));
         if (model.qualities.length) form.set('quality', quality);
+        if (model.backgrounds?.length) form.set('background', background);
+        if (model.outputFormats?.length) form.set('outputFormat', outputFormat);
         form.set('instruction', instruction);
         form.set('intent', intent);
         if(production)form.set('productionItemId',production.itemId);
@@ -652,6 +660,9 @@ export default function Home() {
                 <label className="model-select">RunningHub 模型 / 应用<select value={modelId} onChange={(event) => chooseModel(event.target.value)}><optgroup label="新品制作应用">{imageModels.filter(item => item.apiMode === 'member-app').map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup><optgroup label="原有 RunningHub 模型">{imageModels.filter(item => !item.region).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup></select></label>
                 {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}</select></label></div>}
                 {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
+                {!!model.backgrounds?.length && <label>输出背景<select value={background} onChange={event => { setBackground(event.target.value); if(event.target.value==='transparent' && outputFormat==='jpeg')setOutputFormat('png'); resetPreview(); }}>{model.backgrounds.map(item => <option key={item} value={item} disabled={Boolean(production?.sceneTitle) && item==='transparent'}>{backgroundLabels[item] || item}</option>)}</select></label>}
+                {!!model.outputFormats?.length && <label>图片格式<select value={outputFormat} onChange={event => { setOutputFormat(event.target.value); resetPreview(); }}>{model.outputFormats.map(item => <option key={item} value={item} disabled={background==='transparent' && item==='jpeg'}>{item.toUpperCase()}</option>)}</select></label>}
+                {model.note && <p className="home-gallery-note">{model.note}</p>}
                 {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
                 <button className="api-add-link" type="button" onClick={() => setActiveNav('creator')}>打开 RunningHub 创作中心</button>
               </fieldset>

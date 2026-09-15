@@ -93,13 +93,17 @@ export async function checkAccount(connection: RunningHubConnection) {
   const type = String(payload.data?.apiType ?? '');
   return { balance: /^\d{1,12}(\.\d{1,8})?$/.test(money) ? money : null, currency: /^(CNY|USD)$/.test(currency) ? currency : '', keyType: /^(NORMAL|SHARED|ENTERPRISE|CONSUMER)$/.test(type) ? type : '未识别' };
 }
-export async function submitGeneration(input: { prompt: string; imageUrls: string[]; aspectRatio: string; resolution: string; model?: string; quality?: string }, connection?: RunningHubConnection) {
+export async function submitGeneration(input: { prompt: string; imageUrls: string[]; aspectRatio: string; resolution: string; model?: string; quality?: string; background?: string; outputFormat?: string }, connection?: RunningHubConnection) {
   const model = getImageModel(input.model || RUNNINGHUB_MODEL);
-  if (!model || !validModelSettings(model, input.aspectRatio, input.resolution, input.quality)) throw new RunningHubError('所选模型不支持这组生成参数。');
+  if (!model || !validModelSettings(model, input.aspectRatio, input.resolution, input.quality, input.background, input.outputFormat)) throw new RunningHubError('所选模型不支持这组生成参数；透明背景需使用 PNG 或 WebP。');
+  if (model.maxImages && (!input.imageUrls.length || input.imageUrls.length > model.maxImages)) throw new RunningHubError('参考图片数量超出所选模型限制。');
+  if (model.maxPromptLength && (input.prompt.trim().length < 2 || input.prompt.length > model.maxPromptLength)) throw new RunningHubError('制作要求长度超出所选模型限制。');
   if ((model.region === 'cn') !== (connection?.origin === 'https://www.runninghub.cn')) throw new RunningHubError('模型与接口站点不匹配，已停止提交。');
   const payload = await call(model.endpoint, {
     prompt: input.prompt, imageUrls: input.imageUrls, aspectRatio: input.aspectRatio, resolution: input.resolution,
     ...(model.qualities.length ? { quality: input.quality || 'medium' } : {}),
+    ...(model.backgrounds?.length ? { background: input.background || 'auto' } : {}),
+    ...(model.outputFormats?.length ? { outputFormat: input.outputFormat || 'png' } : {}),
   }, true, connection) as ProviderResult;
   if (!payload.taskId) throw new RunningHubError(friendlyError(payload.errorCode, payload.errorMessage, 200) + diagnosticSuffix(model.endpoint, payload.errorCode, 200), !payload.errorCode);
   return payload;
