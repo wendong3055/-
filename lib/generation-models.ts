@@ -1,6 +1,7 @@
 // RunningHub official schemas checked on 2026-09-09. Keep endpoint-specific
 // options together so the browser and server accept the same parameters.
 import { verifiedRunningHubApps } from './runninghub-apps';
+import {internationalCompositionModels} from './international-composition-models';
 export type ImageModel = {
   id: string;
   name: string;
@@ -17,10 +18,12 @@ export type ImageModel = {
   appId?: string;
   note?: string;
   apiMode?: 'member-app' | 'openai-compatible';
+  catalogEndpoint?:string;
 };
 
 const commonRatios = ['1:1', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4', '9:16', '16:9', '21:9'];
 export const imageModels: readonly ImageModel[] = [
+  ...internationalCompositionModels,
   ...verifiedRunningHubApps.map((app): ImageModel => ({ id: `member-app-${app.id}`, name: app.name, region: 'cn', apiMode: 'member-app', appId: app.id,
     endpoint: '/task/openapi/ai-app/run', ratios: [], resolutions: [], qualities: [], source: 'https://www.runninghub.cn/ai-apps',
     note: '消费级-会员 Key 调用 AI 应用；按该应用的会员接口权益与附加费用规则结算。' })),

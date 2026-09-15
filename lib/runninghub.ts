@@ -1,6 +1,7 @@
 import { fetchWithoutRedirect, transportMessage } from './safe-http';
 import { env } from 'cloudflare:workers';
 import { defaultImageModel, getImageModel, validModelSettings } from './generation-models';
+import {compositionCatalogPayload} from './international-composition-models';
 import { chinaKey } from './runninghub-credentials';
 import { parseAppSpec, type AppSpec } from './runninghub-app-schema';
 import { readMemberTask } from './runninghub-member-query';
@@ -99,7 +100,9 @@ export async function submitGeneration(input: { prompt: string; imageUrls: strin
   if (model.maxImages && (!input.imageUrls.length || input.imageUrls.length > model.maxImages)) throw new RunningHubError('参考图片数量超出所选模型限制。');
   if (model.maxPromptLength && (input.prompt.trim().length < 2 || input.prompt.length > model.maxPromptLength)) throw new RunningHubError('制作要求长度超出所选模型限制。');
   if ((model.region === 'cn') !== (connection?.origin === 'https://www.runninghub.cn')) throw new RunningHubError('模型与接口站点不匹配，已停止提交。');
-  const payload = await call(model.endpoint, {
+  let catalogBody:Record<string,unknown>|undefined;
+  if(model.catalogEndpoint){try{catalogBody=compositionCatalogPayload(model,input);}catch(e){throw new RunningHubError(e instanceof Error?e.message:'图片模型参数无效。');}}
+  const payload = await call(model.endpoint, catalogBody || {
     prompt: input.prompt, imageUrls: input.imageUrls, aspectRatio: input.aspectRatio, resolution: input.resolution,
     ...(model.qualities.length ? { quality: input.quality || 'medium' } : {}),
     ...(model.backgrounds?.length ? { background: input.background || 'auto' } : {}),

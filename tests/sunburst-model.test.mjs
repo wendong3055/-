@@ -5,7 +5,7 @@ import ts from 'typescript';
 const read=path=>readFile(new URL(path,import.meta.url),'utf8');
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const moduleOf=source=>import('data:text/javascript;base64,'+Buffer.from(compile(source)).toString('base64'));
-const models=await moduleOf((await read('../lib/generation-models.ts')).replace("import { verifiedRunningHubApps } from './runninghub-apps';",'const verifiedRunningHubApps = [];'));
+const models=await moduleOf((await read('../lib/generation-models.ts')).replace("import {internationalCompositionModels} from './international-composition-models';",'const internationalCompositionModels = [];').replace("import { verifiedRunningHubApps } from './runninghub-apps';",'const verifiedRunningHubApps = [];'));
 const model=models.getImageModel('gpt-image-2.5-sunburst');
 assert.equal(model.endpoint,'/openapi/v2/rhart-image-g-2.5-official-token/sunburst/edit');
 assert.equal(models.defaultImageModel.id,'gpt-image-2');

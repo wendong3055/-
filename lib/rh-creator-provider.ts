@@ -5,9 +5,10 @@ import { publicHttps } from './custom-image-config';
 import { type RhModel, type RhParam, hiddenParam } from './rh-creator-schema';
 export const RH_CREATOR_ORIGIN='https://www.runninghub.cn';
 export class CreatorError extends Error {constructor(message:string,public uncertain=false){super(message);}}
-export async function rhRequest(key:string,path:string,body:Record<string,unknown>|FormData,billable=false,rawAuth=false){
+export async function rhRequest(key:string,path:string,body:Record<string,unknown>|FormData,billable=false,rawAuth=false,origin:'https://www.runninghub.ai'|'https://www.runninghub.cn'=RH_CREATOR_ORIGIN){
   let r:Response;
-  try{r=await fetchWithoutRedirect(RH_CREATOR_ORIGIN+path,{method:'POST',signal:AbortSignal.timeout(45000),headers:{authorization:rawAuth?key:`Bearer ${key}`,...(body instanceof FormData?{}:{'content-type':'application/json'})},body:body instanceof FormData?body:JSON.stringify(body)});}catch(error){throw new CreatorError(billable?'提交结果尚未确认，请在 RunningHub 核对，勿重复生成。':transportMessage(error,'连接 RunningHub 暂时失败，请稍后重试。'),billable);}
+  if(!['https://www.runninghub.ai','https://www.runninghub.cn'].includes(origin)||!path.startsWith('/')||path.startsWith('//'))throw new CreatorError('接口站点无效，未提交。');
+  try{r=await fetchWithoutRedirect(origin+path,{method:'POST',signal:AbortSignal.timeout(45000),headers:{authorization:rawAuth?key:`Bearer ${key}`,...(body instanceof FormData?{}:{'content-type':'application/json'})},body:body instanceof FormData?body:JSON.stringify(body)});}catch(error){throw new CreatorError(billable?'提交结果尚未确认，请在 RunningHub 核对，勿重复生成。':transportMessage(error,'连接 RunningHub 暂时失败，请稍后重试。'),billable);}
   let p:Record<string,any>;
   try{p=JSON.parse(new TextDecoder().decode(await limitedBytes(r,2*1024*1024)));}catch{throw new CreatorError('平台返回内容暂时无法识别。',billable);}
   if(!r.ok||p.errorCode||p.code!==undefined&&![0,200,'0','200'].includes(p.code)){
@@ -18,7 +19,7 @@ export async function rhRequest(key:string,path:string,body:Record<string,unknow
   return p;
 }
 export async function creatorAccount(key:string){const p=await rhRequest(key,'/uc/openapi/accountStatus',{apiKey:key});return {valid:true,balance:p.data?.remainMoney===undefined?null:String(p.data.remainMoney),note:'连接检查不代表所有模型都可用；权限和费用以官网为准。'};}
-export async function creatorUpload(key:string,file:File,app=false){const f=new FormData();f.set('file',file,file.name.replace(/[^a-zA-Z0-9._-]/g,'_'));if(app){f.set('apiKey',key);f.set('fileType','input');}const p=await rhRequest(key,app?'/task/openapi/upload':'/openapi/v2/media/upload/binary',f);const v=app?p.data?.fileName:p.data?.download_url;if(typeof v!=='string'||!v||v.length>2000)throw new CreatorError('素材上传未返回有效地址，尚未生成。');return v;}
+export async function creatorUpload(key:string,file:File,app=false,origin:'https://www.runninghub.ai'|'https://www.runninghub.cn'=RH_CREATOR_ORIGIN){const f=new FormData();f.set('file',file,file.name.replace(/[^a-zA-Z0-9._-]/g,'_'));if(app){f.set('apiKey',key);f.set('fileType','input');}const p=await rhRequest(key,app?'/task/openapi/upload':'/openapi/v2/media/upload/binary',f,false,false,origin);const v=app?p.data?.fileName:p.data?.download_url;if(typeof v!=='string'||!v||v.length>2000)throw new CreatorError('素材上传未返回有效地址，尚未生成。');return v;}
 export async function creatorApp(key:string,id:string):Promise<RhModel>{
   if(!/^\d{10,25}$/.test(id))throw new CreatorError('请粘贴正确的 RunningHub 应用链接。');
   let p:Record<string,any>;

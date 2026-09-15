@@ -11,13 +11,14 @@ import { runningHubConnection, loadMemberApp, submitMemberApp, providerError, RU
 import { appOutputSetting, compileAppInputs, type AppSetup, type AppSpec } from '../../../lib/runninghub-app-schema';
 import { cleanAppSetup } from '../../../lib/app-setup-storage';
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
+import {compositionCatalogPayload} from '../../../lib/international-composition-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
 import { productionContext, claimProductionItem, productionSceneFile, ProductionError } from '../../../db/production';
 import { artworkRules } from '../../../lib/production-plan';
 import { sceneSizeBrief } from '../../../lib/production-scene';
 import { latestInternationalKeyId } from '../../../db/runninghub-international';
-
 import { findScene, sceneReferenceBrief } from '../../../lib/scene-library';
+
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
   if (!owner) return NextResponse.json({ error: '请登录后再生成。' }, { status: 401 });
@@ -62,7 +63,6 @@ export async function POST(request: Request) {
     const recipe = parseRecipe(JSON.stringify({ artworkId: field('artworkId'), frameId: field('frameId'), colorId: field('colorId'), intent, instruction: field('instruction'), ...(quality ? { quality } : {}), ...(background ? {background}:{}), ...(outputFormat ? {outputFormat}:{}) }));
     let prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     const productionItemId=field('productionItemId');
-    let productionTitle='';
     const sceneId=field('sceneId');
     const selectedScene=findScene(sceneId);
     const sceneUpload=form.get('scene');
@@ -72,10 +72,11 @@ export async function POST(request: Request) {
       if(!(frame instanceof File) || !frame.size || background==='transparent' || intent!=='interior')
         return NextResponse.json({error:'使用场景参考需要框架原图、家居场景用途和非透明背景。'},{status:400});
     }
+    let productionTitle='';
     if(productionItemId) {
       const context=await productionContext(owner,productionItemId), saved=context.workspace.sample!.recipe!;
-      productionTitle=context.row.title;
       if(selectedScene && context.row.kind==='size') throw new ProductionError('尺寸图必须沿用本套已确认的共用场景，请勿替换为图库参考。');
+      productionTitle=context.row.title;
       if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
       recipe.productionItemId=productionItemId;
       if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
         : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
       if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
       if(context.config.sceneTitle) {
-        if(!['gpt-image-2','gpt-image-2.5-sunburst'].includes(model.id)||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('共用场景请使用 GPT Image 2 或 2.5、2K；主图和尺寸图需为 1:1。');
+        if(!(model.id==='gpt-image-2'||model.id==='gpt-image-2.5-sunburst'||model.catalogEndpoint)||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('共用场景请选择支持产品合成的 2K 图片模型；主图和尺寸图需为 1:1。');
         if(background==='transparent')throw new ProductionError('本套需要保留场景背景，请选择自动或不透明背景。');
         if(context.row.kind==='size') {
           const scene=await productionSceneFile(owner,context);
@@ -94,12 +95,12 @@ export async function POST(request: Request) {
         }
       }
     }
-    let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
     if(selectedScene && sceneUpload instanceof File) {
       refs.push(sceneUpload);
       if(recipe) recipe.sceneId=selectedScene.id;
       prompt+=`\n${sceneReferenceBrief(selectedScene,refs.length)}`;
     }
+    let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
     if (background === 'transparent') prompt += '\n背景设置优先：本次输出透明背景，去除环境和纯白底，仅保留完整产品；产品结构、画芯与木色要求保持不变。';
     if (model.apiMode === 'member-app') {
       try {
@@ -113,6 +114,8 @@ export async function POST(request: Request) {
         if (recipe) recipe.appSetup = appSetup;
       } catch (error) { return NextResponse.json({ error: error instanceof Error && !/JSON|Unexpected/i.test(error.message) ? error.message : '应用参数格式不正确，请重新读取。' }, { status: 400 }); }
     }
+    if(model.catalogEndpoint){try{compositionCatalogPayload(model,{prompt,imageUrls:refs.map((_,i)=>`https://pending.invalid/${i}`),aspectRatio:ratio,resolution,quality,background,outputFormat});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'模型参数无效。'},{status:400});}}
+    if(model.maxImages&&refs.length>model.maxImages)return NextResponse.json({error:`此模型最多支持 ${model.maxImages} 张参考图，请更换模型。`},{status:400});
     await listTasks(owner);
     const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${productionTitle ? `${productionTitle} · ` : ''}${artworkName} · ${frameName} · ${colorName}`,
       status: 'uploading', model: model.id, credential_id: credentialId, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
