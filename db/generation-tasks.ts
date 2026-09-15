@@ -8,6 +8,7 @@ export type TaskRow = {
   resolution: string; color_name: string; asset_id: string | null; error: string;
   last_polled_at: number; created_at: number; updated_at: number;
   recipe_json?: string | null;
+  credential_id?: string | null;
 };
 
 export function publicTask(row: TaskRow): GenerationTask {
@@ -33,11 +34,11 @@ export async function listTasks(owner: string) {
 
 export async function insertTask(row: TaskRow) {
   const result = await env.DB.prepare(`INSERT INTO generation_tasks
-    (id, owner_id, name, status, model, prompt, aspect_ratio, resolution, color_name, created_at, updated_at, recipe_json)
-    SELECT ?, ?, ?, 'uploading', ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS
+    (id, owner_id, name, status, model, prompt, aspect_ratio, resolution, color_name, created_at, updated_at, recipe_json, credential_id)
+    SELECT ?, ?, ?, 'uploading', ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS
     (SELECT 1 FROM generation_tasks WHERE owner_id = ? AND status IN ('uploading','submitting','queued','running','saving','unknown'))
     ON CONFLICT DO NOTHING`).bind(row.id, row.owner_id, row.name, row.model, row.prompt,
-    row.aspect_ratio, row.resolution, row.color_name, row.created_at, row.updated_at, row.recipe_json ?? null, row.owner_id).run();
+    row.aspect_ratio, row.resolution, row.color_name, row.created_at, row.updated_at, row.recipe_json ?? null, row.credential_id ?? null, row.owner_id).run();
   return result.meta.changes > 0;
 }
 

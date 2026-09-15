@@ -34,7 +34,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const lease = row.remote_task_id ? await claimPoll(owner, id) : null;
     if (row.remote_task_id && lease) {
       try {
-        const connection = await runningHubConnection(owner, row.model);
+        const connection = await runningHubConnection(owner, row.model, row.credential_id ?? null);
         const result = getImageModel(row.model)?.apiMode === 'member-app' ? await queryMemberApp(row.remote_task_id, connection) : await queryGeneration(row.remote_task_id, connection);
         if (result.status === 'SUCCESS') {
           await updateTask(owner, id, 'saving', '', null, lease);

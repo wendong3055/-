@@ -65,6 +65,12 @@ export const runningHubCredentials = sqliteTable('runninghub_credentials', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+// Immutable snapshots: rotating the saved UI key never changes past task queries.
+export const runningHubInternationalKeys = sqliteTable('runninghub_international_keys', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), encryptedKey: text('encrypted_key').notNull(),
+  createdAt: integer('created_at').notNull(),
+}, table => [index('runninghub_international_owner_created').on(table.ownerId, table.createdAt)]);
+
 export const customImageProviders = sqliteTable('custom_image_providers', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
   configJson: text('config_json').notNull(), encryptedKey: text('encrypted_key').notNull(),
@@ -97,6 +103,7 @@ export const generationTasks = sqliteTable('generation_tasks', {
   name: text('name').notNull(),
   status: text('status').notNull().default('uploading'),
   model: text('model').notNull(),
+  credentialId: text('credential_id'),
   prompt: text('prompt').notNull(),
   recipeJson: text('recipe_json'),
   aspectRatio: text('aspect_ratio').notNull(),

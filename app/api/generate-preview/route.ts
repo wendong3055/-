@@ -15,6 +15,7 @@ import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskR
 import { productionContext, claimProductionItem, productionSceneFile, ProductionError } from '../../../db/production';
 import { artworkRules } from '../../../lib/production-plan';
 import { sceneSizeBrief } from '../../../lib/production-scene';
+import { latestInternationalKeyId } from '../../../db/runninghub-international';
 
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
     const quality = field('quality', model?.qualities.length ? 'medium' : '');
     if (!model || (model.apiMode !== 'member-app' && !validModelSettings(model, ratio, resolution, quality))) return NextResponse.json({ error: '所选模型不支持这组比例、清晰度或质量设置。' }, { status: 400 });
     let connection;
-    try { connection = custom ? undefined : await runningHubConnection(owner, model.id); }
+    const credentialId = !custom && model.region !== 'cn' ? await latestInternationalKeyId(owner) : null;
+    try { connection = custom ? undefined : await runningHubConnection(owner, model.id, credentialId); }
     catch (error) { return NextResponse.json({ error: error instanceof RunningHubError ? error.message : '请先配置当前模型的 API Key。' }, { status: 503 }); }
     if (!custom && model.id !== 'gpt-image-2' && refs.some((file) => (file as File).type === 'image/webp')) return NextResponse.json({ error: '此模型需要 JPG 或 PNG 参考图，请刷新页面后重试格式转换。' }, { status: 400 });
     const artworkName = field('artworkName', '画芯');
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
     }
     await listTasks(owner);
     const row: TaskRow = { id, owner_id: owner, remote_task_id: null, name: `${productionTitle ? `${productionTitle} · ` : ''}${artworkName} · ${frameName} · ${colorName}`,
-      status: 'uploading', model: model.id, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
+      status: 'uploading', model: model.id, credential_id: credentialId, prompt, recipe_json: recipe ? JSON.stringify(recipe) : null, aspect_ratio: ratio, resolution, color_name: colorName,
       asset_id: null, error: '', last_polled_at: 0, created_at: Date.now(), updated_at: Date.now() };
     if (!await insertTask(row)) {
       const existing = await getTask(owner, id);
@@ -115,7 +117,7 @@ export async function POST(request: Request) {
     }
     // Re-read after acquiring the owner's active-task lock. Key replacement is
     // atomically blocked while this task is active, keeping submit/query aligned.
-    connection = await runningHubConnection(owner, model.id);
+    connection = await runningHubConnection(owner, model.id, credentialId);
     const imageUrls: string[] = [];
     for (const file of refs) imageUrls.push(await uploadReference(file as File, connection, model.apiMode === 'member-app'));
     if (!await claimSubmission(owner, id)) throw new RunningHubError('参考图上传已过期，请重新创建任务。');

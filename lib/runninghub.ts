@@ -5,6 +5,7 @@ import { chinaKey } from './runninghub-credentials';
 import { parseAppSpec, type AppSpec } from './runninghub-app-schema';
 import { readMemberTask } from './runninghub-member-query';
 import { diagnosticSuffix } from './runninghub-diagnostic';
+import { internationalSnapshotKey } from '../db/runninghub-international';
 
 // https://www.runninghub.ai/runninghub-api-doc-en/api-448969336
 // Model V2 and member AI App envelopes are normalized by separate adapters.
@@ -17,11 +18,12 @@ export class RunningHubError extends Error {
 }
 export function apiKeyConfigured() { return Boolean(env.RUNNINGHUB_API_KEY); }
 export type RunningHubConnection = { origin: 'https://www.runninghub.cn' | 'https://www.runninghub.ai'; key: string };
-export async function runningHubConnection(owner: string, modelId: string): Promise<RunningHubConnection> {
+export async function runningHubConnection(owner: string, modelId: string, credentialId: string | null = null): Promise<RunningHubConnection> {
   const model = getImageModel(modelId);
   if (!model) throw new RunningHubError('任务模型暂不受支持，不能自动切换接口。');
   try {
-    const key = model.region === 'cn' ? await chinaKey(owner) : env.RUNNINGHUB_API_KEY || '';
+    if (model.region === 'cn' && credentialId) throw new Error('国际站密钥不能用于中国站任务。');
+    const key = model.region === 'cn' ? await chinaKey(owner) : credentialId ? await internationalSnapshotKey(owner, credentialId) : env.RUNNINGHUB_API_KEY || '';
     if (!key) throw new Error(model.region === 'cn' ? '请在 RunningHub 设置中填写中国站 API Key。' : '请先配置国际站服务端密钥。');
     return { origin: model.region === 'cn' ? 'https://www.runninghub.cn' : RUNNINGHUB_ORIGIN, key };
   } catch (error) { throw new RunningHubError(error instanceof Error ? error.message : '接口密钥暂时不可读取。'); }

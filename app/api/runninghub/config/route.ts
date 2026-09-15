@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server';
 import { generationOwner } from '../../../../lib/generation-auth';
 import { apiKeyConfigured, RUNNINGHUB_MODEL } from '../../../../lib/runninghub';
 import { credentialStatus, saveChinaKey } from '../../../../lib/runninghub-credentials';
+import { latestInternationalKeyId, connectSavedInternationalKey } from '../../../../db/runninghub-international';
 
 export async function GET() {
   const owner = await generationOwner();
   if (!owner) return NextResponse.json({ error: '请先登录。' }, { status: 401 });
   try {
     const { canSaveKey, ...regions } = await credentialStatus(owner);
-    return NextResponse.json({ configured: apiKeyConfigured(), provider: 'RunningHub', model: RUNNINGHUB_MODEL, regions, canSaveKey, tested: false }, { headers: { 'cache-control': 'no-store' } });
+    const internationalSaved = Boolean(await latestInternationalKeyId(owner));
+    regions.international ||= internationalSaved;
+    return NextResponse.json({ configured: apiKeyConfigured() || internationalSaved, provider: 'RunningHub', model: RUNNINGHUB_MODEL, regions, internationalSaved, canSaveKey, tested: false }, { headers: { 'cache-control': 'no-store' } });
   } catch { return NextResponse.json({ error: '接口配置暂时无法读取，请稍后重试。' }, { status: 503 }); }
 }
 
@@ -23,7 +26,12 @@ export async function POST(request: Request) {
   try {
     while (true) { const { value, done } = await reader.read(); if (done) break; size += value.byteLength; if (size > 2048) { await reader.cancel(); return NextResponse.json({ error: '配置内容过大。' }, { status: 413 }); } raw += decoder.decode(value, { stream: true }); }
     raw += decoder.decode();
-    const body = JSON.parse(raw) as { apiKey?: unknown };
+    const body = JSON.parse(raw) as { apiKey?: unknown; action?: unknown; confirmedInternational?: unknown };
+    if (body.action === 'connect-saved-international') {
+      if (body.confirmedInternational !== true) return NextResponse.json({error:'请先确认已保存的是国际站 Key。'},{status:400});
+      await connectSavedInternationalKey(owner);
+      return NextResponse.json({saved:true,tested:false},{headers:{'cache-control':'no-store'}});
+    }
     if (typeof body.apiKey !== 'string' || !/^[\x21-\x7e]{16,512}$/.test(body.apiKey.trim())) return NextResponse.json({ error: '请填写完整 API Key，不包含空格或换行。' }, { status: 400 });
     const active = await import('../../../../db/generation-tasks');
     if ((await active.listTasks(owner)).some((task) => ['uploading','submitting','queued','running','saving','unknown'].includes(task.status))) return NextResponse.json({ error: '请先完成或处理当前任务，再更换密钥。' }, { status: 409 });
