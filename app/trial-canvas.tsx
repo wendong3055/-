@@ -84,7 +84,13 @@ function PreviewWindow({ picture, selector, references, working = false, status 
       if (saved >= 320 && saved <= 1000) setHeight(saved);
     } catch { /* Device-local view preference only. */ }
   }, []);
-  useEffect(() => { setZoom(100); }, [picture?.src, references[0]?.src, references[1]?.src]);
+  const referenceKey = references.map(reference => reference.src).join('|');
+  useEffect(() => { setZoom(100); }, [picture?.src, referenceKey]);
+  const previewReferences = [
+    references.find(reference => reference.label === '图案原图') || {src:'',label:'图案原图'},
+    references.find(reference => reference.label === '框架原图' || reference.label === '本项确认参考图') || {src:'',label:'框架原图'},
+    ...references.filter(reference => reference.label.includes('场景')),
+  ];
   function resizeHeight(next: number) {
     const value = Math.min(1000, Math.max(320, next)); setHeight(value);
     try { localStorage.setItem('studio-preview-height-B', String(value)); } catch { /* Optional preference. */ }
@@ -97,10 +103,10 @@ function PreviewWindow({ picture, selector, references, working = false, status 
   const pictureView = () => picture ? <div className="trial-pictures"><figure>
     <figcaption title={picture.label}><span>{picture.label}</span></figcaption>
     <ImageViewport key={picture.src} src={picture.src} label={picture.label} zoom={zoom} fit={fit} />
-  </figure></div> : <div className="reference-pair-preview" aria-label="图案与框架，各占一半">
-    {['图案原图', '框架原图'].map((label, index) => <figure key={label}>
+  </figure></div> : <div className={`reference-pair-preview ${previewReferences.length > 2 ? 'with-scene-reference' : ''}`} aria-label="所选图案、框架与场景参考">
+    {previewReferences.map(({src,label}, index) => <figure key={label}>
       <figcaption>{label}</figcaption>
-      {references[index]?.src ? <ImageViewport key={references[index].src} src={references[index].src} label={label} zoom={zoom} fit={fit} /> : <div className="reference-missing">{index === 0 ? '请选择图案' : '此框架暂无原图'}</div>}
+      {src ? <ImageViewport key={src} src={src} label={label} zoom={zoom} fit={fit} /> : <div className="reference-missing">{index === 0 ? '请选择图案' : '此框架暂无原图'}</div>}
     </figure>)}
   </div>;
 
