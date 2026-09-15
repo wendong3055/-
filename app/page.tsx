@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
+import { SceneLibrary } from './scene-library';
+import { findScene } from '../lib/scene-library';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import RhCreator from './rh-creator';
 import type { CustomImageConfig } from '../lib/custom-image-config';
@@ -99,6 +101,7 @@ const navItems = [
   ['products', '我的新品', ''],
   ['gallery', '图库收纳', '128'],
   ['frames', '框架库', '10'],
+  ['scenes', '场景图库', ''],
   ['colors', '颜色库', '06'],
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
@@ -122,6 +125,8 @@ export default function Home() {
   const [outputFormat, setOutputFormat] = useState('png');
   const [intent, setIntent] = useState<StudioIntent>('composition');
   const [instruction, setInstruction] = useState<string>(studioIntents[0].instruction);
+  const [sceneId, setSceneId] = useState('');
+  const scene = findScene(sceneId);
   const [previousInstruction, setPreviousInstruction] = useState<string | null>(null);
   const [viewedTaskId, setViewedTaskId] = useState('');
   const [productSaving, setProductSaving] = useState(false);
@@ -160,11 +165,13 @@ export default function Home() {
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
   const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
-  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: production?.frameUrl || frame?.file ? 2 : 1, configRevision: generations.configRevision });
+  const sceneInUse = production?.kind === 'size' ? undefined : scene;
+  const referenceNames = [...(production?.frameUrl || frame?.file ? ['frame','artwork'] : ['artwork']), ...(sceneInUse ? ['scene'] : [])];
+  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: referenceNames.length, configRevision: generations.configRevision });
   const memberInputs = memberApp.inputs;
   let appReady = model.apiMode !== 'member-app';
   if (model.apiMode === 'member-app' && memberInputs && !memberApp.review && memberInputs.spec.appId === model.appId) {
-    try { compileAppInputs(memberInputs.spec, memberInputs.setup, frame?.file ? ['frame','artwork'] : ['artwork'], '制作要求'); appReady = true; } catch { appReady = false; }
+    try { compileAppInputs(memberInputs.spec, memberInputs.setup, referenceNames, '制作要求'); appReady = true; } catch { appReady = false; }
   }
   const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && appReady && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
   const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
@@ -172,6 +179,7 @@ export default function Home() {
   const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
   const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:outputRatio,resolution:outputResolution,quality,
     ...(model.backgrounds?.length ? {background}:{}), ...(model.outputFormats?.length ? {outputFormat}:{}),
+    sceneId:sceneInUse?.id || '',
     appSetup:model.apiMode==='member-app'?memberInputs?.setup:null});
   const consentActive = !!production && !!productionConsent && productionConsent.planId===production.planId && productionConsent.settings===confirmationSettings;
   useEffect(()=>{
@@ -314,6 +322,7 @@ export default function Home() {
     if (previewGenerating || submitGuard.current) return;
     setIntent(next);
     if (!instruction.trim() || studioIntents.some((item) => item.instruction === instruction)) changeInstruction(studioIntents.find((item) => item.id === next)!.instruction);
+    if(next !== 'interior') setSceneId('');
     resetPreview();
   }
 
@@ -333,6 +342,7 @@ export default function Home() {
     setFrameColorId(recipe.colorId);
     setIntent(recipe.intent);
     setInstruction(recipe.instruction);
+    setSceneId(findScene(recipe.sceneId)?.id || '');
     setPreviousInstruction(null);
     const savedModel = availableModels.find(item => item.id === task.model);
     if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
@@ -366,7 +376,7 @@ export default function Home() {
     if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
     if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
     setQuality(next.qualities.includes('medium') ? 'medium' : next.qualities[0] || '');
-    setBackground('auto');setOutputFormat('png');
+    setBackground(next.backgrounds?.includes('auto')?'auto':next.backgrounds?.[0]||'auto');setOutputFormat(next.outputFormats?.includes('png')?'png':next.outputFormats?.[0]||'png');
     resetPreview();
   }
 
@@ -423,6 +433,12 @@ export default function Home() {
         form.set('instruction', instruction);
         form.set('intent', intent);
         if(production)form.set('productionItemId',production.itemId);
+        if(sceneInUse) {
+          const response = await fetch(sceneInUse.image);
+          if(!response.ok) throw new Error('场景参考暂时无法读取，请重新选择。');
+          form.set('scene', await referenceUpload(await response.blob(), sceneInUse.name));
+          form.set('sceneId', sceneInUse.id);
+        }
         // Consume BEFORE submission: ambiguous failures must never silently retry a paid item.
         if(receipt && production)storeProductionConsent(consumeConsent(receipt,production.itemId));
         const task = await generations.submit(form);
@@ -721,6 +737,7 @@ export default function Home() {
             </section>
 
             <section className="generation-parameters" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generatePreview(); } }}>
+            <section className="scene-selection" aria-label="场景参考选择"><div><strong>场景参考 · 可选</strong><button type="button" onClick={()=>setActiveNav('scenes')}>从场景图库选择</button></div>{production?.kind==='size'?<p>尺寸图沿用本套已确认的共用场景，不在这里替换。</p>:sceneInUse?<><p>{sceneInUse.name} · 作为独立参考图随本次生成提交</p><img src={sceneInUse.image} alt={`已选场景：${sceneInUse.name}`} /><div><span>只参考空间，不改变画芯与框架</span><button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{setSceneId('');resetPreview();}}>取消场景</button></div></>:<p>未指定场景，按制作要求生成；选择场景不会自动出图。</p>}</section>
               <div className="row-label"><label htmlFor="generation-instruction">制作要求</label><b>{currentIntent.label}</b></div>
               <p className="brief-help">说清楚想保留什么、调整什么；图案、框架和木色会自动带入。</p>
               <div className="brief-tools"><button disabled={previewGenerating} onClick={() => { if (!instruction.trim() || instruction === currentIntent.instruction || window.confirm('用整理好的默认要求替换当前文字？替换后可撤回。')) changeInstruction(currentIntent.instruction); }}>填入我的默认要求</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
@@ -744,7 +761,7 @@ export default function Home() {
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
-              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[])]}
+              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
@@ -781,6 +798,7 @@ export default function Home() {
 
       {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
       {activeNav === 'creator' && <RhCreator />}
+      {activeNav === 'scenes' && <SceneLibrary selectedId={sceneId} disabled={previewGenerating||generations.busy||production?.kind==='size'} onSelect={id=>{if(previewGenerating||generations.busy||production?.kind==='size')return;setSceneId(id);chooseIntent('interior');setBackground('auto');resetPreview();setActiveNav('new');setNotice('已添加场景参考，点击生成才会提交。');}} />}
       {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask}/></div>}
       </section>
 
@@ -801,7 +819,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   const categoryCounts = useMemo(() => Object.fromEntries(artworkCategories.map((category) => [category, libraryItems.filter((item) => item.tag === category).length])), [libraryItems]);
   const galleryGroups = useMemo(() => artworkCategories.map((category) => ({ category, items: filteredGallery.filter((item) => item.tag === category) })).filter((group) => group.items.length > 0), [filteredGallery]);
   const headings: Record<string, [string, string]> = {
-    gallery: ['图库收纳', '统一管理画芯、场景参考与已用素材'],
+    gallery: ['图库收纳', '仅收纳原始画芯图案；背景参考请到场景图库'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
     colors: ['颜色库', '独立管理框架材质与六种标准颜色'],
     jobs: ['生成任务', '样图审批通过后，自动推进批量任务'],

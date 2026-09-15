@@ -17,6 +17,7 @@ import { artworkRules } from '../../../lib/production-plan';
 import { sceneSizeBrief } from '../../../lib/production-scene';
 import { latestInternationalKeyId } from '../../../db/runninghub-international';
 
+import { findScene, sceneReferenceBrief } from '../../../lib/scene-library';
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
   if (!owner) return NextResponse.json({ error: '请登录后再生成。' }, { status: 401 });
@@ -62,9 +63,19 @@ export async function POST(request: Request) {
     let prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     const productionItemId=field('productionItemId');
     let productionTitle='';
+    const sceneId=field('sceneId');
+    const selectedScene=findScene(sceneId);
+    const sceneUpload=form.get('scene');
+    if(sceneId || sceneUpload) {
+      if(!selectedScene || !(sceneUpload instanceof File) || !['image/png','image/jpeg','image/webp'].includes(sceneUpload.type) || !sceneUpload.size || sceneUpload.size>10*1024*1024)
+        return NextResponse.json({error:'场景参考无效，请从场景图库重新选择。'},{status:400});
+      if(!(frame instanceof File) || !frame.size || background==='transparent' || intent!=='interior')
+        return NextResponse.json({error:'使用场景参考需要框架原图、家居场景用途和非透明背景。'},{status:400});
+    }
     if(productionItemId) {
       const context=await productionContext(owner,productionItemId), saved=context.workspace.sample!.recipe!;
       productionTitle=context.row.title;
+      if(selectedScene && context.row.kind==='size') throw new ProductionError('尺寸图必须沿用本套已确认的共用场景，请勿替换为图库参考。');
       if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
       recipe.productionItemId=productionItemId;
       if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
@@ -84,6 +95,11 @@ export async function POST(request: Request) {
       }
     }
     let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
+    if(selectedScene && sceneUpload instanceof File) {
+      refs.push(sceneUpload);
+      if(recipe) recipe.sceneId=selectedScene.id;
+      prompt+=`\n${sceneReferenceBrief(selectedScene,refs.length)}`;
+    }
     if (background === 'transparent') prompt += '\n背景设置优先：本次输出透明背景，去除环境和纯白底，仅保留完整产品；产品结构、画芯与木色要求保持不变。';
     if (model.apiMode === 'member-app') {
       try {

@@ -2,6 +2,7 @@ import { strToU8, zipSync } from 'fflate';
 import type { ProductionItem, ProductionPlan, ProductWorkspace } from './production-plan';
 import { drawSizeAnnotations, detailCaptions } from './production-annotations';
 import { validSizeMarks, preservesSourceSizeMarks } from './production-scene';
+import { findScene } from './scene-library';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
 export function downloadBlob(blob:Blob,name:string) {
   const url=URL.createObjectURL(blob), link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -72,6 +73,9 @@ export async function exportProduction(workspace:ProductWorkspace,plan:Productio
   const missing=plan.items.filter(i=>!accepted.includes(i)).map(i=>i.title);
   files[`${prefix}/制作清单.json`]=strToU8(JSON.stringify({name:plan.config.name,version:plan.version,config:plan.config,missing,items:plan.items.map(i=>({title:i.title,kind:i.kind,status:i.task?.status||'pending',review:i.review,note:i.note,generationId:i.generationId}))},null,2));
   files[`${prefix}/交付说明.txt`]=strToU8(missing.length?`这是部分交付，尚缺：\n${missing.join('\n')}`:'全部制作项已人工验收。上架前请复核产品结构、木色、文字与尺寸。');
+  const sceneIds=new Set([workspace.sample?.recipe?.sceneId,...plan.items.map(i=>i.task?.recipe?.sceneId)].filter(Boolean));
+  const credits=[...sceneIds].map(id=>findScene(id)).filter(s=>!!s);
+  if(credits.length)files[`${prefix}/场景来源与授权.txt`]=strToU8('以下场景用作本产品生成参考。发布或改编时请保留适用的作者、来源、授权及修改说明。成图经 AI 重新构图并加入产品，并非原始场景图。\n\n'+credits.map(s=>`${s.name}\n作者：${s.author}\n来源：${s.source}\n授权：${s.license} ${s.licenseUrl}`).join('\n\n'));
   let bytes=0;const detailBlobs:Blob[]=[];
   for(let n=0;n<accepted.length;n++){
     const item=accepted[n];onProgress(`正在整理 ${n+1}/${accepted.length}：${item.title}`);
