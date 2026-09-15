@@ -172,7 +172,8 @@ export function providerError(payload: ProviderResult) { return friendlyError(pa
 export async function downloadResult(value: string) {
   const url = new URL(value);
   const allowedRoots = ['runninghub.ai', 'runninghub.cn', 'rhart.ai'];
-  const allowedHosts = ['rh-images-1252422369.cos.ap-beijing.myqcloud.com', 'rh-images-switch-1252422369.cos.ap-guangzhou.myqcloud.com', 'rh-images.xiaoyaoyou.com'];
+  // International GPT Image 2 results also use RunningHub's Hong Kong COS bucket.
+  const allowedHosts = ['rh-images-1252422369.cos.ap-beijing.myqcloud.com', 'rh-images-switch-1252422369.cos.ap-guangzhou.myqcloud.com', 'rh-hk-images-1252422369.cos.ap-hongkong.myqcloud.com', 'rh-images.xiaoyaoyou.com'];
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
     !(allowedHosts.includes(url.hostname) || allowedRoots.some((root) => url.hostname === root || url.hostname.endsWith(`.${root}`)))) {
     // Hostname-only diagnostic: never expose the signed path, query or credentials.
