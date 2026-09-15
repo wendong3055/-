@@ -174,7 +174,11 @@ export async function downloadResult(value: string) {
   const allowedRoots = ['runninghub.ai', 'runninghub.cn', 'rhart.ai'];
   const allowedHosts = ['rh-images-1252422369.cos.ap-beijing.myqcloud.com', 'rh-images-switch-1252422369.cos.ap-guangzhou.myqcloud.com', 'rh-images.xiaoyaoyou.com'];
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
-    !(allowedHosts.includes(url.hostname) || allowedRoots.some((root) => url.hostname === root || url.hostname.endsWith(`.${root}`)))) throw new RunningHubError('生成已完成，但图片地址未通过安全校验。请在 RunningHub 任务记录下载，勿重新生成。');
+    !(allowedHosts.includes(url.hostname) || allowedRoots.some((root) => url.hostname === root || url.hostname.endsWith(`.${root}`)))) {
+    // Hostname-only diagnostic: never expose the signed path, query or credentials.
+    const host = /^[a-z0-9.-]{1,253}$/.test(url.hostname) ? url.hostname : 'invalid-host';
+    throw new RunningHubError(`生成已完成，但图片地址未通过安全校验（来源域名：${host}）。请保留任务并恢复查询，勿重新生成。`);
+  }
   const response = await fetchWithoutRedirect(url, { signal: AbortSignal.timeout(40_000) });
   const mime = (response.headers.get('content-type') || '').split(';')[0];
   if (!response.ok || !['image/png', 'image/jpeg', 'image/webp'].includes(mime) || !response.body) throw new RunningHubError('生成已完成，图片暂时无法保存。可恢复查询，不会再次生图。');
