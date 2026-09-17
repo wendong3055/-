@@ -36,7 +36,13 @@ const empty = render(base);
 checkWindow(empty);
 const mainEmpty = empty.slice(0, empty.indexOf('<dialog'));
 assert.equal((mainEmpty.match(/<figure/g) || []).length, 2);
-assert.ok(mainEmpty.includes('图案与框架，各占一半'));
+assert.ok(mainEmpty.includes('所选图案、框架与场景参考'));
+const withScene = render({ ...base, references: [...references, { src: '/scene.png', label: '场景参考 · 现代木色门厅' }] });
+checkWindow(withScene);
+const withSceneMain = withScene.slice(0, withScene.indexOf('<dialog'));
+assert.equal((withSceneMain.match(/<figure/g) || []).length, 3); // A selected scene adds a third cell.
+assert.ok(withScene.includes('with-scene-reference'));
+assert.ok(withScene.includes('src="/scene.png"'));
 assert.ok(mainEmpty.includes('src="/artwork.png"'));
 assert.ok(mainEmpty.includes('src="/frame.png"'));
 assert.ok(!mainEmpty.includes('disabled=""'));
@@ -67,10 +73,13 @@ assert.ok(!imported.includes('reference-pair-preview'));
 assert.equal(submissions, 0);
 const css = readFileSync('app/workspace-refresh.css', 'utf8');
 assert.match(css, /\.reference-pair-preview \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)[^}]*height: 100%/);
+// The scene slot needs its own column rule; the markup emitted the class with
+// no matching CSS, so the third cell used to wrap onto a second row.
+assert.match(css, /\.reference-pair-preview\.with-scene-reference \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 assert.ok(css.includes('.trial-dialog > .reference-pair-preview { flex: 1; min-height: 0;'));
 assert.ok(!css.includes('.dual-preview-grid'));
 const page = readFileSync('app/page.tsx', 'utf8');
 assert.ok(page.includes('确认样图，进入新品制作'));
 assert.ok(!page.includes('B 窗口'));
 assert.ok(page.indexOf('<details className="local-preview-import">') > page.indexOf('<TrialCanvas'));
-console.log('PASS: single output window, two equal full-height reference cells, missing references, full-window results/imports, safe history selection and unchanged generation.');
+console.log('PASS: single output window, two equal full-height reference cells plus a third for a scene, missing references, full-window results/imports, safe history selection and unchanged generation.');

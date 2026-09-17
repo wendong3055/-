@@ -20,5 +20,5 @@ const markup = module.exports.render();
 assert.ok(markup.includes('请选择图案'));
 assert.ok(markup.includes('请选择框架'));
 assert.ok(!markup.includes('src="undefined"'));
-assert.ok(markup.includes('图案与框架，各占一半'));
+assert.ok(markup.includes('所选图案、框架与场景参考'));
 console.log('PASS: empty or not-yet-loaded owned artwork and frame catalogs render without resurrecting defaults or crashing.');
