@@ -4,6 +4,7 @@ import './globals.css';
 import './studio.css';
 import './workspace-refresh.css';
 import './product-workspace.css';
+import './scene-library.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

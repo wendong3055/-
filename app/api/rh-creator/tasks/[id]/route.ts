@@ -1,9 +1,10 @@
 import { generationOwner } from '../../../../../lib/generation-auth';
+import {savedCreatorBinding,creatorBindingKey} from '../../../../../db/creator-image-connection';
 import { creatorKey,creatorTask,creatorLease,releaseCreator,setCreator,publicCreatorTask,type CreatorOutput } from '../../../../../db/rh-creator';
 import { rhRequest,archiveCreatorResult,CreatorError,safeMediaUrl } from '../../../../../lib/rh-creator-provider';
 const json=(v:unknown,status=200)=>Response.json(v,{status,headers:{'cache-control':'no-store'}});
 export async function GET(_request:Request,context:{params:Promise<{id:string}>}){const owner=await generationOwner();if(!owner)return json({error:'请先登录。'},401);const {id}=await context.params;let lease=0;try{let task=await creatorTask(owner,id);if(!task)return json({error:'记录不存在。'},404);lease=await creatorLease(owner,id);if(lease){
-    try{if(task.status!=='saving'){const r=await rhRequest(await creatorKey(owner),'/openapi/v2/query',{taskId:task.remote_id});if(r.status==='FAILED')await setCreator(owner,id,'failed','平台生成失败，请到 RunningHub 核对原因。',undefined,undefined,undefined,lease);else if(r.status==='SUCCESS'){
+    try{if(task.status!=='saving'){const binding=savedCreatorBinding(task.endpoint,task.inputs_json);const r=await rhRequest(await creatorBindingKey(owner,binding),'/openapi/v2/query',{taskId:task.remote_id},false,false,binding.origin);if(r.status==='FAILED')await setCreator(owner,id,'failed','平台生成失败，请到 RunningHub 核对原因。',undefined,undefined,undefined,lease);else if(r.status==='SUCCESS'){
       const rows=Array.isArray(r.results)?r.results:[];if(!rows.length||rows.length>50)throw new CreatorError('平台未返回可保存的结果，请到官网核对。');
       const out:CreatorOutput[]=rows.map((o:Record<string,unknown>)=>{const url=o.url||o.outputUrl;if(typeof url==='string'){safeMediaUrl(url);return {url};}const text=o.text||o.content||o.output;if(typeof text==='string')return {text:text.slice(0,100000)};return {error:'平台返回格式暂不支持，请到官网下载。'};});
       const cost=r.usage?.consumeMoney??r.usage?.thirdPartyConsumeMoney;await setCreator(owner,id,'saving','',undefined,out,cost===undefined?'':String(cost).slice(0,50),lease);

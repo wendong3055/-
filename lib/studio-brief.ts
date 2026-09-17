@@ -8,7 +8,7 @@ export const studioIntents = [
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];
-export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; appSetup?: AppSetup; productionItemId?: string; sceneGenerationId?:string; sizeAnnotationMode?:'source-preserved-v1' };
+export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; appSetup?: AppSetup; productionItemId?: string; sceneGenerationId?:string; sceneId?:string; sizeAnnotationMode?:'source-preserved-v1' };
 export function isStudioIntent(value: string): value is StudioIntent { return studioIntents.some((item) => item.id === value); }
 
 export function parseRecipe(value: string | null | undefined): GenerationRecipe | null {
@@ -22,6 +22,7 @@ export function parseRecipe(value: string | null | undefined): GenerationRecipe 
       ...(typeof data.productionItemId === 'string' && /^[a-f0-9-]{36}$/i.test(data.productionItemId) ? {productionItemId:data.productionItemId}:{}),
       ...(typeof data.sceneGenerationId === 'string' && /^[a-f0-9-]{36}$/i.test(data.sceneGenerationId) ? {sceneGenerationId:data.sceneGenerationId}:{}),
       ...(data.sizeAnnotationMode==='source-preserved-v1' ? {sizeAnnotationMode:data.sizeAnnotationMode}:{}),
+      ...(typeof data.sceneId === 'string' && /^[a-z0-9-]{1,100}$/.test(data.sceneId) ? {sceneId:data.sceneId}:{}),
       ...(typeof data.quality === 'string' && /^[a-zA-Z0-9_-]{1,30}$/.test(data.quality) ? { quality: data.quality } : {}), ...(cleanAppSetup(data.appSetup) ? { appSetup: cleanAppSetup(data.appSetup)! } : {}) };
   } catch { return null; }
 }

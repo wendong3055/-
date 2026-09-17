@@ -1,7 +1,8 @@
-export type RhParam = { key: string; type: string; required?: boolean; default?: string|number|boolean; options?: (string|number)[]; min?: number; max?: number; maxLength?: number; multiple?: boolean; maxCount?: number; maxSizeMB?: number; label?: string; nodeId?: string; fieldName?: string };
-export type RhModel = { endpoint: string; name_cn: string; task: string; output_type: string; params: RhParam[]; fingerprint?: string };
+export type RhParam = { key: string; type: string; required?: boolean; default?: string|number|boolean; options?: (string|number)[]; min?: number; max?: number; minLength?:number; maxLength?: number; multiple?: boolean; maxCount?: number; maxSizeMB?: number; label?: string; nodeId?: string; fieldName?: string };
+export type RhModel = { endpoint: string; name_cn: string; task: string; output_type: string; params: RhParam[]; fingerprint?: string; region?:'international'; source?:string; vendor?:string; channel?:string; verified?:boolean; skuId?:string };
 export const creatorCategories = [['image','图片'],['video','视频'],['audio','音频'],['3d','3D 模型'],['string','文字与理解'],['app','AI 应用']] as const;
 const labels: Record<string,string> = {
+ opacity:'不透明度',recoveryStrength:'细节恢复强度',fixCompression:'修复压缩痕迹',subjectDetection:'处理区域',faceEnhancementCreativity:'人脸创意增强',faceEnhancementStrength:'人脸增强强度',customWidth:'自定义宽度',customHeight:'自定义高度',customHight:'自定义高度',lora:'风格模型名称（LoRA）',lora_strength:'风格模型强度',chaos:'构图变化',stylize:'风格化程度',weird:'创意程度',iw:'图片参考权重',cref:'角色参考图',cw:'角色参考强度',sref:'风格参考图',sw:'风格参考强度',sv:'风格版本',oref:'主体参考图',ow:'主体参考权重',stop:'生成完成度',tile:'无缝平铺',hd:'高清模式',exp:'表现力',personalize:'个性化代码',forceSingle:'只生成一张',minRatio:'最小比例',maxRatio:'最大比例',enableThinking:'深度理解',thinkingMode:'思考模式',
  prompt:'制作要求',text_prompt:'制作要求',textPrompt:'制作要求',text:'文本内容',negativePrompt:'不希望出现的内容',instructions:'制作说明',
  imageUrl:'参考图片',imageUrls:'参考图片',image_url:'参考图片',image:'参考图片',imageRef:'参考图片',referenceImages:'参考图片',referenceImageUrl:'参考图片',
  videoUrl:'参考视频',videoUrls:'参考视频',video:'参考视频',videos:'参考视频',baseVideoUrl:'原始视频',startVideo:'起始视频',
@@ -34,15 +35,17 @@ export function validateParams(model:RhModel, values:Record<string,unknown>, med
     if (hiddenParam(p)) { if(p.type==='BOOLEAN') result[p.key]=false; continue; }
     if (mediaParam(p)) { const count=media[p.key]||0; if(p.required&&!count) throw new Error(`请提供${paramLabel(p)}。`); if(count>(p.multiple?(p.maxCount||10):1)) throw new Error(`${paramLabel(p)}数量过多。`); continue; }
     const v=values[p.key] ?? initialValue(p);
-    if(typeof v!=='string' || v.length>Math.min(p.maxLength||12000,20000)) throw new Error(`${paramLabel(p)}内容无效或过长。`);
+    if(typeof v!=='string' || v.length>Math.min(p.maxLength||12000,32000)) throw new Error(`${paramLabel(p)}内容无效或过长。`);
     if(!v.trim()) { if(p.required)throw new Error(`请填写${paramLabel(p)}。`); continue; }
+    if(p.minLength!==undefined&&v.length<p.minLength)throw new Error(`${paramLabel(p)}至少需要 ${p.minLength} 个字符。`);
     if(p.options?.length && p.type!=='SIZE' && !p.options.some(o=>String(o)===v)) throw new Error(`${paramLabel(p)}不支持这个选项。`);
     if(['INT','FLOAT'].includes(p.type)) { const n=Number(v); if(!Number.isFinite(n)||p.type==='INT'&&!Number.isInteger(n)||p.min!==undefined&&n<p.min||p.max!==undefined&&n>p.max)throw new Error(`${paramLabel(p)}超出有效范围。`); result[p.key]=n; }
     else if(p.type==='BOOLEAN') { if(!['true','false'].includes(v))throw new Error(`${paramLabel(p)}请使用开关。`); result[p.key]=v==='true'; }
-    else if(p.type==='SIZE') { if(!p.options?.some(o=>String(o)===v) && !/^\d{2,5}[x*]\d{2,5}$/.test(v))throw new Error('请填写有效图片尺寸，例如 1024*1024。'); if(v==='custom')throw new Error('请直接填写自定义宽度*高度。'); result[p.key]=v; }
+    else if(p.type==='SIZE') { if(!p.options?.some(o=>String(o)===v) && !/^\d{2,5}[x*]\d{2,5}$/.test(v))throw new Error('请填写有效图片尺寸，例如 1024*1024。'); if(v==='custom')throw new Error('请直接填写自定义宽度*高度。'); if(/^\d+[x*]\d+$/.test(v)&&v.split(/[x*]/).map(Number).some(n=>p.min!==undefined&&n<p.min||p.max!==undefined&&n>p.max))throw new Error('图片尺寸超出模型范围。'); result[p.key]=v; }
     else if(p.options?.length) result[p.key]=p.options.find(o=>String(o)===v);
     else result[p.key]=v;
   }
+  if(result.background==='transparent'&&['jpeg','jpg'].includes(String(result.outputFormat)))throw new Error('透明背景请使用 PNG 或 WebP。');
   return result;
 }
 export function appIdFrom(value:string) { if(/^\d{10,25}$/.test(value))return value; try {const u=new URL(value);if(u.protocol==='https:'&&['www.runninghub.cn','runninghub.cn','www.runninghub.ai','runninghub.ai'].includes(u.hostname))return u.pathname.match(/^\/ai-detail\/(\d{10,25})\/?$/)?.[1]||'';}catch{}return ''; }

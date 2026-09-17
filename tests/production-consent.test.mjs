@@ -28,7 +28,7 @@ const storage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v),rem
 const noop=()=>{};
 const ctx={...helpers,FormData,URL,console,canGenerate:true,selected:{file:'/art',id:'art',name:'art'},frame:{id:'f',file:'/frame',name:'frame'},frameColor:{id:'walnut',name:'walnut',color:'#402b24'},
  production:{itemId:'i1',productId:'product1',planId:'p1',planVersion:2,pendingItemIds:['i1','i2'],generationId:null},
- previewGenerating:false,submitGuard:{current:false},modelConfigured:true,appReady:true,model:{id:'m',name:'model',qualities:[]},customConfig:null,outputRatio:'1:1',outputResolution:'4k',confirmationSettings:'s1',aspectRatio:'1:1',resolution:'4k',quality:'',instruction:'Chinese prompt',intent:'catalog',memberInputs:null,
+ previewGenerating:false,submitGuard:{current:false},modelConfigured:true,appReady:true,model:{id:'m',name:'model',qualities:[]},customConfig:null,outputRatio:'1:1',outputResolution:'4k',confirmationSettings:'s1',aspectRatio:'1:1',resolution:'4k',quality:'',instruction:'Chinese prompt',intent:'catalog',memberInputs:null,sceneInUse:undefined,
  window:{localStorage:storage,confirm:s=>{dialogs.push(s);return confirm;},setTimeout:noop},
  fetch:async url=>url.startsWith('/api/production/')?{ok:true,json:async()=>fresh}:{ok:true,blob:async()=>new Blob(['test'])},
  referenceUpload:async blob=>blob,
