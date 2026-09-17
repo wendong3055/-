@@ -6,6 +6,7 @@ import { build } from 'esbuild';
 const result = await build({
   stdin: { contents: `import React from 'react'; import {renderToStaticMarkup} from 'react-dom/server'; import Home from './app/page'; export const render = () => renderToStaticMarkup(React.createElement(Home));`, resolveDir: process.cwd(), loader: 'tsx' },
   bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic',
+  loader: { '.css': 'empty' },
   define: { 'process.env.NODE_ENV': '"production"' },
   plugins: [{ name: 'empty-owned-assets', setup(builder) {
     builder.onLoad({filter:/app[\\/]page\.tsx$/}, ({path}) => ({ loader:'tsx', contents: readFileSync(path,'utf8')

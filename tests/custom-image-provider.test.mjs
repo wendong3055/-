@@ -26,7 +26,7 @@ const dnsResponse = url => Response.json({Status:0,Answer:[{type:new URL(url).se
 let paidCalls=0;
 const result = await api.editCustomImage(config,'fake-test-key',refs,'中文','auto','',async (url,options)=>{
   if(dns(url)) { assert.equal(options.headers.Authorization,undefined); return dnsResponse(url); }
-  paidCalls++; assert.equal(String(url),'https://api.vendor.com/v1/images/edits'); assert.equal(options.headers.Authorization,'Bearer fake-test-key'); assert.equal(options.redirect,'error');
+  paidCalls++; assert.equal(String(url),'https://api.vendor.com/v1/images/edits'); assert.equal(options.headers.Authorization,'Bearer fake-test-key'); assert.equal(options.redirect,'manual');
   return Response.json({data:[{b64_json:png.toString('base64')}]});
 });
 assert.equal(paidCalls,1); assert.equal(result.mime,'image/png'); assert.deepEqual(Buffer.from(result.bytes),png);
@@ -42,7 +42,7 @@ paidCalls=0;
 await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>{if(dns(url))return Response.json({Status:0,Answer:[{type:1,data:'169.254.169.254'}]});paidCalls++;}),/公网/);
 assert.equal(paidCalls,0);
 let downloads=0;
-await api.editCustomImage(config,'never-on-cdn',refs,'中文','auto','',async(url,options)=>{if(dns(url))return dnsResponse(url);if(String(url).includes('/images/edits'))return Response.json({data:[{url:'https://cdn.vendor.com/output.png?signature=abc'}]});downloads++;assert.equal(options.headers,undefined);assert.equal(options.redirect,'error');return new Response(png);});
+await api.editCustomImage(config,'never-on-cdn',refs,'中文','auto','',async(url,options)=>{if(dns(url))return dnsResponse(url);if(String(url).includes('/images/edits'))return Response.json({data:[{url:'https://cdn.vendor.com/output.png?signature=abc'}]});downloads++;assert.equal(options.headers,undefined);assert.equal(options.redirect,'manual');return new Response(png);});
 assert.equal(downloads,1);
 await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>dns(url)?dnsResponse(url):Response.json({data:[{url:'https://unknown-cdn.com/a.png'}]})),/未配置/);
 await assert.rejects(api.editCustomImage(config,'secret',refs,'中文','auto','',async(url)=>dns(url)?dnsResponse(url):Response.json({taskId:'unsupported-async'})),e=>e.uncertain);

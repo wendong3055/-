@@ -28,7 +28,7 @@ assert.throws(() => lib.parseRunningHubApps('<script>throw new Error()</script>'
 assert.throws(() => lib.parseRunningHubApps('<script id="__NUXT_DATA__">{}</script>'));
 assert.equal((await lib.readRunningHubApps(async (url, init) => {
   assert.equal(url, lib.runningHubAppsSource);
-  assert.equal(init.redirect, 'error');
+  assert.equal(init.redirect, 'manual');
   assert.equal(Object.keys(init.headers).join(), 'Accept');
   return new Response(html);
 })).length, 2);

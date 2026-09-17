@@ -13,7 +13,7 @@ const bundle = await build({ stdin: { contents: `
   export const home = () => renderToStaticMarkup(React.createElement(Home));
   export const output = (controller, disabled = false) => renderToStaticMarkup(React.createElement(MemberOutputOptions, {controller, disabled, onSettings() {}, onChange() {}}));
   export const backend = (controller) => renderToStaticMarkup(React.createElement(MemberAppSettings, {controller, referenceCount: 2, disabled: false}));
-`, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'cjs', logLevel: 'silent', define: { 'process.env.NODE_ENV': '"production"' } });
+`, loader: 'tsx', resolveDir: process.cwd() }, bundle: true, write: false, platform: 'node', format: 'cjs', logLevel: 'silent', loader: { '.css': 'empty' }, define: { 'process.env.NODE_ENV': '"production"' } });
 const module = { exports: {} };
 new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
 const { home, output, backend, parseAppSpec, initialAppSetup, compileAppInputs, appOutputField, appOutputSetting, setupForReferences } = module.exports;
@@ -70,8 +70,9 @@ assert.ok(main.indexOf('studio-output-panel') < main.indexOf('artwork-choice-sec
 assert.ok(!main.includes('type="password"'));
 assert.ok(!main.includes('应用输入绑定'));
 assert.ok(!main.includes('rh-connection'));
-assert.ok(main.includes('待设置'));
+assert.ok(main.includes('GPT Image 2')); // The documented default channel is the selected model on load.
 const source = readFileSync('app/page.tsx', 'utf8');
+assert.ok(source.includes(": '待设置'")); // Member-app summary keeps its honest placeholder until metadata loads.
 assert.ok(source.indexOf('useMemberApp({') < source.indexOf('<main className="app-shell">'));
 assert.ok(source.indexOf('<RunningHubSettings') > source.indexOf("{activeNav === 'settings'"));
 assert.ok(source.includes("form.set('appSetup', JSON.stringify(memberInputs.setup))"));
