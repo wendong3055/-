@@ -9,19 +9,17 @@ import RhCreator from './rh-creator';
 import type { CustomImageConfig } from '../lib/custom-image-config';
 import { TrialCanvas } from './trial-canvas';
 import { ResizableWorkspace } from './resizable-workspace';
-import { MemberAppSettings, MemberOutputOptions, useMemberApp } from './member-app-settings';
-import { appOutputSetting, compileAppInputs } from '../lib/runninghub-app-schema';
 import {ImageModelPicker} from './image-model-picker';
 import { backgroundLabels, defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
 import { referenceUpload } from '../lib/reference-upload';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
-import { frameSources, frameStyle, groupFrameOptions, validFrameStyleName, type FrameAsset, type FrameSize } from '../lib/frame-catalog';
+import { frameSources, frameStyle, frameVariantImages, groupFrameOptions, parseFrameSkuIndex, validFrameStyleName, type FrameAsset, type FrameSize, type FrameVariantImage } from '../lib/frame-catalog';
 import { syncHiddenOptions } from '../lib/hidden-options-client';
 import { ProductWorkspaceView } from './product-workspace';
 import { consentKey, consentSettings, readConsent, consentCovers, createConsent, consumeConsent, type ProductionConsent } from '../lib/production-consent';
 
-type FrameOption = { id: string; name: string; styleKey?: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
+type FrameOption = { id: string; name: string; styleKey?: string; tone: string; color: string; profile: string; file?: string; variantCount?: number; sizes?: FrameSize[]; memberIds?: string[]; skuIndex?: string; artworkBox?: { left: string; top: string; width: string; height: string }; artworkClipPaths?: string[] };
 type FrameColorOption = { id: string; name: string; color: string; texture?: string; note?: string };
 
 function frameVariantCount(tags: string | undefined) {
@@ -72,7 +70,7 @@ const frames: FrameOption[] = [
 ];
 
 const cabinetFrameStyles: FrameOption[] = [
-  { id: 'fubao-ankang', name: '双门双抽玄关柜框架', tone: '标准合并框架 · 80×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/福报安康_80-200.png', variantCount: 30 },
+  { id: 'fubao-ankang', name: '双门双抽玄关柜框架', tone: '标准合并框架 · 80×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/福报安康_80-200.png', variantCount: 30, skuIndex: '/frames/fubao-ankang/sku-frame-index.json' },
   { id: 'qingyun-zhishang', name: '青云直上玄关柜', tone: '标准合并框架 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/青云直上_60-200.png', variantCount: 1 },
   { id: 'large-screen-white', name: '大屏风框架', tone: '标准合并框架 · 白色 · 100×190cm', color: '#e8e6df', profile: 'cabinet', file: '/frames/style-previews/大屏风_白100-190.png', variantCount: 1, artworkBox: { left: '32.6%', top: '7.1%', width: '35.4%', height: '75.2%' } },
   { id: 'five-drawer-walnut', name: '五斗柜框架', tone: '标准合并框架 · 胡桃色 · 60×200cm', color: '#432d24', profile: 'cabinet', file: '/frames/style-previews/五斗柜_胡桃60-200.png', variantCount: 1, artworkBox: { left: '35.4%', top: '4.6%', width: '29.2%', height: '50.7%' } },
@@ -98,7 +96,6 @@ const cabinetFrameStyles: FrameOption[] = [
 
 const navItems = [
   ['new', '新品项目', '08'],
-  ['creator', 'RunningHub 创作', ''],
   ['products', '我的新品', ''],
   ['gallery', '图库收纳', '128'],
   ['scenes', '场景图库', ''],
@@ -165,23 +162,13 @@ export default function Home() {
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
   const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
-  const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.[model.region === 'cn' ? 'cn' : 'international']);
+  const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.international);
   const sceneInUse = production?.kind === 'size' ? undefined : scene;
-  const referenceNames = [...(production?.frameUrl || frame?.file ? ['frame','artwork'] : ['artwork']), ...(sceneInUse ? ['scene'] : [])];
-  const memberApp = useMemberApp({ modelId: model.apiMode === 'member-app' ? model.id : '', configured: modelConfigured, referenceCount: referenceNames.length, configRevision: generations.configRevision });
-  const memberInputs = memberApp.inputs;
-  let appReady = model.apiMode !== 'member-app';
-  if (model.apiMode === 'member-app' && memberInputs && !memberApp.review && memberInputs.spec.appId === model.appId) {
-    try { compileAppInputs(memberInputs.spec, memberInputs.setup, referenceNames, '制作要求'); appReady = true; } catch { appReady = false; }
-  }
-  const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && appReady && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
-  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : !appReady ? '请先完成参数配置' : '在工作台生成效果图';
-  const outputRatio = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'ratio') : '待设置' : aspectRatio;
-  const outputResolution = model.apiMode === 'member-app' ? memberInputs ? appOutputSetting(memberInputs.spec, memberInputs.setup, 'resolution') : '待设置' : resolution;
-  const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:outputRatio,resolution:outputResolution,quality,
+  const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
+  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : '在工作台生成效果图';
+  const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:aspectRatio,resolution,quality,
     sceneId:sceneInUse?.id || '',
-    ...(model.backgrounds?.length ? {background}:{}), ...(model.outputFormats?.length ? {outputFormat}:{}),
-    appSetup:model.apiMode==='member-app'?memberInputs?.setup:null});
+    ...(model.backgrounds?.length ? {background}:{}), ...(model.outputFormats?.length ? {outputFormat}:{})});
   const consentActive = !!production && !!productionConsent && productionConsent.planId===production.planId && productionConsent.settings===confirmationSettings;
   useEffect(()=>{
     if(!production)return;
@@ -332,7 +319,6 @@ export default function Home() {
     if (generations.busy || previewGenerating || submitGuard.current) { setNotice('请先等待当前任务完成，再使用历史设置。'); return; }
     const recipe = task.recipe;
     if (!recipe) return;
-    memberApp.cancelRestore();
     if (!visibleLibraryItems.some((item) => item.id === recipe.artworkId) || !visibleFrameOptions.some((item) => item.id === recipe.frameId) || !frameColors.some((item) => item.id === recipe.colorId)) {
       setNotice('这组设置中的图案或框架当前不可选，请先在素材库恢复或重新选择。');
       return;
@@ -348,7 +334,6 @@ export default function Home() {
     const savedModel = availableModels.find(item => item.id === task.model);
     if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
     setModelId(savedModel.id);
-    if (savedModel.apiMode === 'member-app' && recipe.appSetup) memberApp.restore(savedModel.id, recipe.appSetup);
     setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : savedModel.ratios[0] || '16:9');
     setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : savedModel.resolutions[0] || '2k');
     setQuality(savedModel.qualities.includes(recipe.quality || '') ? recipe.quality! : savedModel.qualities[0] || '');
@@ -359,7 +344,7 @@ export default function Home() {
       setPreviewReady(true);
     }
     setActiveNav('new');
-    setNotice(savedModel.apiMode === 'member-app' && !recipe.appSetup ? '已带入搭配。旧记录未保存全部应用参数，请重新核对后生成。' : '已带入搭配和出图参数，核对后点击生成，不会自动提交。');
+    setNotice('已带入搭配和出图参数，核对后点击生成，不会自动提交。');
     window.setTimeout(() => setNotice(''), 4000);
   }
 
@@ -372,7 +357,6 @@ export default function Home() {
     if (previewGenerating || generations.busy) return;
     const next = availableModels.find(item => item.id === id);
     if (!next) return;
-    memberApp.cancelRestore();
     setModelId(next.id);
     if (next.ratios.length && !next.ratios.includes(aspectRatio)) setAspectRatio(next.ratios[0]);
     if (next.resolutions.length && !next.resolutions.includes(resolution)) setResolution(next.resolutions[0]);
@@ -382,13 +366,13 @@ export default function Home() {
   }
 
   async function generatePreview() {
-    if (!canGenerate || !selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured || !appReady) return;
+    if (!canGenerate || !selected || !frame || previewGenerating || submitGuard.current || generations.busy || !modelConfigured) return;
     submitGuard.current = true;
     setPreviewGenerating(true);
     setPreviewError('');
     try {
         let receipt:ProductionConsent|null=null;
-        const pricing=`使用 ${model.name}，${outputRatio}，${outputResolution.toUpperCase()}。参考图和制作要求发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按服务商实际规则计费；当前无法保证固定总价。`;
+        const pricing=`使用 ${model.name}，${aspectRatio}，${resolution.toUpperCase()}。参考图和制作要求发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按服务商实际规则计费；当前无法保证固定总价。`;
         if(production){
           // Refresh ownership and attempt state before honoring a remembered dialog choice.
           const r=await fetch(`/api/production/${encodeURIComponent(production.itemId)}`,{cache:'no-store'});
@@ -427,7 +411,6 @@ export default function Home() {
         form.set('resolution', resolution);
         form.set('model', model.id);
         if (customConfig) form.set('providerRevision', customConfig.revision);
-        if (model.apiMode === 'member-app' && memberInputs) form.set('appSetup', JSON.stringify(memberInputs.setup));
         if (model.qualities.length) form.set('quality', quality);
         if (model.backgrounds?.length) form.set('background', background);
         if (model.outputFormats?.length) form.set('outputFormat', outputFormat);
@@ -675,13 +658,12 @@ export default function Home() {
               <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
                 <legend className="sr-only">选择生成模型和图片参数</legend>
                 <ImageModelPicker value={modelId} onChange={chooseModel} scene={Boolean(production?.sceneTitle)} />
-                {model.apiMode === 'member-app' ? <MemberOutputOptions controller={memberApp} disabled={previewGenerating || generations.busy} onSettings={() => setActiveNav('settings')} onChange={resetPreview} /> : customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio==='auto'?'由模型决定':ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item==='auto'?'由模型决定':item.toUpperCase()}</option>)}</select></label></div>}
+                {customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio==='auto'?'由模型决定':ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item==='auto'?'由模型决定':item.toUpperCase()}</option>)}</select></label></div>}
                 {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
                 {!!model.backgrounds?.length && <label>输出背景<select value={background} onChange={event => { setBackground(event.target.value); if(event.target.value==='transparent' && outputFormat==='jpeg')setOutputFormat('png'); resetPreview(); }}>{model.backgrounds.map(item => <option key={item} value={item} disabled={sceneRequiresOpaqueBackground(Boolean(production?.sceneTitle)||Boolean(sceneInUse), item)}>{backgroundLabels[item] || item}</option>)}</select></label>}
                 {!!model.outputFormats?.length && <label>图片格式<select value={outputFormat} onChange={event => { setOutputFormat(event.target.value); resetPreview(); }}>{model.outputFormats.map(item => <option key={item} value={item} disabled={background==='transparent' && item==='jpeg'}>{item.toUpperCase()}</option>)}</select></label>}
                 {model.note && <p className="home-gallery-note">{model.note}</p>}
-                {model.apiMode !== 'member-app' && !modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
-                <button className="api-add-link" type="button" onClick={() => setActiveNav('creator')}>打开 RunningHub 创作中心</button>
+                {!modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
               </fieldset>
             </section>
             <fieldset className="intent-picker" disabled={previewGenerating}>
@@ -761,7 +743,7 @@ export default function Home() {
               loading={generations.loading} onSelect={(id) => { setImportedResult(null); setViewedTaskId(id); }} onReuse={reuseTask}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
-              outputSummary={`${model.name} · ${outputRatio === 'auto' ? '应用画幅' : outputRatio} · ${outputResolution === 'auto' ? '应用清晰度' : outputResolution.toUpperCase()}`}
+              outputSummary={`${model.name} · ${aspectRatio === 'auto' ? '应用画幅' : aspectRatio} · ${resolution === 'auto' ? '应用清晰度' : resolution.toUpperCase()}`}
               references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
@@ -781,25 +763,23 @@ export default function Home() {
         </ResizableWorkspace>
 
         {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
-          <header><h2>RunningHub 连接设置</h2><p>只需要配置 RunningHub，不用填写接口地址、传输格式或域名。</p></header>
-          <RhCreator settingsOnly />
+          <header><h2>RunningHub 连接设置</h2><p>只需要配置 RunningHub 国际站，不用填写接口地址、传输格式或域名。</p></header>
+          <RhCreator />
           <details><summary>原有新品制作连接（已配置通常不用改）</summary>
           <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
             <legend>当前调用应用</legend>
             <label className="model-select">RunningHub 模型 / 应用<select value={modelId} onChange={event => chooseModel(event.target.value)}>{imageModels.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           </fieldset>
-          {!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} region={model.region || 'international'} busy={generations.busy || previewGenerating} member={model.apiMode === 'member-app'} />}
-          {model.apiMode === 'member-app' && <MemberAppSettings controller={memberApp} referenceCount={production?.frameUrl || frame?.file ? 2 : 1} disabled={previewGenerating || generations.busy} />}
+          {!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} busy={generations.busy || previewGenerating} />}
           {model.note && <p className="generation-warning">{model.note}</p>}
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-          </details><footer><span>Key 加密保存在当前账号下，历史作品不受影响。</span><button className="primary-button" onClick={()=>setActiveNav('creator')}>进入 RunningHub 创作 →</button></footer>
+          </details><footer><span>Key 加密保存在当前账号下，历史作品不受影响。</span></footer>
         </section>}
 
         {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
       {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
       {activeNav === 'scenes' && <SceneLibrary selectedId={sceneId} disabled={previewGenerating||generations.busy||production?.kind==='size'} onSelect={id=>{if(previewGenerating||generations.busy||production?.kind==='size')return;setSceneId(id);chooseIntent('interior');setBackground('auto');resetPreview();setActiveNav('new');setNotice('已添加场景参考，点击生成才会提交。');}} />}
-      {activeNav === 'creator' && <RhCreator />}
       {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask}/></div>}
       </section>
 
@@ -812,6 +792,23 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   const [gallerySearch, setGallerySearch] = useState('');
   const [newFrameStyleName, setNewFrameStyleName] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
+  const [frameVariants, setFrameVariants] = useState<{ name: string; items: FrameVariantImage[] } | null>(null);
+  const [zoomedVariant, setZoomedVariant] = useState<FrameVariantImage | null>(null);
+  // Double-click a style image to see every spec original kept inside that style.
+  // A bundled style reads its SKU index; an uploaded one already carries its
+  // recognised source images, so it needs no request at all.
+  async function openFrameVariants(option: FrameOption) {
+    const inline = frameVariantImages(option);
+    setFrameVariants({ name: option.name, items: inline });
+    if (!option.skuIndex) return;
+    try {
+      const response = await fetch(option.skuIndex, { cache: 'no-store' });
+      if (!response.ok) return;
+      const items = frameVariantImages({ ...option, skuItems: parseFrameSkuIndex(await response.json()) });
+      if (items.length) setFrameVariants({ name: option.name, items });
+    } catch { /* Keep the single inline image when the index cannot be read. */ }
+  }
+  function closeFrameVariants() { setFrameVariants(null); setZoomedVariant(null); }
   const filteredGallery = useMemo(() => libraryItems.filter((item) => {
     const searchMatch = `${item.name}${item.tag}${item.tone}${item.ratio}`.includes(gallerySearch.trim());
     const categoryMatch = galleryCategory === '全部素材' || item.tag === galleryCategory;
@@ -836,12 +833,25 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
           <div className="cabinet-style-grid">
             {frameStyles.map((item) => <div className="option-card-wrap" key={item.id}>
               <button className={frameId === item.id ? 'cabinet-style-card selected' : 'cabinet-style-card'} onClick={() => onSelectFrame(item.id)}>
-                <div><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
-                <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部</i></span>
+                <div onDoubleClick={(event) => { event.preventDefault(); void openFrameVariants(item); }} title="双击查看该款式全部框架图"><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
+                <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部 · 双击框架图查看</i></span>
               </button>
               <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
             </div>)}
           </div>
+          {frameVariants && <dialog open className="frame-variant-dialog" aria-label={`${frameVariants.name}全部框架图`} onKeyDown={(event) => { if (event.key === 'Escape') closeFrameVariants(); }}>
+            <header><div><p className="eyebrow">ALL SPEC ORIGINALS</p><h3>{frameVariants.name}</h3><span>{frameVariants.items.length} 张框架图 · 双击卡片图片打开，单击缩略图放大</span></div><button type="button" autoFocus onClick={closeFrameVariants}>关闭 · Esc</button></header>
+            <div className="frame-variant-body">
+              <div className="frame-variant-grid">
+                {frameVariants.items.map((image, index) => <button type="button" key={`${image.src}:${index}`} className={zoomedVariant?.src === image.src ? 'selected' : ''} aria-pressed={zoomedVariant?.src === image.src} onClick={() => setZoomedVariant(image)}>
+                  <img src={image.src} alt={`${frameVariants.name} ${image.label}`} loading="lazy" />
+                  <span>{image.label}</span>
+                  {image.note && <small>{image.note}</small>}
+                </button>)}
+              </div>
+              {zoomedVariant && <figure className="frame-variant-zoom"><img src={zoomedVariant.src} alt={zoomedVariant.label} /><figcaption>{zoomedVariant.label}{zoomedVariant.note ? ` · ${zoomedVariant.note}` : ''}</figcaption></figure>}
+            </div>
+          </dialog>}
           <div className="style-choice-bar"><span>选择款式后直接返回新品页与图案组合，尺寸变体在生成阶段调用。</span><span className="style-bar-actions">{hiddenFrameCount > 0 && <button className="restore-button" onClick={onRestoreFrames}>恢复已移除</button>}<button onClick={onCreate}>使用已选款式创建新品 →</button></span></div>
         </section>
         <div className="frame-subheading"><div><p className="eyebrow">OTHER FRAME SERIES</p><h3>其他屏风框架</h3></div><span>也可继续选择已有的滑轮屏风框型</span></div>

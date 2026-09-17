@@ -5,7 +5,7 @@ import ts from 'typescript';
 const read=path=>readFile(new URL(path,import.meta.url),'utf8');
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
 const moduleOf=source=>import('data:text/javascript;base64,'+Buffer.from(compile(source)).toString('base64'));
-const models=await moduleOf((await read('../lib/generation-models.ts')).replace("import {internationalCompositionModels} from './international-composition-models';",'const internationalCompositionModels = [];').replace("import { verifiedRunningHubApps } from './runninghub-apps';",'const verifiedRunningHubApps = [];'));
+const models=await moduleOf((await read('../lib/generation-models.ts')).replace("import {internationalCompositionModels} from './international-composition-models';",'const internationalCompositionModels = [];'));
 const model=models.getImageModel('gpt-image-2.5-sunburst');
 assert.equal(model.endpoint,'/openapi/v2/rhart-image-g-2.5-official-token/sunburst/edit');
 assert.equal(models.defaultImageModel.id,'gpt-image-2');
@@ -22,7 +22,7 @@ assert.ok(!models.validModelSettings(models.defaultImageModel,'1:1','2k','medium
 const source=await read('../lib/runninghub.ts');
 const fn=source.slice(source.indexOf('export async function submitGeneration('),source.indexOf('export async function queryGeneration(')).replace('export ','');
 let calls=[];
-const context={...models,RUNNINGHUB_MODEL:models.defaultImageModel.id,RunningHubError:Error,
+const context={...models,RUNNINGHUB_MODEL:models.defaultImageModel.id,RUNNINGHUB_ORIGIN:'https://www.runninghub.ai',RunningHubError:Error,
   call:async(...args)=>{calls.push(args);return {taskId:'mock-task',status:'RUNNING'};}};
 vm.createContext(context);vm.runInContext(compile(fn),context);
 const input={model:model.id,prompt:'严格保留产品，仅更换背景',imageUrls:['https://example.test/ref.png'],aspectRatio:'1:1',resolution:'2k',quality:'xhigh',background:'transparent',outputFormat:'webp'};
@@ -42,7 +42,7 @@ await context.submitGeneration({...input,model:'gpt-image-2',quality:'medium',ba
 assert.ok(!('background' in calls[2][1]));assert.ok(!('outputFormat' in calls[2][1]));
 await context.submitGeneration({...input,quality:undefined,background:undefined,outputFormat:undefined},connection);
 assert.equal(calls[3][1].background,'auto');assert.equal(calls[3][1].outputFormat,'png');assert.equal(calls[3][1].quality,'medium');
-const recipeModule=await moduleOf((await read('../lib/studio-brief.ts')).replace("import { cleanAppSetup } from './app-setup-storage';",'const cleanAppSetup = () => null;'));
+const recipeModule=await moduleOf(await read('../lib/studio-brief.ts'));
 const recipe={artworkId:'a',frameId:'f',colorId:'c',intent:'composition',instruction:'保留结构',background:'transparent',outputFormat:'webp',quality:'xhigh'};
 assert.deepEqual(recipeModule.parseRecipe(JSON.stringify(recipe)),recipe);
 assert.ok(!('outputFormat' in recipeModule.parseRecipe(JSON.stringify({...recipe,outputFormat:'gif'}))));

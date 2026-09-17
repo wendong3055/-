@@ -33,10 +33,9 @@ export async function POST(request: Request) {
       return NextResponse.json({saved:true,tested:false},{headers:{'cache-control':'no-store'}});
     }
     if (typeof body.apiKey !== 'string' || !/^[\x21-\x7e]{16,512}$/.test(body.apiKey.trim())) return NextResponse.json({ error: '请填写完整 API Key，不包含空格或换行。' }, { status: 400 });
-    const active = await import('../../../../db/generation-tasks');
-    if ((await active.listTasks(owner)).some((task) => ['uploading','submitting','queued','running','saving','unknown'].includes(task.status))) return NextResponse.json({ error: '请先完成或处理当前任务，再更换密钥。' }, { status: 409 });
-    await saveChinaKey(owner, body.apiKey.trim());
-    return NextResponse.json({ saved: true, tested: false }, { headers: { 'cache-control': 'no-store' } });
+    // The China-site (runninghub.cn) node is retired: this endpoint only stores
+    // and connects the international key, which is saved through /api/rh-creator.
+    return NextResponse.json({ error: '中国站密钥已停用；请在连接设置里保存国际站 Key。' }, { status: 410 });
   } catch { return NextResponse.json({ error: '密钥没有保存成功，请检查工作台安全存储配置后重试。' }, { status: 503 }); }
   finally { reader.releaseLock(); }
 }

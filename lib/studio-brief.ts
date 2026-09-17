@@ -1,5 +1,3 @@
-import { cleanAppSetup } from './app-setup-storage';
-import type { AppSetup } from './runninghub-app-schema';
 const productRequirements = '使用所选图案与框架组合新品。图案仅放入指定画芯区域，保留完整内容，不裁掉主体、不拉伸变形。严格保留参考框架的结构、比例、门、抽屉、五金和脚轮，不新增或删除部件。仅将框架木色替换为所选颜色，保留真实木纹、材质和光影，不改变画芯颜色；选择暖白色时接近自然白，不泛黄。';
 export const studioIntents = [
   { id: 'composition', name: '组合确认图', subtitle: '先看画芯、框架和木色是否合适', label: '确认组合', instruction: `${productRequirements} 纯白背景，产品居中完整展示，保留自然落地阴影，不添加文字、水印或尺寸标识。` },
@@ -8,7 +6,7 @@ export const studioIntents = [
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];
-export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; appSetup?: AppSetup; productionItemId?: string; sceneGenerationId?:string; sceneId?:string; sizeAnnotationMode?:'source-preserved-v1' };
+export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; productionItemId?: string; sceneGenerationId?:string; sceneId?:string; sizeAnnotationMode?:'source-preserved-v1' };
 export function isStudioIntent(value: string): value is StudioIntent { return studioIntents.some((item) => item.id === value); }
 
 export function parseRecipe(value: string | null | undefined): GenerationRecipe | null {
@@ -23,6 +21,6 @@ export function parseRecipe(value: string | null | undefined): GenerationRecipe 
       ...(typeof data.sceneGenerationId === 'string' && /^[a-f0-9-]{36}$/i.test(data.sceneGenerationId) ? {sceneGenerationId:data.sceneGenerationId}:{}),
       ...(data.sizeAnnotationMode==='source-preserved-v1' ? {sizeAnnotationMode:data.sizeAnnotationMode}:{}),
       ...(typeof data.sceneId === 'string' && /^[a-z0-9-]{1,100}$/.test(data.sceneId) ? {sceneId:data.sceneId}:{}),
-      ...(typeof data.quality === 'string' && /^[a-zA-Z0-9_-]{1,30}$/.test(data.quality) ? { quality: data.quality } : {}), ...(cleanAppSetup(data.appSetup) ? { appSetup: cleanAppSetup(data.appSetup)! } : {}) };
+      ...(typeof data.quality === 'string' && /^[a-zA-Z0-9_-]{1,30}$/.test(data.quality) ? { quality: data.quality } : {}) };
   } catch { return null; }
 }

@@ -14,6 +14,9 @@ for(const url of [`http://${host}/a`,`https://${host}:444/a`,`https://fake@${hos
  await assert.rejects(()=>downloadResult(url),e=>!e.message.includes('private-path')&&!e.message.includes('do-not-leak'));
 }
 assert.equal(calls.length,1);
-assert.match(source,/redirect: 'manual'/);
+// Downloads must never follow a redirect: the adapter routes them through
+// fetchWithoutRedirect, which is the single place that pins redirect handling.
+assert.match(body,/fetchWithoutRedirect/);
+assert.match(await readFile(new URL('../lib/safe-http.ts',import.meta.url),'utf8'),/redirect: 'manual'/);
 delete globalThis.__rhDownloadMock;
 console.log('RunningHub exact CDN allowlist, unsafe URL rejection and signed URL redaction passed (mock only).');

@@ -25,7 +25,7 @@ const db = {
   },
 };
 const testContext = { user: { userId: 'owner-1', email: 'test@example.invalid' }, env: {
-  DB: db, RUNNINGHUB_API_KEY: 'offline-test-key', FILES: { async put(key, bytes) { storage.set(key, bytes); } },
+  DB: db, RUNNINGHUB_API_KEY: 'offline-test-key', FILES: { async put(key, bytes) { storage.set(key, bytes); }, async get(key) { const value = storage.get(key); if (!value) return null; const bytes = value instanceof Uint8Array ? value : new Uint8Array(value); return { size: bytes.byteLength, async arrayBuffer() { return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength); } }; } },
 } };
 globalThis.__runningHubTest = testContext;
 
@@ -49,8 +49,6 @@ const list = await load('app/api/generations/route.ts');
 const config = await load('app/api/runninghub/config/route.ts');
 const provider = await load('lib/runninghub.ts');
 const credentials = await load('lib/runninghub-credentials.ts');
-const memberMetadata = await load('app/api/runninghub/apps/[id]/route.ts');
-const appSchema = await load('lib/runninghub-app-schema.ts');
 const { imageModels } = await load('lib/generation-models.ts');
 const taskStore = await load('db/generation-tasks.ts');
 const limitedForm = await load('lib/limited-form.ts');
@@ -133,7 +131,7 @@ globalThis.fetch = async (url, options = {}) => {
     assert.equal(options.headers.authorization, `Bearer ${expectedKey}`);
     const body = JSON.parse(options.body);
     assert.equal(body.quality, expectedModel.quality); assert.equal(body.resolution, expectedModel.resolution); assert.equal(body.aspectRatio, expectedModel.ratio);
-    assert.ok(body.prompt.includes('画芯')); assert.equal(body.imageUrls.length, 2);
+    assert.ok(body.prompt.includes('画芯')); assert.ok([2, 3].includes(body.imageUrls.length), 'two references, plus the shared scene when a size job reuses one');
     if (failSubmit) throw new Error('offline uncertain submission');
     return Response.json({ taskId: `provider-${submissions}`, status: 'QUEUED' });
   }
@@ -311,149 +309,6 @@ await check('all selectable models send their own endpoint and selected image se
     await taskStore.updateTask('owner-1', id, 'failed', 'End offline test task');
   }
 });
-await check('China models never reuse the existing international credential', async () => {
-  const before = uploads;
-  assert.equal((await create.POST(request(crypto.randomUUID(), { model: 'cn-rhart-image-g-2' }))).status, 503);
-  assert.equal(uploads, before);
-});
-await check('China credential is encrypted, owner-scoped and never returned in config', async () => {
-  testContext.env.CREDENTIAL_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
-  const keyRequest = (apiKey, requestOrigin = origin) => new Request(`${origin}/api/runninghub/config`, { method: 'POST', headers: { origin: requestOrigin, 'content-type': 'application/json' }, body: JSON.stringify({ apiKey }) });
-  assert.equal((await config.POST(keyRequest('cn-offline-test-key', 'https://evil.invalid'))).status, 401);
-  assert.equal((await config.POST(keyRequest('cn-offline-test-key'))).status, 200);
-  const stored = sqlite.prepare('SELECT encrypted_key FROM runninghub_credentials WHERE owner_id = ?').get('owner-1').encrypted_key;
-  assert.ok(!stored.includes('cn-offline-test-key'));
-  assert.equal(await credentials.chinaKey('owner-1'), 'cn-offline-test-key');
-  assert.equal(await credentials.chinaKey('owner-2'), '');
-  // Authenticated encryption binds ciphertext to its owner, not just a DB lookup.
-  sqlite.prepare('INSERT INTO runninghub_credentials VALUES (?, ?, ?)').run('owner-2', stored, Date.now());
-  await assert.rejects(credentials.chinaKey('owner-2'));
-  const body = await (await config.GET()).json();
-  assert.equal(body.regions.cn, true); assert.equal(body.regions.international, true);
-  assert.ok(!JSON.stringify(body).includes('cn-offline-test-key'));
-  assert.ok(!JSON.stringify(body).includes(stored));
-  assert.equal((await config.POST(keyRequest('short'))).status, 400);
-  assert.ok(!(await (await config.POST(keyRequest('x'.repeat(2500)))).text()).includes('x'.repeat(100)));
-});
-await check('all China models submit/query the correct host and accept code-zero uploads', async () => {
-  expectedOrigin = 'https://www.runninghub.cn'; expectedKey = 'cn-offline-test-key'; providerStatus = 'SUCCESS'; outputUrl = 'https://www.runninghub.ai/results/test.png';
-  for (const settings of [
-    { model: 'cn-rhart-image-g-2', endpoint: '/rhart-image-g-2/image-to-image', resolution: '2k', ratio: '9:21' },
-    { model: 'cn-rhart-image-n-pro', endpoint: '/rhart-image-n-pro/edit', resolution: '1k', ratio: '1:1' },
-    { model: 'cn-rhart-image-n-pro-ultra', endpoint: '/rhart-image-n-pro-official/edit-ultra', resolution: '8k', ratio: '3:4' },
-  ]) {
-    expectedModel = settings;
-    const id = crypto.randomUUID();
-    assert.equal((await create.POST(request(id, { model: settings.model, resolution: settings.resolution, aspectRatio: settings.ratio }))).status, 202);
-    await assert.rejects(credentials.saveChinaKey('owner-1', 'replacement-test-key'));
-    assert.equal(await credentials.chinaKey('owner-1'), 'cn-offline-test-key');
-    const result = await (await query.GET(new Request(origin), context(id))).json();
-    assert.equal(result.status, 'succeeded'); assert.ok(result.url);
-    assert.equal(result.model, settings.model);
-  }
-  assert.equal((await create.POST(request(crypto.randomUUID(), { model: 'cn-rhart-image-n-pro-ultra', resolution: '2k' }))).status, 400);
-  await assert.rejects(provider.submitGeneration({ model: 'cn-rhart-image-g-2', prompt: '画芯', imageUrls: [], aspectRatio: '1:1', resolution: '1k' }, { origin: 'https://www.runninghub.ai', key: expectedKey }));
-});
-memberMode = true;
-const memberModels = imageModels.filter((m) => m.apiMode === 'member-app');
-let spec, setup;
-await check('member app metadata authenticates via official query contract and returns safe schema only', async () => {
-  testContext.user = null;
-  assert.equal((await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).status, 401);
-  testContext.user = { userId: 'owner-1', email: 'test@example.invalid' };
-  assert.equal((await memberMetadata.GET(new Request(origin), context('unknown-app'))).status, 400);
-  const result = await memberMetadata.GET(new Request(origin), context(memberModels[0].id));
-  assert.equal(result.status, 200); assert.equal(result.headers.get('cache-control'), 'no-store');
-  spec = await result.json();
-  assert.ok(!JSON.stringify(spec).includes(expectedKey)); assert.ok(!JSON.stringify(spec).includes('curl'));
-  assert.ok(!JSON.stringify(spec).includes('sample-do-not-send'));
-  setup = appSchema.initialAppSetup(spec, 2);
-  setup.values['20.aspect_ratio'] = '3:4'; setup.values['20.resolution'] = '8k'; setup.values['20.model'] = 'ultra';
-  failMetadata = true;
-  const error = await (await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).text();
-  assert.ok(!error.includes(expectedKey)); assert.ok(!error.includes('apiKey='));
-  failMetadata = false;
-});
-await check('member metadata redirects never forward the Key to another origin or website login', async () => {
-  const before = [uploads, submissions];
-  for (const destination of ['https://www.runninghub.ai/api/webapp/apiCallDemo','https://www.runninghub.cn/login','https://untrusted.example/api/webapp/apiCallDemo']) {
-    metadataRedirect = destination; const calls = metadataCalls;
-    const response = await memberMetadata.GET(new Request(origin), context(memberModels[0].id));
-    assert.equal(response.status,503); assert.equal(metadataCalls,calls+1);
-    assert.ok(!(await response.text()).includes(expectedKey));
-  }
-  metadataRedirect = '/api/webapp/apiCallDemo/'; const calls = metadataCalls;
-  assert.equal((await memberMetadata.GET(new Request(origin), context(memberModels[0].id))).status,503);
-  assert.equal(metadataCalls,calls+3); metadataRedirect = '';
-  assert.deepEqual([uploads,submissions],before);
-});
-await check('invalid, changed or ambiguous member inputs stop before upload or charge', async () => {
-  const before = [uploads, submissions];
-  for (const value of ['', '{invalid', JSON.stringify({ ...setup, fingerprint: 'stale' }), JSON.stringify({ ...setup, imageKeys: ['10.image', '10.image'] }), JSON.stringify({ ...setup, promptKey: '10.image' }), JSON.stringify({ ...setup, values: { ...setup.values, '20.aspect_ratio': '99:1' } })]) {
-    assert.equal((await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: value }))).status, 400);
-  }
-  metadataFields = memberFields.filter((f) => f.fieldType !== 'IMAGE' || f.nodeId === '10');
-  const single = await appSchema.parseAppSpec(memberModels[0].appId, { nodeInfoList: metadataFields });
-  const singleResponse = await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: JSON.stringify(appSchema.initialAppSetup(single, 2)) }));
-  assert.equal(singleResponse.status, 400, await singleResponse.text());
-  metadataFields = memberFields;
-  await assert.rejects(appSchema.parseAppSpec('123', { nodeInfoList: [{ nodeId: '1', fieldName: 'api_key', fieldType: 'STRING' }] }));
-  assert.deepEqual([uploads, submissions], before);
-});
-await check('every member app sends chosen inputs with uploaded filenames and never calls enterprise model APIs', async () => {
-  for (const model of memberModels) {
-    const app = await (await memberMetadata.GET(new Request(origin), context(model.id))).json();
-    const values = { ...setup, fingerprint: app.fingerprint };
-    const id = crypto.randomUUID(), before = submissions;
-    const response = await create.POST(request(id, { model: model.id, appSetup: JSON.stringify(values) }));
-    assert.equal(response.status, 202);
-    const task = await response.json();
-    assert.equal(task.model, model.id); assert.equal(task.aspectRatio, '3:4'); assert.equal(task.resolution, '8k');
-    assert.equal(task.recipe.appSetup.values['20.resolution'], '8k');
-    assert.equal(memberSubmitBody.webappId, model.appId);
-    assert.ok(!JSON.stringify(task).includes(expectedKey));
-    await create.POST(request(id, { model: model.id, appSetup: JSON.stringify(values) }));
-    assert.equal(submissions, before + 1);
-    providerStatus = 'RUNNING';
-    const outputCount = memberOutputs;
-    assert.equal((await (await query.GET(new Request(origin), context(id))).json()).status, 'running');
-    assert.equal(memberOutputs, outputCount);
-    providerStatus = 'SUCCESS'; resetPoll(); failOutputs = true;
-    const interrupted = await (await query.GET(new Request(origin), context(id))).json();
-    assert.notEqual(interrupted.status, 'succeeded'); assert.equal(submissions, before + 1);
-    failOutputs = false; resetPoll();
-    const saved = await (await query.GET(new Request(origin), context(id))).json();
-    assert.equal(saved.status, 'succeeded'); assert.equal(saved.url, `/api/files/${id}`); assert.ok(storage.has(id) || storage.size > 1);
-    assert.equal(submissions, before + 1);
-  }
-  assert.ok(memberQueries >= memberModels.length * 3);
-});
-await check('ambiguous member submission stays locked and cannot silently fall back or double-charge', async () => {
-  const id = crypto.randomUUID(), before = submissions;
-  failSubmit = true;
-  const req = () => request(id, { model: memberModels[0].id, appSetup: JSON.stringify(setup) });
-  assert.equal((await create.POST(req())).status, 502);
-  assert.equal((await taskStore.getTask('owner-1', id)).status, 'unknown');
-  assert.equal((await create.POST(req())).status, 200);
-  assert.equal(submissions, before + 1);
-  assert.equal((await create.POST(request(crypto.randomUUID(), { model: memberModels[0].id, appSetup: JSON.stringify(setup) }))).status, 409);
-  assert.equal(submissions, before + 1);
-  failSubmit = false;
-});
-await check('member preferences persist per owner and model, reject cross-site and oversized payloads', async () => {
-  const preferences = await load('app/api/runninghub/preferences/[id]/route.ts');
-  const ctx = context(memberModels[0].id);
-  const post = (body = setup, headers = { origin }) => new Request(`${origin}/api/runninghub/preferences/${memberModels[0].id}`, { method: 'POST', headers, body: JSON.stringify(body) });
-  assert.equal((await preferences.POST(post(), ctx)).status, 200);
-  const saved = await (await preferences.GET(new Request(origin), ctx)).json();
-  assert.equal(saved.setup.values['20.resolution'], '8k');
-  testContext.user = { userId: 'owner-2', email: 'other@example.invalid' };
-  assert.equal((await (await preferences.GET(new Request(origin), ctx)).json()).setup, null);
-  assert.equal((await preferences.POST(post(setup, { origin: 'https://evil.invalid' }), ctx)).status, 401);
-  assert.equal((await preferences.POST(post({ ...setup, values: { api_key: 'secret' } }), ctx)).status, 400);
-  assert.equal((await preferences.POST(post({ x: 'x'.repeat(50001) }), ctx)).status, 413);
-  testContext.user = null; assert.equal((await preferences.GET(new Request(origin), ctx)).status, 401);
-});
 await check('new product plans preserve versions, enforce real specification sources and do not submit generation', async () => {
   testContext.user = { userId: 'owner-1', email: 'test@example.invalid' };
   sqlite.exec("UPDATE generation_tasks SET status = 'failed' WHERE status NOT IN ('succeeded','failed')");
@@ -462,34 +317,46 @@ await check('new product plans preserve versions, enforce real specification sou
   const id=sqlite.prepare('SELECT id FROM products LIMIT 1').get().id, ctx=context(id), before=submissions;
   const initial=await (await work.GET(new Request(origin),ctx)).json();
   assert.equal(initial.sizes[0].widthCm,60);assert.equal(initial.plans.length,0);
-  const body={name:'测试新品',expectedVersion:0,confirmed:true,rule:'upper',notes:'不改变柜门',main:['白底主图'],details:['规格选择'],sizes:[{widthCm:61,heightCm:207,sourceIds:['spec-source']}]};
+  const body={name:'测试新品',expectedVersion:0,confirmed:true,rule:'upper',notes:'不改变柜门',main:['白底主图','玄关场景'],sceneTitle:'玄关场景',details:['规格选择'],sizes:[{widthCm:61,heightCm:207,sourceIds:['spec-source']}]};
   const post=(bodyValue=body)=>new Request(origin,{method:'POST',headers:{origin,'content-type':'application/json'},body:JSON.stringify(bodyValue)});
   assert.equal((await work.POST(post({...body,confirmed:false}),ctx)).status,400);
   assert.equal((await work.POST(post({...body,sizes:[{widthCm:61,heightCm:207,sourceIds:['foreign-owner']}] }),ctx)).status,400);
   const made=await work.POST(post(),ctx);assert.equal(made.status,200);
-  const saved=await made.json();assert.equal(saved.plans[0].items.length,3);assert.equal(submissions,before);
+  const saved=await made.json();assert.equal(saved.plans[0].items.length,4);assert.equal(submissions,before);
   assert.equal((await work.POST(post(),ctx)).status,409);
   const version2=await (await work.POST(post({...body,expectedVersion:1,notes:'新版本要求'}),ctx)).json();
   assert.equal(version2.plans.length,2);assert.equal(version2.plans[1].config.notes,'不改变柜门');
   const sizeItem=version2.plans[0].items.find(i=>i.kind==='size');
   const prepared=await (await itemRoute.GET(new Request(origin),context(sizeItem.id))).json();
   assert.equal(prepared.frameUrl,'/api/files/spec-source');assert.equal(prepared.spec.heightCm,207);assert.equal(submissions,before);
-  const taskId=crypto.randomUUID();
-  const generated=await create.POST(request(taskId,{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}));
-  assert.equal(generated.status,202);assert.equal(submissions,before+1);
-  assert.equal((await generated.json()).recipe.productionItemId,sizeItem.id);
-  assert.equal((await create.POST(request(taskId,{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}))).status,200);
-  assert.equal(submissions,before+1);
   const review=(generationId,review,note='')=>new Request(origin,{method:'POST',headers:{origin},body:JSON.stringify({generationId,review,note})});
+  // A size job may only reuse an accepted, succeeded shared-scene main image.
+  const sceneItem=version2.plans[0].items.find(i=>i.kind==='main'&&i.title==='玄关场景');
+  assert.ok(sceneItem,'the plan must contain the shared-scene main item');
+  const sceneTaskId=crypto.randomUUID();
+  expectedModel={endpoint:'/rhart-image-g-2-official/image-to-image',quality:'medium',resolution:'2k',ratio:'1:1'};
+  const sceneSubmit=await create.POST(request(sceneTaskId,{model:'gpt-image-2',aspectRatio:'1:1',productionItemId:sceneItem.id}));
+  assert.equal(sceneSubmit.status,202,await sceneSubmit.clone().text());
+  storage.set('scenes/shared.png',new Uint8Array([1,2,3]));
+  sqlite.prepare("INSERT INTO assets (id,owner_id,name,category,tags,tone,mime_type,object_key,size,created_at) VALUES ('scene-asset','owner-1','共用场景','生成结果','','','image/png','scenes/shared.png',3,1)").run();
+  sqlite.prepare("UPDATE generation_tasks SET status='succeeded',asset_id=? WHERE id=?").run('scene-asset',sceneTaskId);
+  assert.equal((await itemRoute.POST(review(sceneTaskId,'accepted'),context(sceneItem.id))).status,200);
+  const base=submissions;
+  const taskId=crypto.randomUUID();
+  const generated=await create.POST(request(taskId,{model:'gpt-image-2',aspectRatio:'1:1',productionItemId:sizeItem.id}));
+  assert.equal(generated.status,202,await generated.clone().text());assert.equal(submissions,base+1);
+  assert.equal((await generated.json()).recipe.productionItemId,sizeItem.id);
+  assert.equal((await create.POST(request(taskId,{model:'gpt-image-2',aspectRatio:'1:1',productionItemId:sizeItem.id}))).status,200);
+  assert.equal(submissions,base+1);
   assert.equal((await itemRoute.POST(review(taskId,'accepted'),context(sizeItem.id))).status,400);
   sqlite.prepare("UPDATE generation_tasks SET status='succeeded',asset_id=? WHERE id=?").run(taskId,taskId);
   assert.equal((await itemRoute.POST(review('stale-id','accepted'),context(sizeItem.id))).status,409);
   assert.equal((await itemRoute.POST(review(taskId,'accepted'),context(sizeItem.id))).status,200);
-  const duplicate=await create.POST(request(crypto.randomUUID(),{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}));
-  assert.equal(duplicate.status,502);assert.equal(submissions,before+1);
+  const duplicate=await create.POST(request(crypto.randomUUID(),{model:'gpt-image-2',productionItemId:sizeItem.id}));
+  assert.equal(duplicate.status,502);assert.equal(submissions,base+1);
   assert.equal((await itemRoute.POST(review(taskId,'rework','颜色偏黄'),context(sizeItem.id))).status,200);
-  assert.equal((await create.POST(request(crypto.randomUUID(),{model:memberModels[0].id,appSetup:JSON.stringify(setup),productionItemId:sizeItem.id}))).status,202);
-  assert.equal(submissions,before+2);
+  assert.equal((await create.POST(request(crypto.randomUUID(),{model:'gpt-image-2',aspectRatio:'1:1',productionItemId:sizeItem.id}))).status,202);
+  assert.equal(submissions,base+2);
   testContext.user={userId:'owner-2',email:'other@example.invalid'};
   assert.equal((await work.GET(new Request(origin),ctx)).status,404);
   assert.equal((await itemRoute.GET(new Request(origin),context(sizeItem.id))).status,404);

@@ -7,9 +7,7 @@ import { FormLimitError, limitedFormData } from '../../../lib/limited-form';
 import { generationOwner } from '../../../lib/generation-auth';
 import { compositionPrompt } from '../../../lib/composition-prompt';
 import { isStudioIntent, parseRecipe } from '../../../lib/studio-brief';
-import { runningHubConnection, loadMemberApp, submitMemberApp, providerError, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
-import { appOutputSetting, compileAppInputs, type AppSetup, type AppSpec } from '../../../lib/runninghub-app-schema';
-import { cleanAppSetup } from '../../../lib/app-setup-storage';
+import { runningHubConnection, providerError, RUNNINGHUB_MODEL, RunningHubError, submitGeneration, uploadReference } from '../../../lib/runninghub';
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import {compositionCatalogPayload} from '../../../lib/international-composition-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
@@ -49,7 +47,7 @@ export async function POST(request: Request) {
     const quality = field('quality', model?.qualities.length ? 'medium' : '');
     const background = field('background', model?.backgrounds?.length ? 'auto' : '');
     const outputFormat = field('outputFormat', model?.outputFormats?.length ? 'png' : '');
-    if (!model || (model.apiMode !== 'member-app' && !validModelSettings(model, ratio, resolution, quality, background, outputFormat))) return NextResponse.json({ error: '所选模型不支持这组图片设置；透明背景请选择 PNG 或 WebP。' }, { status: 400 });
+    if (!model || !validModelSettings(model, ratio, resolution, quality, background, outputFormat)) return NextResponse.json({ error: '所选模型不支持这组图片设置；透明背景请选择 PNG 或 WebP。' }, { status: 400 });
     const intent = field('intent', 'composition');
     if (!isStudioIntent(intent)) return NextResponse.json({ error: '请选择有效的出图用途。' }, { status: 400 });
     // Request-shape and scene checks run before the credential lookup, so an
@@ -108,20 +106,7 @@ export async function POST(request: Request) {
       if(recipe) recipe.sceneId=selectedScene.id;
       prompt+=`\n${sceneReferenceBrief(selectedScene,refs.length)}`;
     }
-    let appSpec: AppSpec | null = null, appSetup: AppSetup | null = null;
     if (background === 'transparent') prompt += '\n背景设置优先：本次输出透明背景，去除环境和纯白底，仅保留完整产品；产品结构、画芯与木色要求保持不变。';
-    if (model.apiMode === 'member-app') {
-      try {
-        const rawSetup = String(form.get('appSetup') || '');
-        if (rawSetup.length > 50000 || !rawSetup) throw new Error('请先读取并确认会员应用参数。');
-        appSetup = cleanAppSetup(JSON.parse(rawSetup));
-        if (!appSetup) throw new Error('应用参数格式不正确，请重新读取。');
-        appSpec = await loadMemberApp(model.appId!, connection!);
-        compileAppInputs(appSpec, appSetup, refs.map((_, index) => `pending-${index}`), prompt);
-        ratio = appOutputSetting(appSpec, appSetup, 'ratio'); resolution = appOutputSetting(appSpec, appSetup, 'resolution');
-        if (recipe) recipe.appSetup = appSetup;
-      } catch (error) { return NextResponse.json({ error: error instanceof Error && !/JSON|Unexpected/i.test(error.message) ? error.message : '应用参数格式不正确，请重新读取。' }, { status: 400 }); }
-    }
     if(model.catalogEndpoint){try{compositionCatalogPayload(model,{prompt,imageUrls:refs.map((_,i)=>`https://pending.invalid/${i}`),aspectRatio:ratio,resolution,quality,background,outputFormat});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'模型参数无效。'},{status:400});}}
     if(model.maxImages&&refs.length>model.maxImages)return NextResponse.json({error:`此模型最多支持 ${model.maxImages} 张参考图，请更换模型。`},{status:400});
     await listTasks(owner);
@@ -152,13 +137,11 @@ export async function POST(request: Request) {
     // atomically blocked while this task is active, keeping submit/query aligned.
     connection = await runningHubConnection(owner, model.id, credentialId);
     const imageUrls: string[] = [];
-    for (const file of refs) imageUrls.push(await uploadReference(file as File, connection, model.apiMode === 'member-app'));
+    for (const file of refs) imageUrls.push(await uploadReference(file as File, connection));
     if (!await claimSubmission(owner, id)) throw new RunningHubError('参考图上传已过期，请重新创建任务。');
     submitted = true;
     // Never retry this billable request automatically.
-    const result = appSpec && appSetup
-      ? await submitMemberApp(model.appId!, compileAppInputs(appSpec, appSetup, imageUrls, prompt), connection)
-      : await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution, model: model.id, quality, background, outputFormat }, connection);
+    const result = await submitGeneration({ prompt, imageUrls, aspectRatio: ratio, resolution, model: model.id, quality, background, outputFormat }, connection);
     acceptedRemoteId = result.taskId!;
     await updateTask(owner, id, result.status === 'FAILED' ? 'failed' : 'queued', result.status === 'FAILED' ? providerError(result) : '', acceptedRemoteId);
     return NextResponse.json(publicTask((await getTask(owner, id))!), { status: 202 });

@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { NextResponse } from 'next/server';
 import { generationOwner } from '../../../../lib/generation-auth';
 import { claimPoll, completeTask, getTask, publicTask, releasePoll, updateTask } from '../../../../db/generation-tasks';
-import { downloadResult, providerError, queryGeneration, queryMemberApp, runningHubConnection, RunningHubError } from '../../../../lib/runninghub';
+import { downloadResult, providerError, queryGeneration, runningHubConnection, RunningHubError } from '../../../../lib/runninghub';
 import { getImageModel } from '../../../../lib/generation-models';
 import { isCustomModel } from '../../../../lib/custom-image-config';
 
@@ -35,7 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     if (row.remote_task_id && lease) {
       try {
         const connection = await runningHubConnection(owner, row.model, row.credential_id ?? null);
-        const result = getImageModel(row.model)?.apiMode === 'member-app' ? await queryMemberApp(row.remote_task_id, connection) : await queryGeneration(row.remote_task_id, connection);
+        const result = await queryGeneration(row.remote_task_id, connection);
         if (result.status === 'SUCCESS') {
           await updateTask(owner, id, 'saving', '', null, lease);
           const image = result.results?.find((item) => item.url && (!item.outputType || ['image', 'jpg', 'jpeg', 'png', 'webp'].includes(item.outputType.toLowerCase())));

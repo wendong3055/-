@@ -115,13 +115,12 @@ export function useGenerations() {
     busy: submitting || tasks.some((task) => isActiveGeneration(task.status) || task.status === 'unknown') };
 }
 
-export function RunningHubSettings({ config, onRefresh, region, busy, member = false }: { config: Config | null; onRefresh: () => void; region: 'cn' | 'international'; busy: boolean; member?: boolean }) {
-  const [apiKey, setApiKey] = useState('');
+export function RunningHubSettings({ config, onRefresh, busy }: { config: Config | null; onRefresh: () => void; busy: boolean }) {
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
   const [confirmedInternational, setConfirmedInternational] = useState(false);
   const [message, setMessage] = useState('');
-  const configured = Boolean(config?.regions?.[region]);
+  const configured = Boolean(config?.regions?.international);
   async function connectInternational() {
     if (!confirmedInternational || busy || saving || checking) return;
     setSaving(true); setMessage('正在连接已保存的国际站 Key…');
@@ -138,30 +137,18 @@ export function RunningHubSettings({ config, onRefresh, region, busy, member = f
     if (checking || saving || busy) return;
     setChecking(true); setMessage('正在检查连接与测试文件上传，不会提交生图…');
     try {
-      const response = await fetch(`/api/runninghub/check?region=${region}`, { method: 'POST' });
+      const response = await fetch('/api/runninghub/check?region=international', { method: 'POST' });
       const result = await response.json() as { message?: string; error?: string };
       setMessage(result.error || result.message || '检查未完成。');
     } catch { setMessage('连接检查中断。没有提交生图。'); }
     finally { setChecking(false); }
   }
-  async function save() {
-    if (saving || busy) return;
-    setSaving(true); setMessage('');
-    try {
-      const response = await fetch('/api/runninghub/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apiKey: apiKey.trim() }) });
-      const result = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(result.error || '保存失败，请重试。');
-      setApiKey(''); setMessage('已加密保存。尚未发起生图，接口权限与余额未验证。'); onRefresh();
-    } catch (error) { setMessage(error instanceof Error ? error.message : '保存失败，请重试。'); }
-    finally { setSaving(false); }
-  }
   return <details className="rh-connection">
-    <summary><span className="rh-monogram" aria-hidden="true">RH</span><span><strong>API 密钥配置</strong><small>{region === 'cn' ? '中国站 · runninghub.cn' : '国际站 · runninghub.ai'}</small></span><span className={configured ? 'rh-configured' : 'rh-unconfigured'}>{config ? configured ? '密钥已配置' : '点击配置密钥' : '检查配置中'}</span></summary>
-    <div className="rh-connection-body"><p>{member ? '使用「消费级-会员」API Key 调用 AI 应用，在工作台内接收结果。不是网页登录，也不会改走企业级模型 API。' : '原有国际站模型接口独立配置，不能使用中国站会员 Key 代替。'}</p>
-      {member && <p>会员 Key 可调用 AI 应用，不代表所有应用免费；额外模型费用、并发与额度以该应用的接口权益为准。</p>}
-      {region === 'cn' ? <div className="rh-key-form"><label htmlFor="rh-api-key">消费级-会员 API Key<input id="rh-api-key" type="password" autoComplete="off" spellCheck={false} maxLength={512} value={apiKey} disabled={saving || busy || !config?.canSaveKey} onChange={(event) => setApiKey(event.target.value)} placeholder={configured ? '填写新密钥可替换当前配置' : '粘贴 RunningHub 中国站会员 Key'} /></label><button type="button" disabled={saving || busy || !config?.canSaveKey || apiKey.trim().length < 16} onClick={save}>{saving ? '正在安全保存…' : '加密保存密钥'}</button><small>密钥加密保存在服务端，仅供当前工作台账号使用；不会返回浏览器或写入图片记录。</small>{!config?.canSaveKey && <p>安全存储尚未准备好，请等待页面发布完成，或联系工作台管理员。</p>}<a href="https://www.runninghub.cn/enterprise-api/consumerApi" target="_blank" rel="noreferrer">前往官网获取 API Key ↗</a></div> : <p>{config?.internationalSaved ? '已连接保存的国际站 Key，供之后的国际站新品任务使用。' : '当前仍使用原有国际站服务端 Key。'}中国站会员 Key 不会自动用于国际站，历史任务仍使用原连接查询。</p>}
+    <summary><span className="rh-monogram" aria-hidden="true">RH</span><span><strong>API 密钥配置</strong><small>国际站 · runninghub.ai</small></span><span className={configured ? 'rh-configured' : 'rh-unconfigured'}>{config ? configured ? '密钥已配置' : '点击配置密钥' : '检查配置中'}</span></summary>
+    <div className="rh-connection-body"><p>新品制作使用独立保存的国际站 Key，中国站节点已不再使用。</p>
+      <p>{config?.internationalSaved ? '已连接保存的国际站 Key，供之后的国际站新品任务使用。' : '当前仍使用原有国际站服务端 Key。'}历史任务仍使用原连接查询。</p>
       {message && <p role="status">{message}</p>}
-      {region === 'international' && <div><p>{config?.internationalSaved ? '新品制作已使用你保存的国际站 Key；历史任务保留原连接。' : '新品制作当前仍用原服务端 Key。上方保存的新 Key 需要在这里接入。'}</p><label><input type="checkbox" checked={confirmedInternational} onChange={e=>setConfirmedInternational(e.target.checked)} disabled={busy || saving || checking} />我确认上方保存的是 runninghub.ai 国际站 Key</label><button type="button" disabled={!confirmedInternational || busy || saving || checking} onClick={connectInternational}>将已保存的国际站 Key 接入新品制作</button><small>只在服务端保存加密副本，不显示密钥，不提交生图。更换上方 Key 后需重新接入；旧任务使用各自的原连接。</small></div>}
+      <div><p>{config?.internationalSaved ? '新品制作已使用你保存的国际站 Key；历史任务保留原连接。' : '新品制作当前仍用原服务端 Key。上方保存的新 Key 需要在这里接入。'}</p><label><input type="checkbox" checked={confirmedInternational} onChange={e=>setConfirmedInternational(e.target.checked)} disabled={busy || saving || checking} />我确认上方保存的是 runninghub.ai 国际站 Key</label><button type="button" disabled={!confirmedInternational || busy || saving || checking} onClick={connectInternational}>将已保存的国际站 Key 接入新品制作</button><small>只在服务端保存加密副本，不显示密钥，不提交生图。更换上方 Key 后需重新接入；旧任务使用各自的原连接。</small></div>
       <p>配置存在不代表验证通过；模型权限及费用以 RunningHub 账户为准。</p>
       <div><button type="button" disabled={saving || busy || checking} onClick={onRefresh}>重新检查配置</button><button type="button" disabled={saving || busy || checking || !configured} onClick={check}>{checking ? '连接检查中…' : '检查连接（不生图）'}</button></div>
     </div>

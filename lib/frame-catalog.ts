@@ -77,3 +77,57 @@ export function groupFrameOptions<T extends { id: string; name: string; styleKey
     return [{ ...preferred, memberIds, sizes: members.find((item) => item.sizes?.length)?.sizes || preferred.sizes }];
   });
 }
+
+// A style keeps its spec originals internally: an uploaded style carries the
+// recognised sizes with their source images, and a bundled style can ship a
+// SKU index. Both are reduced to one flat list of viewable images.
+export type FrameSku = { id: string; name: string; thumb: string; totalWidth?: number; height?: number; depth?: number };
+export type FrameVariantImage = { src: string; label: string; note?: string };
+export type FrameVariantSource = { name: string; file?: string; sizes?: FrameSize[]; skuItems?: FrameSku[] };
+
+// A fetched index is untrusted input: only same-site frame assets may become an
+// image source, so a hostile manifest cannot point a page at another origin.
+export function safeFrameThumb(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const path = value.trim();
+  if (!path.startsWith('/frames/') || path.includes('..') || path.includes('//') || /[\\'"<>]/.test(path)) return null;
+  return path;
+}
+
+export function parseFrameSkuIndex(value: unknown): FrameSku[] {
+  const items = (value as { items?: unknown } | null)?.items;
+  if (!Array.isArray(items)) return [];
+  const seen = new Set<string>();
+  const out: FrameSku[] = [];
+  for (const row of items) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    const { id, name, thumb, totalWidth, height, depth } = row as Record<string, unknown>;
+    const src = safeFrameThumb(thumb);
+    if (typeof id !== 'string' || !id || seen.has(id)) continue;
+    if (typeof name !== 'string' || !name.trim() || !src) continue;
+    seen.add(id);
+    out.push({
+      id, name: name.trim().slice(0, 60), thumb: src,
+      ...(typeof totalWidth === 'number' && Number.isFinite(totalWidth) ? { totalWidth } : {}),
+      ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
+      ...(typeof depth === 'number' && Number.isFinite(depth) ? { depth } : {}),
+    });
+  }
+  return out;
+}
+
+export function frameVariantImages(option: FrameVariantSource): FrameVariantImage[] {
+  if (option.skuItems?.length) {
+    return option.skuItems.map((sku) => ({
+      src: sku.thumb, label: sku.name,
+      ...(sku.totalWidth && sku.height ? { note: `${sku.totalWidth}×${sku.height}cm${sku.depth ? ` · 深${sku.depth}cm` : ''}` } : {}),
+    }));
+  }
+  const fromSizes = (option.sizes || []).flatMap((size) => size.sourceUrls.map((src) => ({
+    src,
+    label: `${size.widthCm}×${size.heightCm}cm`,
+    note: `${size.widthParts.join('+')}cm${size.depthCm ? ` · 深${size.depthCm}cm` : ''}`,
+  })));
+  if (fromSizes.length) return fromSizes;
+  return option.file ? [{ src: option.file, label: option.name }] : [];
+}
