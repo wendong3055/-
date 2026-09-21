@@ -18,6 +18,16 @@ export async function publicationImage(item:ProductionItem,workspace:ProductWork
   // Source-preserved images already have their annotations; never overlay twice.
   if(preservesSourceSizeMarks(item))return blob;
   if(item.kind==='main')return blob;
+  // New details are already fully typeset. Preserve the entire aspect ratio;
+  // never cap their height or overlay the legacy caption block a second time.
+  if(item.kind==='detail'&&item.task.recipe?.detailLayoutMode==='chinese-editorial-v2'){
+    const bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');
+    canvas.width=790;canvas.height=Math.round(bitmap.height*790/bitmap.width);
+    if(canvas.height>24000){bitmap.close();throw new Error('详情长图过长，请下载原图。');}
+    const ctx=canvas.getContext('2d');if(!ctx){bitmap.close();throw new Error('浏览器无法排版图片。');}
+    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+    return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('详情图导出失败。')),'image/png'));
+  }
   if(item.kind==='size'&&plan.config.sceneTitle){
     if(!item.spec||!validSizeMarks(item.spec.marks,item.generationId||'',!!item.spec.depthCm))throw new Error('请先保存尺寸标注位置，再查看或下载成品。');
     const bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=2048;canvas.height=2048;

@@ -12,7 +12,7 @@ import { getImageModel, validModelSettings } from '../../../lib/generation-model
 import {compositionCatalogPayload} from '../../../lib/international-composition-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
 import { productionContext, claimProductionItem, productionSceneFile, ProductionError } from '../../../db/production';
-import { artworkRules } from '../../../lib/production-plan';
+import { artworkRules, detailProductionBrief } from '../../../lib/production-plan';
 import { sceneSizeBrief } from '../../../lib/production-scene';
 import { latestInternationalKeyId } from '../../../db/runninghub-international';
 import { findScene, pngPixelSize, sceneReferenceBrief, sceneRequiresOpaqueBackground } from '../../../lib/scene-library';
@@ -85,10 +85,12 @@ export async function POST(request: Request) {
       productionTitle=context.row.title;
       if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
       recipe.productionItemId=productionItemId;
+      if(context.row.kind==='detail')recipe.detailLayoutMode='chinese-editorial-v2';
       if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
       prompt=context.row.kind==='size'
         ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
-        : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.brief}\n本次补充：${field('instruction')}`;
+        : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.kind==='detail'?detailProductionBrief(context.row.title,artworkRules[context.config.rule],context.config.notes):context.row.brief}\n本次补充：${field('instruction')}`;
+      if(context.row.kind==='detail'&&context.row.title==='完整详情长图'&&ratio!=='1:3')throw new ProductionError('完整详情长图请选择支持 1:3 比例的模型，避免长图被压成普通配图。');
       if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
       if(context.config.sceneTitle) {
         if(!(model.id==='gpt-image-2'||model.id==='gpt-image-2.5-sunburst'||model.catalogEndpoint)||resolution!=='2k'||(context.row.kind!=='detail'&&ratio!=='1:1'))throw new ProductionError('共用场景请选择支持产品合成的 2K 图片模型；主图和尺寸图需为 1:1。');

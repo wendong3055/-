@@ -30,6 +30,13 @@ assert.ok(!preservesSourceSizeMarks({...item,id:'i',task:{recipe:{productionItem
 assert.ok(!preservesSourceSizeMarks({...item,id:'i',task:{recipe:{}}}));
 const input={name:'test',expectedVersion:0,rule:'upper',notes:'',sizes:[spec],main:['客厅场景'],details:['新品形象'],confirmed:true,sceneTitle:'客厅场景'};
 const validated=validateProductionPlan(input,['representative']);assert.equal(validated.sceneTitle,'客厅场景');
+const longPlan=validateProductionPlan({...input,sizes:[],details:['完整详情长图']},[]);
+const longBrief=planItems(longPlan).find(i=>i.kind==='detail').brief;
+assert.match(longBrief,/1:3竖版完整电商详情长图/);
+assert.match(longBrief,/禁止新增侧面、背面/);
+assert.match(longBrief,/清晰中文标题和说明/);
+assert.match(longBrief,/不得编造材质、认证、承重、尺寸/);
+assert.throws(()=>validateProductionPlan({...input,details:['完整详情长图','新品形象']},['representative']),/分开制作/);
 assert.throws(()=>validateProductionPlan({...input,main:['白底主图']},['representative']));
 assert.match(planItems(validated).find(i=>i.kind==='size').brief,/沿用客厅场景背景/);
 assert.match(planItems(validated).find(i=>i.kind==='main').brief,/四周保留标注空间/);
@@ -49,4 +56,13 @@ const recipeModule={exports:{}};
 vm.runInNewContext(recipeCode,{module:recipeModule,exports:recipeModule.exports,require:()=>({cleanAppSetup:()=>null})});
 const parsed=recipeModule.exports.parseRecipe(JSON.stringify({artworkId:'a',frameId:'f',colorId:'c',intent:'catalog',instruction:'',productionItemId:'12345678-1234-1234-1234-123456789012',sizeAnnotationMode:'source-preserved-v1'}));
 assert.equal(parsed.sizeAnnotationMode,'source-preserved-v1');
+const detailRecipe=recipeModule.exports.parseRecipe(JSON.stringify({artworkId:'a',frameId:'f',colorId:'c',intent:'catalog',instruction:'',detailLayoutMode:'chinese-editorial-v2'}));
+assert.equal(detailRecipe.detailLayoutMode,'chinese-editorial-v2');
+const detailModule={exports:{}}, detailCanvas={width:0,height:0,getContext:()=>({drawImage(){}}),toBlob:cb=>cb(originalBlob)};
+vm.runInNewContext(exportCode,{module:detailModule,exports:detailModule.exports,
+  require:n=>n==='./production-scene'?{preservesSourceSizeMarks,validSizeMarks}:{},
+  fetch:async()=>({ok:true,blob:async()=>originalBlob}),
+  createImageBitmap:async()=>({width:1024,height:3072,close(){}}),document:{createElement:()=>detailCanvas}});
+await detailModule.exports.publicationImage({kind:'detail',task:{url:'/api/files/detail',recipe:detailRecipe}},workspace,plan);
+assert.equal(detailCanvas.width,790);assert.equal(detailCanvas.height,2370);
 console.log('Unified scene, original frame annotations, no new main-image reuse, and legacy mark compatibility passed');

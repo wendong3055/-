@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { generationOwner } from '../../../../lib/generation-auth';
 import { productionContext, ProductionError, updateSizeLayout } from '../../../../db/production';
 import { sharedScene, validSizeMarks, preservesSourceSizeMarks, sizeProductionBrief } from '../../../../lib/production-scene';
-import { artworkRules } from '../../../../lib/production-plan';
+import { artworkRules, detailProductionBrief } from '../../../../lib/production-plan';
 import { productionJson } from '../../../../lib/production-request';
 export async function GET(_r:Request,c:{params:Promise<{id:string}>}) {
   const owner=await generationOwner(); if(!owner)return NextResponse.json({error:'请先登录。'},{status:401});
@@ -11,7 +11,7 @@ export async function GET(_r:Request,c:{params:Promise<{id:string}>}) {
     const plan=workspace.plans.find(p=>p.id===row.plan_id)!;
     return NextResponse.json({itemId:row.id,productId:row.product_id,planId:row.plan_id,planVersion:plan.version,
       generationId:row.generation_id,pendingItemIds:plan.items.filter(i=>!i.generationId).map(i=>i.id),
-      title:row.title,brief:row.kind==='size'?sizeProductionBrief(spec,artworkRules[config.rule],config.notes,config.sceneTitle):row.brief,kind:row.kind,spec,rule:config.rule,sceneTitle:config.sceneTitle,sceneUrl:sharedScene(plan)?.task?.url||null,
+      title:row.title,brief:row.kind==='size'?sizeProductionBrief(spec,artworkRules[config.rule],config.notes,config.sceneTitle):row.kind==='detail'?detailProductionBrief(row.title,artworkRules[config.rule],config.notes):row.brief,kind:row.kind,spec,rule:config.rule,sceneTitle:config.sceneTitle,sceneUrl:sharedScene(plan)?.task?.url||null,
       sample:workspace.sample,frameUrl:spec?`/api/files/${spec.sourceIds[0]}`:`/api/files/${workspace.product.sampleAssetId}`},{headers:{'cache-control':'no-store'}});
   }catch(e){return NextResponse.json({error:e instanceof ProductionError?e.message:'制作项暂时无法读取。'},{status:e instanceof ProductionError?e.status:503});}
 }

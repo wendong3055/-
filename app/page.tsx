@@ -193,7 +193,7 @@ export default function Home() {
       setProduction(b);setProductId(b.productId);setSelectedId(recipe.artworkId);setFrameId(recipe.frameId);setFrameColorId(recipe.colorId);
       setInstruction(b.brief.slice(0,1500));setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
       // The sample locks the product, not obsolete 4K/PRO generation parameters.
-      setModelId(defaultImageModel.id);setAspectRatio(b.kind==='detail'?'3:4':'1:1');setResolution('2k');setQuality('medium');
+      setModelId(defaultImageModel.id);setAspectRatio(b.kind==='detail'?(b.title==='完整详情长图'?'1:3':'3:4'):'1:1');setResolution('2k');setQuality('medium');
       setActiveNav('new');
     }).catch(e=>{if(!controller.signal.aborted)setPreviewError(e instanceof Error?e.message:'制作项读取失败。');}).finally(()=>{if(!controller.signal.aborted)setProductionLoading(false);});
     return()=>controller.abort();
