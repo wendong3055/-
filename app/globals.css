@@ -86,3 +86,19 @@ body{font-size:15px}.brand-lockup strong{font-size:16px}.brand-lockup small{font
 .frame-variant-zoom img{flex:1;min-height:0;width:100%;object-fit:contain;padding:14px}
 .frame-variant-zoom figcaption{flex:none;padding:10px 14px;border-top:1px solid #e5e0d5;font-size:13px;color:#4d5850;text-align:center}
 @media(max-width:900px){.frame-variant-dialog{inset:2vh 2vw}.frame-variant-body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}.frame-variant-zoom{border-left:0;border-top:1px solid #e5e0d5}.frame-variant-zoom img{max-height:22vh;padding:8px}}
+/* Batch selection in the artwork library. Removal keeps the same meaning as the
+   single-item action: the option is hidden from the list, the file is kept. */
+.restore-button.selected{border-color:#47675a;background:#eef2ed;color:#2c4a3d}
+.option-card-wrap.bulk-selected>button:first-child{border-color:#46675a;box-shadow:0 0 0 2px rgb(70 103 90 / 18%)}
+.bulk-check{position:absolute;top:6px;right:6px;z-index:6;display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:rgb(255 255 255 / 92%);box-shadow:0 2px 6px rgb(45 38 28 / 18%);cursor:pointer}
+.bulk-check input{width:16px;height:16px;margin:0;cursor:pointer;accent-color:#2f5a48}
+.gallery-bulk-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;border-radius:10px;background:#263e35;color:#eef3f0;font-size:13px}
+.gallery-bulk-bar strong{font-size:15px}
+.bulk-hint{display:block;margin-top:4px;font-style:normal;font-size:11px;line-height:1.5;color:#b3c8be}
+.gallery-bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gallery-bulk-actions button{height:32px;border:1px solid rgb(255 255 255 / 26%);border-radius:7px;background:transparent;color:#eef3f0;padding:0 12px;font-size:12px;cursor:pointer;white-space:nowrap}
+.gallery-bulk-actions button:hover:not(:disabled){background:rgb(255 255 255 / 12%)}
+.gallery-bulk-actions button:disabled{opacity:.45;cursor:not-allowed}
+.gallery-bulk-actions .bulk-primary{background:#eef3f0;border-color:#eef3f0;color:#22392f;font-weight:600}
+.gallery-bulk-actions .bulk-danger{border-color:#e2a49c;color:#ffd9d4}
+.gallery-bulk-actions .bulk-danger:hover:not(:disabled){background:#8c3a2c;border-color:#8c3a2c;color:#fff}

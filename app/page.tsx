@@ -16,6 +16,8 @@ import { generationLabels, isActiveGeneration, type GenerationTask } from '../li
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 import { frameSources, frameStyle, frameVariantImages, groupFrameOptions, parseFrameSkuIndex, validFrameStyleName, type FrameAsset, type FrameSize, type FrameVariantImage } from '../lib/frame-catalog';
 import { syncHiddenOptions } from '../lib/hidden-options-client';
+import { exportFileName, selectableAfterRemoval } from '../lib/artwork-batch';
+import { zipSync } from 'fflate';
 import { ProductWorkspaceView } from './product-workspace';
 import { consentKey, consentSettings, readConsent, consentCovers, createConsent, consumeConsent, type ProductionConsent } from '../lib/production-consent';
 
@@ -475,6 +477,24 @@ export default function Home() {
     window.setTimeout(() => setNotice(''), 3200);
   }
 
+  async function removeArtworksBulk(ids: string[], labels: string[]) {
+    if (previewGenerating || submitGuard.current) { setNotice('请等待当前组合生成完成。'); return; }
+    if (!ids.length) return;
+    if (!selectableAfterRemoval(visibleLibraryItems.map((item) => item.id), ids).length) {
+      setNotice('图库至少需要保留一个可选图案。');
+      return;
+    }
+    const preview = `${labels.slice(0, 6).join('、')}${labels.length > 6 ? ` 等 ${labels.length} 个` : ''}`;
+    if (!window.confirm(`确定从工作台选择列表中移除这 ${ids.length} 个图案吗？\n${preview}\n原始图片文件不会删除，可用“恢复已移除”找回。`)) return;
+    const next = [...new Set([...hiddenArtworkIds, ...ids])];
+    setHiddenArtworkIds(next);
+    window.localStorage.setItem('pingfeng-hidden-artworks', JSON.stringify(next));
+    resetPreview();
+    const saved = await syncHiddenOptions('artwork', ids);
+    setNotice(saved ? `已从图库选项中移除 ${ids.length} 个图案。` : `已在本页移除 ${ids.length} 个图案，后台保存暂未完成。`);
+    window.setTimeout(() => setNotice(''), 3200);
+  }
+
   async function removeFrame(id: string, name: string) {
     if (previewGenerating || submitGuard.current) { setNotice('请等待当前组合生成完成。'); return; }
     if (visibleFrameOptions.length <= 1) {
@@ -776,7 +796,7 @@ export default function Home() {
           </details><footer><span>Key 加密保存在当前账号下，历史作品不受影响。</span></footer>
         </section>}
 
-        {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
+        {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onDeleteArtworks={removeArtworksBulk} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} screenFrames={visibleScreenFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
 
       {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
       {activeNav === 'scenes' && <SceneLibrary selectedId={sceneId} disabled={previewGenerating||generations.busy||production?.kind==='size'} onSelect={id=>{if(previewGenerating||generations.busy||production?.kind==='size')return;setSceneId(id);chooseIntent('interior');setBackground('auto');resetPreview();setActiveNav('new');setNotice('已添加场景参考，点击生成才会提交。');}} />}
@@ -788,10 +808,14 @@ export default function Home() {
   );
 }
 
-function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameUploadProgress, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (files: FileList | null, styleName?: string) => void; frameUploading: boolean; frameUploadProgress: string; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
+function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork, onDeleteArtwork, onDeleteArtworks, onRestoreArtworks, hiddenArtworkCount, onUploadArtwork, frameId, frameStyles, screenFrames, onSelectFrame, onDeleteFrame, onRestoreFrames, hiddenFrameCount, onUploadFrame, frameUploading, frameUploadProgress, frameColorId, onSelectFrameColor, onCreate }: { view: string; libraryItems: typeof artworks; selectedArtworkId: string; onSelectArtwork: (id: string) => void; onDeleteArtwork: (id: string, name: string) => void; onDeleteArtworks: (ids: string[], labels: string[]) => void; onRestoreArtworks: () => void; hiddenArtworkCount: number; onUploadArtwork: (file: File | undefined) => void; frameId: string; frameStyles: FrameOption[]; screenFrames: FrameOption[]; onSelectFrame: (id: string) => void; onDeleteFrame: (id: string, name: string) => void; onRestoreFrames: () => void; hiddenFrameCount: number; onUploadFrame: (files: FileList | null, styleName?: string) => void; frameUploading: boolean; frameUploadProgress: string; frameColorId: string; onSelectFrameColor: (id: string) => void; onCreate: () => void }) {
   const [gallerySearch, setGallerySearch] = useState('');
   const [newFrameStyleName, setNewFrameStyleName] = useState('');
   const [galleryCategory, setGalleryCategory] = useState('全部素材');
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkIds, setBulkIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState('');
   const [frameVariants, setFrameVariants] = useState<{ name: string; items: FrameVariantImage[] } | null>(null);
   const [zoomedVariant, setZoomedVariant] = useState<FrameVariantImage | null>(null);
   // Double-click a style image to see every spec original kept inside that style.
@@ -816,6 +840,39 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   }), [galleryCategory, gallerySearch, libraryItems]);
   const categoryCounts = useMemo(() => Object.fromEntries(artworkCategories.map((category) => [category, libraryItems.filter((item) => item.tag === category).length])), [libraryItems]);
   const galleryGroups = useMemo(() => artworkCategories.map((category) => ({ category, items: filteredGallery.filter((item) => item.tag === category) })).filter((group) => group.items.length > 0), [filteredGallery]);
+  // Bulk selection works on the currently filtered list, and "removal" keeps the
+  // same meaning as the single-item action: the option is hidden, the file stays.
+  function toggleBulk(id: string) {
+    setBulkIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  }
+  function leaveBulkMode() { setBulkMode(false); setBulkIds([]); setBulkNotice(''); }
+  async function exportSelection() {
+    const chosen = libraryItems.filter((item) => bulkIds.includes(item.id));
+    if (!chosen.length) return;
+    setBulkBusy(true); setBulkNotice(`正在打包 ${chosen.length} 张…`);
+    try {
+      const files: Record<string, Uint8Array> = {};
+      for (const [index, item] of chosen.entries()) {
+        const response = await fetch(item.file, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`“${item.name}”读取失败，已停止导出。`);
+        files[exportFileName(item.name, index, item.file)] = new Uint8Array(await response.arrayBuffer());
+      }
+      const archive = zipSync(files, { level: 0 });
+      const url = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = `图案素材-${chosen.length}张.zip`;
+      document.body.appendChild(link); link.click(); link.remove();
+      URL.revokeObjectURL(url);
+      setBulkNotice(`已导出 ${chosen.length} 张图案。`);
+    } catch (error) { setBulkNotice((error as Error).message); }
+    finally { setBulkBusy(false); }
+  }
+  async function removeSelection() {
+    const chosen = libraryItems.filter((item) => bulkIds.includes(item.id));
+    if (!chosen.length) return;
+    await onDeleteArtworks(chosen.map((item) => item.id), chosen.map((item) => item.name));
+    setBulkIds([]);
+  }
   const headings: Record<string, [string, string]> = {
     gallery: ['图库收纳', '仅收纳原始画芯图案；背景参考请到场景图库'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
@@ -836,7 +893,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
                 <div onDoubleClick={(event) => { event.preventDefault(); void openFrameVariants(item); }} title="双击查看该款式全部框架图"><img src={item.file} alt={`${item.name}标准合并框架`} />{frameId === item.id && <b>已选择 ✓</b>}</div>
                 <span><small>标准合并框架</small><strong>{item.name}</strong><em>{item.tone}</em><i>{item.variantCount} 张规格原图保留在款式内部 · 双击框架图查看</i></span>
               </button>
-              <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+              <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`从框架选项移除${item.name}`}>移除</button>
             </div>)}
           </div>
           {frameVariants && <dialog open className="frame-variant-dialog" aria-label={`${frameVariants.name}全部框架图`} onKeyDown={(event) => { if (event.key === 'Escape') closeFrameVariants(); }}>
@@ -863,7 +920,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
               <div><small>FRAME {String(index + 1).padStart(2, '0')}</small><strong>{item.name}</strong><p><i style={{ background: item.color }} />{item.tone}<em>{item.profile === 'classic' ? '滑轮底座' : item.profile === 'wide' ? '加宽立柱' : item.profile === 'joinery' ? '榫卯装饰' : '窄边框体'}</em></p></div>
               <span>{frameId === item.id ? '已选择 ✓' : '选择此框架'}</span>
             </button>
-            <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`删除框架选项${item.name}`}>删除</button>
+            <button className="remove-option" onClick={() => onDeleteFrame(item.id, item.name)} aria-label={`从框架选项移除${item.name}`}>移除</button>
           </div>)}
           <label className={frameUploading ? 'frame-upload-card uploading' : 'frame-upload-card'}><b>{frameUploading ? '…' : '＋'}</b><strong>{frameUploading ? '正在上传文件夹' : '选择框架文件夹'}</strong><small>{frameUploading ? frameUploadProgress : '整套 JPG / PNG 一次上传，只生成一个代表框架'}</small><input type="file" accept="image/png,image/jpeg" multiple disabled={frameUploading} {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)} onChange={(event) => { onUploadFrame(event.target.files, newFrameStyleName); event.currentTarget.value = ''; }} /></label>
         </div>
@@ -881,9 +938,11 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
       </>}
       {view === 'gallery' && <>
         <div className="library-stats"><div><span>全部素材</span><strong>{libraryItems.length}</strong><small>本地图库与上传素材统一归类</small></div><div><span>图库类别</span><strong>{artworkCategories.length}</strong><small>按类别筛选与收纳</small></div><div><span>自动分类</span><strong>文件名</strong><small>当前按文件名关键词归类，未接入看图识别</small></div><div><span>未识别素材</span><strong>{categoryCounts['综合图案']}</strong><small>统一收纳在综合图案</small></div></div>
-        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、类别、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips"><button className={galleryCategory === '全部素材' ? 'selected' : ''} onClick={() => setGalleryCategory('全部素材')}>全部素材 <b>{libraryItems.length}</b></button>{artworkCategories.map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item} <b>{categoryCounts[item]}</b></button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<label className="upload-button"><span>＋</span> 上传并自动分类<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
-        <div className="gallery-category-stack">{galleryGroups.map((group) => <section className="gallery-category-section" key={group.category}><header><h3>{group.category}</h3><span>{group.items.length} 张</span></header><div className="gallery-wide-grid selectable-gallery">{group.items.map((item) => <div className="option-card-wrap" key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button><button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`删除图案选项${item.name}`}>删除</button></div>)}</div></section>)}{galleryGroups.length === 0 && <div className="gallery-empty-state"><strong>没有找到符合条件的图案</strong><span>可以更换类别或清空搜索词后再查看。</span></div>}</div>
-        <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>
+        <div className="secondary-gallery-toolbar"><label className="search-box"><span aria-hidden="true" /><input value={gallerySearch} onChange={(event) => setGallerySearch(event.target.value)} placeholder="搜索图案、类别、日期或文件夹" /><kbd>{filteredGallery.length}张</kbd></label><div className="filter-chips"><button className={galleryCategory === '全部素材' ? 'selected' : ''} onClick={() => setGalleryCategory('全部素材')}>全部素材 <b>{libraryItems.length}</b></button>{artworkCategories.map((item) => <button key={item} className={galleryCategory === item ? 'selected' : ''} onClick={() => setGalleryCategory(item)}>{item} <b>{categoryCounts[item]}</b></button>)}</div>{hiddenArtworkCount > 0 && <button className="restore-button" onClick={onRestoreArtworks}>恢复已移除</button>}<button className={bulkMode ? 'restore-button selected' : 'restore-button'} onClick={() => bulkMode ? leaveBulkMode() : setBulkMode(true)}>{bulkMode ? '退出批量' : '批量选择'}</button><label className="upload-button"><span>＋</span> 上传并自动分类<input type="file" accept="image/png,image/jpeg" onChange={(event) => onUploadArtwork(event.target.files?.[0])} /></label></div>
+        <div className="gallery-category-stack">{galleryGroups.map((group) => <section className="gallery-category-section" key={group.category}><header><h3>{group.category}</h3><span>{group.items.length} 张</span></header><div className="gallery-wide-grid selectable-gallery">{group.items.map((item) => <div className={bulkMode && bulkIds.includes(item.id) ? 'option-card-wrap bulk-selected' : 'option-card-wrap'} key={item.id}><button className={selectedArtworkId === item.id ? 'selected' : ''} onClick={() => bulkMode ? toggleBulk(item.id) : onSelectArtwork(item.id)}><div className="gallery-image-wrap"><img src={item.file} alt={item.name} loading="lazy" />{selectedArtworkId === item.id && !bulkMode && <b>已选择 ✓</b>}</div><div><small>{item.tag}</small><strong>{item.name}</strong><p>{item.tone} · {item.ratio}</p></div></button>{bulkMode ? <label className="bulk-check"><input type="checkbox" checked={bulkIds.includes(item.id)} onChange={() => toggleBulk(item.id)} aria-label={`选择图案${item.name}`} /></label> : <button className="remove-option" onClick={() => onDeleteArtwork(item.id, item.name)} aria-label={`从图库选项移除${item.name}`}>移除</button>}</div>)}</div></section>)}{galleryGroups.length === 0 && <div className="gallery-empty-state"><strong>没有找到符合条件的图案</strong><span>可以更换类别或清空搜索词后再查看。</span></div>}</div>
+        {bulkMode
+          ? <div className="gallery-bulk-bar"><span className="bulk-summary">已选 <strong>{bulkIds.length}</strong> / {filteredGallery.length} 张{bulkNotice ? ` · ${bulkNotice}` : ''}<em className="bulk-hint">移除只是从列表隐藏，可用「恢复已移除」找回；原始文件不会被删除</em></span><span className="gallery-bulk-actions"><button type="button" disabled={bulkBusy || !filteredGallery.length} onClick={() => setBulkIds(filteredGallery.map((item) => item.id))}>全选当前筛选</button><button type="button" disabled={bulkBusy || !bulkIds.length} onClick={() => setBulkIds([])}>清空选择</button><button type="button" className="bulk-danger" disabled={bulkBusy || !bulkIds.length} onClick={() => void removeSelection()}>批量移除</button><button type="button" className="bulk-primary" disabled={bulkBusy || !bulkIds.length} onClick={() => void exportSelection()}>{bulkBusy ? '正在打包…' : `导出 ZIP（${bulkIds.length}）`}</button><button type="button" disabled={bulkBusy} onClick={leaveBulkMode}>完成</button></span></div>
+          : <div className="gallery-selection-bar"><span>已选择：<strong>{libraryItems.find((item) => item.id === selectedArtworkId)?.name ?? '尚未选择'}</strong></span><button onClick={onCreate}>使用所选图案创建新品 →</button></div>}
       </>}
 
     </section>
