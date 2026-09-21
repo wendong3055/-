@@ -278,3 +278,11 @@ button, input, select, textarea { font-family: inherit; }
 .api-privacy-note { background:#e8f0eb; border-radius:10px; padding:12px 16px; }
 .api-add-link { margin-top:12px; font-size:16px; }
 @media(max-width:760px) { .api-form-grid { grid-template-columns:1fr; } .custom-api-settings { padding:16px; } .custom-api-settings header,.api-provider-list article { flex-direction:column; } }
+
+/* Frame cards need enough text space even inside a narrow workbench panel. */
+.cabinet-style-grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr)); align-items:stretch; }
+.cabinet-style-grid .cabinet-style-card { grid-template-columns:minmax(90px,140px) minmax(0,1fr); }
+.cabinet-style-card > span { min-width:0; padding-top:20px; overflow-wrap:anywhere; }
+.cabinet-style-card > span em,.cabinet-style-card > span i { font-size:14px; line-height:1.6; }
+.cabinet-style-grid .remove-option { top:10px; right:10px; }
+@media(max-width:480px) { .cabinet-style-grid .cabinet-style-card { grid-template-columns:minmax(0,1fr); } .cabinet-style-card > span { padding-top:0; } }
