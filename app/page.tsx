@@ -879,7 +879,7 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
   const [title, description] = headings[view] ?? ['新品项目', '管理所有新品制作进度'];
   return (
     <section className="secondary-view">
-      <header className="secondary-head"><div><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2><span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>
+      <header className="secondary-head"><div>{view !== 'frames' && <><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2></>}<span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>
       {view === 'frames' && <>
         <section className="cabinet-style-section">
           <div className="cabinet-style-grid">
