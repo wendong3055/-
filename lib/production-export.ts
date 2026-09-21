@@ -4,6 +4,33 @@ import { drawSizeAnnotations, detailCaptions } from './production-annotations';
 import { validSizeMarks, preservesSourceSizeMarks } from './production-scene';
 import { findScene } from './scene-library';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
+function readyDetails(plan:ProductionPlan){
+  const items=plan.items.filter(i=>i.kind==='detail');
+  if(!items.length||items.some(i=>i.task?.status!=='succeeded'||!i.task.url||i.review==='rework'))throw new Error('请先完成全部详情页，已标记重做的页面需重新制作。');
+  return items;
+}
+export async function detailLongImage(workspace:ProductWorkspace,plan:ProductionPlan){
+  const items=readyDetails(plan), bitmaps:ImageBitmap[]=[];
+  try{
+    for(const item of items)bitmaps.push(await createImageBitmap(await publicationImage(item,workspace,plan)));
+    const canvas=document.createElement('canvas');canvas.width=790;canvas.height=bitmaps.reduce((h,b)=>h+Math.round(b.height*790/b.width),0);
+    if(canvas.height>24000)throw new Error('详情页过长，请下载单独切片。');
+    const ctx=canvas.getContext('2d');if(!ctx)throw new Error('无法拼接详情页。');let y=0;
+    for(const bitmap of bitmaps){const h=Math.round(bitmap.height*790/bitmap.width);ctx.drawImage(bitmap,0,y,790,h);y+=h;}
+    return await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('详情长图导出失败。')),'image/png'));
+  }finally{bitmaps.forEach(b=>b.close());}
+}
+export async function exportDetailDraft(workspace:ProductWorkspace,plan:ProductionPlan){
+  const files:Record<string,Uint8Array>={},items=readyDetails(plan);let bytes=0;
+  for(const [n,item] of items.entries()){
+    const blob=await publicationImage(item,workspace,plan);bytes+=blob.size;
+    if(bytes>80*1024*1024)throw new Error('样稿过大，请使用单页下载。');
+    files[`详情切片/${String(n+1).padStart(2,'0')}_${safeName(item.title)}.png`]=new Uint8Array(await blob.arrayBuffer());
+  }
+  files['详情长图_790.png']=new Uint8Array(await (await detailLongImage(workspace,plan)).arrayBuffer());
+  files['待验收说明.txt']=strToU8('这是详情样稿，不代表人工验收通过。上架前请核对结构、图案、木色、文字和参数。');
+  downloadBlob(new Blob([zipSync(files,{level:0}) as Uint8Array<ArrayBuffer>],{type:'application/zip'}),`${safeName(plan.config.name)}_v${plan.version}_详情样稿.zip`);
+}
 export function downloadBlob(blob:Blob,name:string) {
   const url=URL.createObjectURL(blob), link=document.createElement('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
 }

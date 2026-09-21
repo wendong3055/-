@@ -30,6 +30,9 @@ assert.ok(!preservesSourceSizeMarks({...item,id:'i',task:{recipe:{productionItem
 assert.ok(!preservesSourceSizeMarks({...item,id:'i',task:{recipe:{}}}));
 const input={name:'test',expectedVersion:0,rule:'upper',notes:'',sizes:[spec],main:['客厅场景'],details:['新品形象'],confirmed:true,sceneTitle:'客厅场景'};
 const validated=validateProductionPlan(input,['representative']);assert.equal(validated.sceneTitle,'客厅场景');
+const detailsOnly=validateProductionPlan({...input,main:[],sizes:[]},[]);
+assert.equal(detailsOnly.sceneTitle,undefined);assert.equal(planItems(detailsOnly).length,1);
+assert.throws(()=>validateProductionPlan({...input,sceneTitle:undefined},['representative']),/尺寸图需要共用场景/);
 const longPlan=validateProductionPlan({...input,sizes:[],details:['完整详情长图']},[]);
 const longBrief=planItems(longPlan).find(i=>i.kind==='detail').brief;
 assert.match(longBrief,/1:3竖版完整电商详情长图/);

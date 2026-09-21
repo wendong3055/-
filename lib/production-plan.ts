@@ -14,9 +14,17 @@ export const detailOptions = ['完整详情长图', '新品形象', '画芯设�
 export const detailTemplateReference = {name:'家居编辑式长图',source:'https://www.zcool.com.cn/work/ZNDg1MzExODg%3D.html',note:'仅参考分区、图文节奏和留白；不复制原图、品牌、文案或产品卖点。'};
 export function detailProductionBrief(title:string,rule:string,notes:string) {
   const long=title==='完整详情长图';
+  const modules:Record<string,string>={
+    '新品形象':'产品首屏：上方大标题，下方完整正面产品为主体，底座与脚轮不裁切；只概括已确认的图案和框架搭配。',
+    '画芯设计':'画芯展示：以原画芯正面放大特写为主，配短句描述可见色彩与构图；不增加完整产品小图，不改变原画芯内容。',
+    '框架与配色':'结构细节：放大参考图中已有的框架或柜体正面细节，准确保留抽屉、门、拉手和木色。只介绍可见结构，不打开门抽、不展示未知内部。',
+    '空间搭配':'空间场景：同一产品完整正面置于简洁客厅，周边家具陪衬且不遮挡产品，配两句简短搭配说明。不要重复细节页构图。',
+    '规格选择':'参数说明：采用清晰大字表格，只整理已确认的名称、图案、颜色和可见结构；无确认数值不印尺寸，提示“具体尺寸以所选规格原图为准”。不生成猜测的尺寸箭头。',
+    '选购须知':'选购说明：以三条清楚的大字信息为主：“确认规格与摆放空间”“屏幕显示存在色差，请以实物为准”“产品尺寸以所选规格原图为准”。辅以一张完整正面产品小图。',
+  };
   const layout=long
     ? '输出一张1:3竖版完整电商详情长图，不是单张场景照，不是多视图联系表。五段从上到下连贯排版：①首屏，中文大标题“让图案融入日常”，副标题“画芯与框架的搭配”，配一张完整正面产品场景图；②“画芯之美”，正文“在色彩与线条间，感受画面的层次”，仅放大已有画芯；③“细节有序”，正文“框架与画芯，自然相衬”，仅裁切参考图可见结构，不打开柜门或抽屉；④“融入空间”，正文“为日常空间，添一处风景”，保持同一产品和视角；⑤“选购提示”，只写“下单前请确认规格、颜色与摆放空间。屏幕显示存在色差，请以实物为准。”'
-    : `输出一张3:4竖版、带中文排版的“${title}”详情切片；一个明确标题、一张主体图、一处已有细节裁切和两句简短中文介绍。标题使用“${title}”，介绍只描述参考图中可见的图案、配色和外观。不是无文字配图，不生成多视图联系表。`;
+    : `只输出一张3:4竖版、带中文排版的“${title}”详情切片，不要将整套其他模块拼入本页。${modules[title]||'一个明确标题，配与本页主题相关的产品图和简短介绍。'}标题默认使用“${title}”，补充要求指定本页标题时以指定标题为准，不重复两套文案。不是无文字配图，不生成多视图联系表。`;
   return `${layout}参考家居编辑式模板的场景大图、局部细节、短文案与留白节奏，重新设计，不复制参考品牌或商品。自然暖白底、深棕标题、清晰中文无衬线正文，统一边距和字号层级；不得使用微小文字、乱码、英文占位或水印。严格锁定确认样图的产品比例、画芯、木色、门、抽屉、五金和脚轮；同一产品在各分区保持一致。禁止新增侧面、背面、俯视、爆炸图及未经参考图证实的内部结构。不得编造材质、认证、承重、尺寸、价格或服务承诺；不印未经核实的参数。${rule} ${notes} 最终输出必须包含清晰中文标题和说明；忽略旧规则中的“不带文字配图、交付时再排版”，不得用无依据的新视角填充版面。`;
 }
 export type ProductionPlanInput = {
@@ -50,9 +58,10 @@ export function validateProductionPlan(value: unknown, sources: string[]): Produ
   if (new Set(sizes.map(s=>s.key)).size !== sizes.length) throw new Error('有重复规格，请合并后再确认。');
   const main = choices(p.main, mainOptions), details = choices(p.details, detailOptions);
   if(details.includes('完整详情长图')&&details.length>1)throw new Error('完整详情长图与单模块请分开制作，避免重复生成。');
-  if(p.sceneTitle && (!['客厅场景','玄关场景'].includes(p.sceneTitle)||!main.includes(p.sceneTitle)))throw new Error('请在主图中勾选共用场景，再保存清单。');
+  const sceneTitle=sizes.length?p.sceneTitle:undefined;
+  if(sizes.length && (!sceneTitle||!['客厅场景','玄关场景'].includes(sceneTitle)||!main.includes(sceneTitle)))throw new Error('尺寸图需要共用场景，请在主图中勾选对应场景。');
   if (!main.length && !details.length && !sizes.length) throw new Error('请至少选择一个制作项目。');
-  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(p.sceneTitle?{sceneTitle:p.sceneTitle}:{})};
+  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(sceneTitle?{sceneTitle}:{})};
 }
 export function planItems(plan: ProductionPlanInput) {
   const lock = `${artworkRules[plan.rule]} ${plan.notes}`;
