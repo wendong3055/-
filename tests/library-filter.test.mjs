@@ -26,7 +26,7 @@ for (const [id, owner, category] of [
   ['frame-variant', 'owner', '框架规格'], ['color', 'owner', '颜色素材'],
   ['output', 'owner', '生成效果图'], ['legacy-output', 'owner', '抽象艺术'],
   ['task-id-output', 'owner', '未分类'], ['sample', 'owner', '未分类'],
-  ['foreign', 'other', '抽象艺术'], ['foreign-link', 'owner', '抽象艺术'],
+  ['foreign', 'other', '抽象艺术'], ['foreign-link', 'owner', '抽象艺术'], ['detail-ref', 'owner', '详情参考'],
 ]) insert.run(id, owner, '新品形象 · 暖色抽象圆叶', category);
 db.prepare('INSERT INTO generation_tasks VALUES (?, ?, ?)').run('g1', 'owner', 'legacy-output');
 db.prepare('INSERT INTO generation_tasks VALUES (?, ?, ?)').run('task-id-output', 'owner', null);
@@ -39,7 +39,7 @@ const select = () => db.prepare(`SELECT id FROM assets WHERE ${query.sql} ORDER 
 assert.deepEqual(select(), ['art', 'color', 'foreign-link', 'frame', 'frame-variant']);
 insert.run('future-output', 'owner', '新成图', '生成效果图');
 assert.ok(!select().includes('future-output'), 'new results never become source artwork');
-assert.equal(db.prepare('SELECT COUNT(*) AS n FROM assets').get().n, 11, 'filter never deletes file records');
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM assets').get().n, 12, 'filter never deletes file records');
 assert.equal(db.prepare("SELECT id FROM assets WHERE id='output'").get().id, 'output', 'direct file/history access retained');
 assert.equal(db.prepare('SELECT sample_asset_id FROM products').get().sample_asset_id, 'sample');
 const route = readFileSync(new URL('../app/api/library/route.ts', import.meta.url), 'utf8');

@@ -5,6 +5,7 @@ import vm from 'node:vm';
 const moduleUrl=async path=>{
   let code=ts.transpileModule(await readFile(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
   if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
+  if(code.includes("from './detail-template'"))code=code.replace("from './detail-template'",`from '${await moduleUrl('../lib/detail-template.ts')}'`);
   return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 };
 const load=async path=>import(await moduleUrl(path));
@@ -36,7 +37,7 @@ assert.throws(()=>validateProductionPlan({...input,sceneTitle:undefined},['repre
 const longPlan=validateProductionPlan({...input,sizes:[],details:['完整详情长图']},[]);
 const longBrief=planItems(longPlan).find(i=>i.kind==='detail').brief;
 assert.match(longBrief,/1:3竖版完整电商详情长图/);
-assert.match(longBrief,/禁止新增侧面、背面/);
+assert.match(longBrief,/禁止新增未经参考图证实的侧面、背面/);
 assert.match(longBrief,/清晰中文标题和说明/);
 assert.match(longBrief,/不得编造材质、认证、承重、尺寸/);
 assert.throws(()=>validateProductionPlan({...input,details:['完整详情长图','新品形象']},['representative']),/分开制作/);

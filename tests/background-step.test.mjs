@@ -4,6 +4,7 @@ import ts from 'typescript';
 const moduleUrl=async path=>{
  let code=ts.transpileModule(await readFile(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
  if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
+ if(code.includes("from './detail-template'"))code=code.replace("from './detail-template'",`from '${await moduleUrl('../lib/detail-template.ts')}'`);
  return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 };
 const {validateProductionPlan,planItems,reusableBackground,initialProductionDraft}=await import(await moduleUrl('../lib/production-plan.ts'));
@@ -27,9 +28,9 @@ assert.ok(view.includes('if(!delivery&&!b.plans.length&&b.sample?.recipe)setEdit
 const sourceSize={key:'80x200',widthCm:80,heightCm:200,widthParts:[80],sourceIds:['frame-80','extra'],sourceUrls:['/api/files/frame-80','/extra']};
 const draft=initialProductionDraft({product:{name:'已确认样图'},sizes:[sourceSize],plans:[]});
 assert.equal(draft.confirmed,false);assert.ok(!draft.backgroundOnly);
-assert.equal(draft.main.length,3);assert.equal(draft.details.length,6);assert.equal(draft.sizes.length,1);
+assert.equal(draft.main.length,3);assert.equal(draft.details.length,12);assert.equal(draft.sizes.length,1);
 assert.deepEqual(draft.sizes[0].sourceIds,['frame-80']);assert.equal(sourceSize.sourceIds.length,2);
 const full=validateProductionPlan({...draft,confirmed:true},['frame-80']);
-assert.equal(planItems(full).length,10);
+assert.equal(planItems(full).length,16);
 assert.match(view,/plan&&!editor&&!backgroundStep/);
 console.log('PASS background-only validation, explicit acceptance, safe same-product scene reuse, legacy workspace separation');

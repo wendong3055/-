@@ -6,6 +6,7 @@ import {generationLabels} from '../lib/generation-types';
 import {detailCandidates,runDetailBatch} from '../lib/detail-batch';
 import {referenceUpload} from '../lib/reference-upload';
 import {downloadBlob,detailLongImage,exportDetailDraft} from '../lib/production-export';
+import {detailMissing} from '../lib/detail-template';
 
 type Reference={id:string;file:string;name:string};
 type Color={id:string;name:string;color:string};
@@ -17,7 +18,8 @@ export function DetailBatch({data,plan,artworks,colors,onUpdate,onBusy}:{data:Pr
   const [preview,setPreview]=useState(''),[exporting,setExporting]=useState(false);
   useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview);},[preview]);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;stop.current=true;onBusy(false);};},[onBusy]);
-  const details=plan.items.filter(i=>i.kind==='detail'),pending=detailCandidates(details),retry=detailCandidates(details,true);
+  const details=plan.items.filter(i=>i.kind==='detail'),available=details.filter(i=>!detailMissing(i.title,plan.config.detailEvidence).length),pending=detailCandidates(available),retry=detailCandidates(available,true);
+  const blocked=details.filter(i=>!i.generationId&&detailMissing(i.title,plan.config.detailEvidence).length);
   const completed=details.filter(i=>i.task?.status==='succeeded'&&i.review!=='rework').length;
   async function exportDraft(show=false){setExporting(true);try{if(show)setPreview(URL.createObjectURL(await detailLongImage(data,plan)));else await exportDetailDraft(data,plan);setMessage('这是待验收样稿，不会自动标记为通过。');}catch(e){setMessage(String(e));}finally{setExporting(false);}}
   async function refresh(){const next=await json<ProductWorkspace>(`/api/products/${encodeURIComponent(data.product.id)}/workspace`,{cache:'no-store'});if(mounted.current)onUpdate(next);return next;}
@@ -26,7 +28,7 @@ export function DetailBatch({data,plan,artworks,colors,onUpdate,onBusy}:{data:Pr
     try{
       const next=await refresh(),fresh=next.plans.find(p=>p.id===plan.id);
       if(!fresh)throw new Error('制作版本已变化，请刷新后再试。');
-      const items=detailCandidates(fresh.items,retryOnly);
+      const items=detailCandidates(fresh.items,retryOnly).filter(i=>!detailMissing(i.title,fresh.config.detailEvidence).length);
       if(!items.length)throw new Error('没有需要提交的详情页。已完成图片不会重复生成。');
       const tasks=await json<GenerationTask[]>('/api/generations',{cache:'no-store'});
       if(tasks.some(t=>!['succeeded','failed'].includes(t.status)))throw new Error('还有运行中或待核对的任务，请先在生成任务中处理，再继续整套制作。');
@@ -52,10 +54,11 @@ export function DetailBatch({data,plan,artworks,colors,onUpdate,onBusy}:{data:Pr
         wait:()=>new Promise(resolve=>setTimeout(resolve,12000)),
         progress:async(item,task)=>{if(mounted.current){setCurrent(`${item.title} · ${generationLabels[task.status]}`);setMessage('');if(['succeeded','failed','unknown'].includes(task.status))await refresh();} },
       });
-      setMessage(stop.current?'已暂停后续提交；已经提交的任务继续运行，可刷新查看。':'本轮详情页已生成，请在下方集中检查。');
+      setMessage(stop.current?'已暂停后续提交；已经提交的任务继续运行，可刷新查看。':'本轮可制作详情页已生成；缺资料的页面仍保留待补充，请在下方检查。');
     }catch(e){if(mounted.current)setMessage(e instanceof Error?e.message:'制作暂停，请先核对任务记录，不要重复提交。');}
     finally{try{await refresh();}catch{}lock.current=false;if(mounted.current){setRunning(false);onBusy(false);setCurrent('');}}
   }
   if(!details.length)return null;
+  if(blocked.length&&pending.length===0&&retry.length===0&&completed!==details.length)return <section className="detail-batch"><h3>详情资料待补充</h3><p>已完成图片保留。点击上方“基于此版调整，另存新版本”补充资料。</p><ul>{blocked.map(i=><li key={i.id}>{i.title}：{detailMissing(i.title,plan.config.detailEvidence).join('、')}</li>)}</ul></section>;
   return <section className="detail-batch" aria-label="整套详情制作"><h3>整套详情 · 一次确认，自动逐页制作</h3><p>已生成 {completed}/{details.length} 页 · 待首次制作 {pending.length} 页 · 待重做 {retry.length} 页</p><progress aria-label="详情生成进度" value={completed} max={details.length}/><label>生图模型<select disabled={running} value={model} onChange={e=>setModel(e.target.value)}><option value="gpt-image-2">GPT Image 2</option><option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst</option></select></label><p>2K · 标准质量 · 每页自动使用对应文案。已完成页面不重复生成，不连带制作主图和尺寸图。</p><div className="product-actions"><button disabled={running||!pending.length} onClick={()=>void start()}>一键生成剩余详情（{pending.length} 张）</button>{retry.length>0&&<button disabled={running} onClick={()=>void start(true)}>仅重做失败 / 已标记页（{retry.length} 张）</button>}{running&&<button onClick={()=>{stop.current=true;setMessage('已要求暂停，已提交任务不会取消。');}}>暂停后续提交</button>}<button disabled={running||exporting||completed!==details.length} onClick={()=>void exportDraft(true)}>整套长图预览</button><button disabled={running||exporting||completed!==details.length} onClick={()=>void exportDraft()}>下载详情样稿（切片＋长图）</button></div><p role="status">{message||current}</p><small>保持页面打开。刷新后不会自动提交；运行中或状态不明的任务需先核对，不会重复扣费重试。</small>{preview&&<dialog open className="publication-preview" aria-label="整套详情样稿预览"><button onClick={()=>setPreview('')}>关闭预览</button><h3>整套详情 · 待验收样稿</h3><button onClick={()=>void fetch(preview).then(r=>r.blob()).then(b=>downloadBlob(b,'详情长图_待验收.png'))}>下载长图</button><img src={preview} alt="整套详情长图"/></dialog>}</section>;
 }

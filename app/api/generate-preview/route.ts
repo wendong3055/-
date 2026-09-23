@@ -11,7 +11,7 @@ import { runningHubConnection, providerError, RUNNINGHUB_MODEL, RunningHubError,
 import { getImageModel, validModelSettings } from '../../../lib/generation-models';
 import {compositionCatalogPayload} from '../../../lib/international-composition-models';
 import { claimSubmission, getTask, insertTask, listTasks, publicTask, type TaskRow, updateTask } from '../../../db/generation-tasks';
-import { productionContext, claimProductionItem, productionSceneFile, ProductionError } from '../../../db/production';
+import { productionContext, claimProductionItem, productionSceneFile, productionDetailFiles, ProductionError } from '../../../db/production';
 import { artworkRules, detailProductionBrief } from '../../../lib/production-plan';
 import { sceneSizeBrief } from '../../../lib/production-scene';
 import { latestInternationalKeyId } from '../../../db/runninghub-international';
@@ -89,7 +89,12 @@ export async function POST(request: Request) {
       if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
       prompt=context.row.kind==='size'
         ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
-        : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构、木色和图案位置不变，不要重新替换到其他区域。${context.row.kind==='detail'?detailProductionBrief(context.row.title,artworkRules[context.config.rule],context.config.notes):context.row.brief}\n本次补充：${field('instruction')}`;
+        : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构和图案位置不变，不要重新替换到其他区域。${context.row.title==='六种颜色展示'?'仅按六色展示要求改变木质部分配色。':'保持木色不变。'}${context.row.kind==='detail'?detailProductionBrief(context.row.title,artworkRules[context.config.rule],context.config.notes,context.config.detailEvidence):context.row.brief}\n本次补充：${field('instruction')}`;
+      if(context.row.kind==='detail'){
+        for(const ref of await productionDetailFiles(owner,context)){refs.push(ref.file);prompt+=`\n图${refs.length}为${ref.label}，只用于对应部分，不能当作新画芯或不同产品。`;}
+        if((refs as File[]).reduce((n,f)=>n+f.size,0)>20*1024*1024)throw new ProductionError('本页参考图合计超过20MB，请缩小参考图后再试。');
+        if(model.id!=='gpt-image-2'&&refs.some(f=>(f as File).type==='image/webp'))throw new ProductionError('此模型的详情参考图请上传 JPG 或 PNG，或改用 GPT Image 2。');
+      }
       if(context.row.kind==='detail'&&context.row.title==='完整详情长图'&&ratio!=='1:3')throw new ProductionError('完整详情长图请选择支持 1:3 比例的模型，避免长图被压成普通配图。');
       if(context.row.review==='rework' && context.row.note) prompt+=`\n上一稿重做原因：${context.row.note}`;
       if(context.config.sceneTitle) {

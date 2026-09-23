@@ -7,6 +7,7 @@ export function libraryAssetFilter(ownerId: string) {
   return and(
     eq(assets.ownerId, ownerId),
     ne(assets.category, '生成效果图'),
+    ne(assets.category, '详情参考'),
     sql`NOT EXISTS (
       SELECT 1 FROM ${generationTasks}
       WHERE ${generationTasks.ownerId} = ${assets.ownerId}

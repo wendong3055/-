@@ -3,6 +3,7 @@ import { getTask, publicTask, type TaskRow } from './generation-tasks';
 import { assetStyle, frameSources, frameStyle, type FrameAsset } from '../lib/frame-catalog';
 import { planItems, validateProductionPlan, reusableBackground, type ProductWorkspace, type ProductionPlanInput } from '../lib/production-plan';
 import { sharedScene, canReuseScene, validSizeMarks } from '../lib/production-scene';
+import { detailMissing,detailReferenceKeys,detailReferenceLabels } from '../lib/detail-template';
 export class ProductionError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function productWorkspace(owner:string,id:string): Promise<ProductWorkspace> {
   const p = await env.DB.prepare('SELECT * FROM products WHERE owner_id = ? AND id = ?').bind(owner,id).first<Record<string,string>>();
@@ -30,6 +31,10 @@ export async function saveProductionPlan(owner:string,id:string,value:unknown) {
   if(!workspace.sample?.recipe || workspace.sample.status!=='succeeded') throw new ProductionError('请先确认一张包含完整搭配信息的成功样图。');
   let plan:ProductionPlanInput;
   try {plan=validateProductionPlan(value,workspace.sources.map(s=>s.id));}catch(e){throw new ProductionError(e instanceof Error?e.message:'制作清单格式无效。');}
+  for(const ref of Object.values(plan.detailEvidence?.refs||{})){
+    const asset=await env.DB.prepare("SELECT id FROM assets WHERE owner_id=? AND id=? AND category='详情参考'").bind(owner,ref).first();
+    if(!asset)throw new ProductionError('详情参考图不存在或不属于当前账号，请重新上传。');
+  }
   if(plan.expectedVersion!==(workspace.plans[0]?.version||0)) throw new ProductionError('制作清单已有更新，请重新读取后再保存。',409);
   const planId=crypto.randomUUID(), version=plan.expectedVersion+1;
   const background=reusableBackground(workspace.plans[0],plan);
@@ -51,6 +56,20 @@ export async function claimProductionItem(owner:string,itemId:string,taskId:stri
     (generation_id IS NULL OR EXISTS (SELECT 1 FROM generation_tasks g WHERE g.id = production_items.generation_id AND g.owner_id = ? AND
     (g.status = 'failed' OR (g.status = 'succeeded' AND production_items.review = 'rework'))))`).bind(taskId,owner,itemId,owner).run();
   if(!result.meta.changes) throw new ProductionError('此项已生成或正在处理；需要重做时先在新品清单标记重做。',409);
+}
+export async function productionDetailFiles(owner:string,context:Awaited<ReturnType<typeof productionContext>>){
+  const evidence=context.config.detailEvidence,missing=detailMissing(context.row.title,evidence);
+  if(missing.length)throw new ProductionError(`“${context.row.title}”需先补充${missing.join('、')}，请在新品清单中调整详情资料；尚未提交生图。`);
+  const result:{file:File;label:string}[]=[];
+  for(const key of detailReferenceKeys(context.row.title)){
+    const id=evidence?.refs?.[key];if(!id)continue;
+    const asset=await env.DB.prepare("SELECT object_key,mime_type FROM assets WHERE owner_id=? AND id=? AND category='详情参考'").bind(owner,id).first<{object_key:string;mime_type:string}>();
+    if(!asset||!['image/jpeg','image/png','image/webp'].includes(asset.mime_type))throw new ProductionError('详情参考图无法读取，请重新上传。');
+    const object=await env.FILES.get(asset.object_key);
+    if(!object||object.size>10*1024*1024)throw new ProductionError('详情参考图不存在或超过10MB。');
+    result.push({file:new File([await object.arrayBuffer()],`${key}.${asset.mime_type.split('/')[1]}`,{type:asset.mime_type}),label:detailReferenceLabels[key]});
+  }
+  return result;
 }
 export async function productionSceneFile(owner:string,context:Awaited<ReturnType<typeof productionContext>>) {
   const plan=context.workspace.plans.find(p=>p.id===context.row.plan_id)!;

@@ -2,6 +2,7 @@ import type { FrameSize } from './frame-catalog';
 import type { GenerationTask } from './generation-types';
 import type { SizeMarks } from './production-scene';
 import { sizeProductionBrief } from './production-scene';
+import { expandedDetails, extraDetailBriefs, validateDetailEvidence, type DetailEvidence } from './detail-template';
 
 export const artworkRules = {
   upper: '只在上方屏芯装画，柜门、抽屉和其余木质部件不加图案。',
@@ -10,11 +11,12 @@ export const artworkRules = {
   repeat: '每扇画芯重复同一幅完整图案，不改变扇数与结构。',
 } as const;
 export const mainOptions = ['白底主图', '玄关场景', '客厅场景'] as const;
-export const detailOptions = ['完整详情长图', '新品形象', '画芯设计', '框架与配色', '空间搭配', '规格选择', '选购须知'] as const;
+export const detailOptions = ['完整详情长图', ...expandedDetails] as const;
 export const detailTemplateReference = {name:'家居编辑式长图',source:'https://www.zcool.com.cn/work/ZNDg1MzExODg%3D.html',note:'仅参考分区、图文节奏和留白；不复制原图、品牌、文案或产品卖点。'};
-export function detailProductionBrief(title:string,rule:string,notes:string) {
+export function detailProductionBrief(title:string,rule:string,notes:string,evidence?:DetailEvidence) {
   const long=title==='完整详情长图';
   const modules:Record<string,string>={
+    ...extraDetailBriefs,
     '新品形象':'产品首屏：上方大标题，下方完整正面产品为主体，底座与脚轮不裁切；只概括已确认的图案和框架搭配。',
     '画芯设计':'画芯展示：以原画芯正面放大特写为主，配短句描述可见色彩与构图；不增加完整产品小图，不改变原画芯内容。',
     '框架与配色':'结构细节：放大参考图中已有的框架或柜体正面细节，准确保留抽屉、门、拉手和木色。只介绍可见结构，不打开门抽、不展示未知内部。',
@@ -25,11 +27,14 @@ export function detailProductionBrief(title:string,rule:string,notes:string) {
   const layout=long
     ? '输出一张1:3竖版完整电商详情长图，不是单张场景照，不是多视图联系表。五段从上到下连贯排版：①首屏，中文大标题“让图案融入日常”，副标题“画芯与框架的搭配”，配一张完整正面产品场景图；②“画芯之美”，正文“在色彩与线条间，感受画面的层次”，仅放大已有画芯；③“细节有序”，正文“框架与画芯，自然相衬”，仅裁切参考图可见结构，不打开柜门或抽屉；④“融入空间”，正文“为日常空间，添一处风景”，保持同一产品和视角；⑤“选购提示”，只写“下单前请确认规格、颜色与摆放空间。屏幕显示存在色差，请以实物为准。”'
     : `只输出一张3:4竖版、带中文排版的“${title}”详情切片，不要将整套其他模块拼入本页。${modules[title]||'一个明确标题，配与本页主题相关的产品图和简短介绍。'}标题默认使用“${title}”，补充要求指定本页标题时以指定标题为准，不重复两套文案。不是无文字配图，不生成多视图联系表。`;
-  return `${layout}参考家居编辑式模板的场景大图、局部细节、短文案与留白节奏，重新设计，不复制参考品牌或商品。自然暖白底、深棕标题、清晰中文无衬线正文，统一边距和字号层级；不得使用微小文字、乱码、英文占位或水印。严格锁定确认样图的产品比例、画芯、木色、门、抽屉、五金和脚轮；同一产品在各分区保持一致。禁止新增侧面、背面、俯视、爆炸图及未经参考图证实的内部结构。不得编造材质、认证、承重、尺寸、价格或服务承诺；不印未经核实的参数。${rule} ${notes} 最终输出必须包含清晰中文标题和说明；忽略旧规则中的“不带文字配图、交付时再排版”，不得用无依据的新视角填充版面。`;
+  const facts=title==='材质介绍'?`已确认材质：${evidence?.material||'尚未提供，不可编造。'}`:title==='半透与不透对比'?`已确认透光说明：${evidence?.transparency||'尚未提供，不可编造。'}`:'';
+  const views=['正反对比','三视图'].includes(title)?'仅按额外提供并标明用途的同款侧面／背面原图展示对应视角，禁止推测缺失结构。':'禁止新增未经参考图证实的侧面、背面、俯视、爆炸图或内部结构。';
+  const colorLock=title==='六种颜色展示'?'本页仅允许按六色要求替换木质部分颜色，画芯与结构不变。':'保持确认样图木色不变。';
+  return `${layout}参考家居编辑式模板的场景大图、局部细节、短文案与留白节奏，重新设计，不复制参考品牌或商品。自然暖白底、深棕标题、清晰中文无衬线正文，统一边距和字号层级；不得使用微小文字、乱码、英文占位或水印。严格锁定确认样图的产品比例、画芯、门、抽屉、五金和脚轮；同一产品在各分区保持一致。${colorLock}${views}${facts}不得编造材质、认证、承重、尺寸、价格或服务承诺；不印未经核实的参数。${rule} ${notes} 最终输出必须包含清晰中文标题和说明；忽略旧规则中的“不带文字配图、交付时再排版”，不得用无依据的新视角填充版面。`;
 }
 export type ProductionPlanInput = {
   name: string; expectedVersion: number; rule: keyof typeof artworkRules; notes: string;
-  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean; sceneTitle?:string; backgroundOnly?:boolean;
+  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean; sceneTitle?:string; backgroundOnly?:boolean; detailEvidence?:DetailEvidence;
 };
 export type ProductionItem = { id: string; title: string; kind: 'main'|'size'|'detail'; brief: string; spec: (FrameSize&{marks?:SizeMarks})|null;
   generationId: string|null; review: string; note: string; task: GenerationTask|null };
@@ -71,7 +76,8 @@ export function validateProductionPlan(value: unknown, sources: string[]): Produ
   const sceneTitle=sizes.length||backgroundOnly?p.sceneTitle:undefined;
   if(sizes.length && (!sceneTitle||!['客厅场景','玄关场景'].includes(sceneTitle)||!main.includes(sceneTitle)))throw new Error('尺寸图需要共用场景，请在主图中勾选对应场景。');
   if (!main.length && !details.length && !sizes.length) throw new Error('请至少选择一个制作项目。');
-  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(sceneTitle?{sceneTitle}:{}),...(backgroundOnly?{backgroundOnly:true}:{})};
+  const detailEvidence=validateDetailEvidence(p.detailEvidence);
+  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(sceneTitle?{sceneTitle}:{}),...(backgroundOnly?{backgroundOnly:true}:{}),...(detailEvidence?{detailEvidence}:{})};
 }
 // Carry forward only an explicitly accepted background from this product's
 // immediately preceding background-only version. No other output is inherited.
@@ -85,6 +91,6 @@ export function planItems(plan: ProductionPlanInput) {
     ...plan.main.map(title=>({title,kind:'main' as const,spec:null,brief:`以确认样图为产品标准，制作${title}。保留产品结构、画芯和框架色，完整展示产品，不添加尺寸或营销文字。${title===plan.sceneTitle?'此图同时作为尺寸图的共用场景：正方形构图，产品正面为主，侧面进深适度可见，机位端正，背景简洁明亮，产品四周保留标注空间，不被其他家具遮挡。':''}${lock}`})),
     ...plan.sizes.map(spec=>({title:`宽${spec.widthCm} × 高${spec.heightCm}cm${spec.panelCount ? ` · ${spec.panelCount}扇`:''}`,kind:'size' as const,spec,
       brief:sizeProductionBrief(spec,artworkRules[plan.rule],plan.notes,plan.sceneTitle)})),
-    ...plan.details.map(title=>({title,kind:'detail' as const,spec:null,brief:detailProductionBrief(title,artworkRules[plan.rule],plan.notes)})),
+    ...plan.details.map(title=>({title,kind:'detail' as const,spec:null,brief:detailProductionBrief(title,artworkRules[plan.rule],plan.notes,plan.detailEvidence)})),
   ];
 }
