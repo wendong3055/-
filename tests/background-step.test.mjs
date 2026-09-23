@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+const moduleUrl=async path=>{
+ let code=ts.transpileModule(await readFile(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+ if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
+ return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
+};
+const {validateProductionPlan,planItems,reusableBackground}=await import(await moduleUrl('../lib/production-plan.ts'));
+const start={name:'测试新品',expectedVersion:0,rule:'all',notes:'明亮玄关',main:['玄关场景'],sceneTitle:'玄关场景',sizes:[],details:[],confirmed:true,backgroundOnly:true};
+const valid=validateProductionPlan(start,[]);
+assert.equal(valid.backgroundOnly,true);assert.equal(valid.sceneTitle,'玄关场景');assert.equal(planItems(valid).length,1);
+assert.match(planItems(valid)[0].brief,/四周保留标注空间/);
+for(const invalid of [{main:['白底主图']},{details:['新品形象']},{sceneTitle:'客厅场景'},{main:['玄关场景','客厅场景']}])assert.throws(()=>validateProductionPlan({...start,...invalid},[]));
+const background={id:'bg',title:'玄关场景',kind:'main',generationId:'generation',review:'accepted',task:{status:'succeeded',url:'/api/files/bg'}};
+const previous={config:valid,items:[background]};
+const next={...valid,backgroundOnly:false};
+assert.equal(reusableBackground(previous,next),background);
+for(const changed of [{backgroundOnly:true},{sceneTitle:'客厅场景'},{notes:'另一要求'},{rule:'upper'}])assert.equal(reusableBackground(previous,{...next,...changed}),undefined);
+assert.equal(reusableBackground(undefined,next),undefined);
+for(const review of ['pending','rework'])assert.equal(reusableBackground({...previous,items:[{...background,review}]},next),undefined);
+assert.equal(reusableBackground({...previous,config:{...valid,backgroundOnly:false}},next),undefined);
+const view=await readFile(new URL('../app/product-workspace.tsx',import.meta.url),'utf8');
+assert.match(view,/aria-label="生成背景图"/);assert.match(view,/确认这张背景/);assert.match(view,/背景已确认，进入整套制作/);
+assert.match(view,/!delivery&&\(!plan\|\|plan.config.backgroundOnly\)/);
+assert.match(view,/plan&&!editor&&!backgroundStep/);
+console.log('PASS background-only validation, explicit acceptance, safe same-product scene reuse, legacy workspace separation');

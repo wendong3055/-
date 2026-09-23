@@ -773,7 +773,7 @@ export default function Home() {
               </div>
               <p>{instruction || '使用默认制作要求'}</p>
             </details>
-            {!production && !importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认样图，进入新品制作'} <span>→</span></button><p className="approval-note">按当前效果图当时的搭配保存，其他试稿继续保留。</p></>}
+            {!production && !importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认样图，进入背景制作'} <span>→</span></button><p className="approval-note">保留这张产品，下一步选择并生成背景。其他试稿继续保留。</p></>}
             <details className="local-preview-import"><summary>可选：预览本地图片</summary><div className="official-result-import"><label>选择本地图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；工作台生成的结果自动保存，无需手动导入。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div></details>
           </aside>
         </ResizableWorkspace>

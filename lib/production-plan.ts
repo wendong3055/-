@@ -29,7 +29,7 @@ export function detailProductionBrief(title:string,rule:string,notes:string) {
 }
 export type ProductionPlanInput = {
   name: string; expectedVersion: number; rule: keyof typeof artworkRules; notes: string;
-  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean; sceneTitle?:string;
+  sizes: FrameSize[]; main: string[]; details: string[]; confirmed: boolean; sceneTitle?:string; backgroundOnly?:boolean;
 };
 export type ProductionItem = { id: string; title: string; kind: 'main'|'size'|'detail'; brief: string; spec: (FrameSize&{marks?:SizeMarks})|null;
   generationId: string|null; review: string; note: string; task: GenerationTask|null };
@@ -58,10 +58,18 @@ export function validateProductionPlan(value: unknown, sources: string[]): Produ
   if (new Set(sizes.map(s=>s.key)).size !== sizes.length) throw new Error('有重复规格，请合并后再确认。');
   const main = choices(p.main, mainOptions), details = choices(p.details, detailOptions);
   if(details.includes('完整详情长图')&&details.length>1)throw new Error('完整详情长图与单模块请分开制作，避免重复生成。');
-  const sceneTitle=sizes.length?p.sceneTitle:undefined;
+  const backgroundOnly=p.backgroundOnly===true;
+  if(backgroundOnly&&(sizes.length||details.length||main.length!==1||!['客厅场景','玄关场景'].includes(main[0])||p.sceneTitle!==main[0]))throw new Error('背景环节只制作一张客厅或玄关背景效果图。');
+  const sceneTitle=sizes.length||backgroundOnly?p.sceneTitle:undefined;
   if(sizes.length && (!sceneTitle||!['客厅场景','玄关场景'].includes(sceneTitle)||!main.includes(sceneTitle)))throw new Error('尺寸图需要共用场景，请在主图中勾选对应场景。');
   if (!main.length && !details.length && !sizes.length) throw new Error('请至少选择一个制作项目。');
-  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(sceneTitle?{sceneTitle}:{})};
+  return {name:p.name.trim(),expectedVersion:p.expectedVersion,rule:p.rule,notes:p.notes.trim(),sizes,main:[...mainOptions].filter(x=>main.includes(x)),details:[...detailOptions].filter(x=>details.includes(x)),confirmed:true,...(sceneTitle?{sceneTitle}:{}),...(backgroundOnly?{backgroundOnly:true}:{})};
+}
+// Carry forward only an explicitly accepted background from this product's
+// immediately preceding background-only version. No other output is inherited.
+export function reusableBackground(previous:ProductionPlan|undefined,next:ProductionPlanInput){
+  if(!previous?.config.backgroundOnly||next.backgroundOnly||previous.config.sceneTitle!==next.sceneTitle||previous.config.rule!==next.rule||previous.config.notes!==next.notes)return undefined;
+  return previous.items.find(i=>i.kind==='main'&&i.title===next.sceneTitle&&i.review==='accepted'&&i.generationId&&i.task?.status==='succeeded'&&i.task.url);
 }
 export function planItems(plan: ProductionPlanInput) {
   const lock = `${artworkRules[plan.rule]} ${plan.notes}`;

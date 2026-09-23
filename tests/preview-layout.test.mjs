@@ -79,7 +79,7 @@ assert.match(css, /\.reference-pair-preview\.with-scene-reference \{[^}]*grid-te
 assert.ok(css.includes('.trial-dialog > .reference-pair-preview { flex: 1; min-height: 0;'));
 assert.ok(!css.includes('.dual-preview-grid'));
 const page = readFileSync('app/page.tsx', 'utf8');
-assert.ok(page.includes('确认样图，进入新品制作'));
+assert.ok(page.includes('确认样图，进入背景制作'));
 assert.ok(!page.includes('B 窗口'));
 assert.ok(page.indexOf('<details className="local-preview-import">') > page.indexOf('<TrialCanvas'));
 console.log('PASS: single output window, two equal full-height reference cells plus a third for a scene, missing references, full-window results/imports, safe history selection and unchanged generation.');

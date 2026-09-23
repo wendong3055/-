@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { getTask, publicTask, type TaskRow } from './generation-tasks';
 import { assetStyle, frameSources, frameStyle, type FrameAsset } from '../lib/frame-catalog';
-import { planItems, validateProductionPlan, type ProductWorkspace, type ProductionPlanInput } from '../lib/production-plan';
+import { planItems, validateProductionPlan, reusableBackground, type ProductWorkspace, type ProductionPlanInput } from '../lib/production-plan';
 import { sharedScene, canReuseScene, validSizeMarks } from '../lib/production-scene';
 export class ProductionError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function productWorkspace(owner:string,id:string): Promise<ProductWorkspace> {
@@ -32,9 +32,10 @@ export async function saveProductionPlan(owner:string,id:string,value:unknown) {
   try {plan=validateProductionPlan(value,workspace.sources.map(s=>s.id));}catch(e){throw new ProductionError(e instanceof Error?e.message:'制作清单格式无效。');}
   if(plan.expectedVersion!==(workspace.plans[0]?.version||0)) throw new ProductionError('制作清单已有更新，请重新读取后再保存。',409);
   const planId=crypto.randomUUID(), version=plan.expectedVersion+1;
+  const background=reusableBackground(workspace.plans[0],plan);
   try { await env.DB.batch([
     env.DB.prepare('INSERT INTO production_plans (id,owner_id,product_id,version,plan_json,created_at) VALUES (?,?,?,?,?,?)').bind(planId,owner,id,version,JSON.stringify(plan),Date.now()),
-    ...planItems(plan).map(item=>env.DB.prepare("INSERT INTO production_items (id,owner_id,plan_id,title,kind,brief,spec_json,review,note) VALUES (?,?,?,?,?,?,?,'pending','')").bind(crypto.randomUUID(),owner,planId,item.title,item.kind,item.brief,JSON.stringify(item.spec))),
+    ...planItems(plan).map(item=>{const reuse=background&&item.kind==='main'&&item.title===background.title;return env.DB.prepare("INSERT INTO production_items (id,owner_id,plan_id,title,kind,brief,spec_json,review,note,generation_id) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),owner,planId,item.title,item.kind,item.brief,JSON.stringify(item.spec),reuse?'accepted':'pending',reuse?'沿用上一环节已确认的背景效果图':'',reuse?background.generationId:null);}),
   ]); } catch {throw new ProductionError('清单保存未完成。请重新读取，确认是否已保存后再试；原版本不变。',409);}
   return productWorkspace(owner,id);
 }
