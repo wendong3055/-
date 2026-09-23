@@ -18,6 +18,7 @@ type Props = {
   canGenerate: boolean;
   generateLabel: string;
   outputSummary: string;
+  nextStep?: { onConfirm: () => void; saving: boolean };
   references: { src: string; label: string }[];
 };
 
@@ -145,7 +146,10 @@ export function TrialCanvas(props: Props) {
     <div className="trial-caption"><span>放大后可拖动查看细节；填满窗口不裁切原文件。</span><a className="trial-controls-link" href="#studio-controls">返回调整搭配</a></div>
     {shown && <div className="trial-result-actions"><button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button><a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
     {shown?.recipe && <details className="saved-brief"><summary>这张图的制作要求</summary><p>{shown.recipe.instruction || '使用默认制作要求'}</p></details>}
-    <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>
+    {shown?.assetId && shown.recipe && props.nextStep ? <>
+      <div className="trial-next" aria-label="确认样图并进入下一步"><div><strong>下一步：选择背景</strong><span>确认当前样图，进入背景制作，再制作主图、尺寸图和详情页；不会立即生图扣费。</span></div><button type="button" disabled={working || props.nextStep.saving || reuseDisabled} onClick={props.nextStep.onConfirm}>{props.nextStep.saving ? '正在进入…' : '确认样图，进入下一步'} →</button></div>
+      <div className="trial-result-actions"><span>样图还不满意？</span><a href="#studio-controls">返回调整搭配</a><button type="button" disabled={!canGenerate || props.nextStep.saving} onClick={onGenerate}>{working ? '正在生成…' : '重新生成样图'}</button></div>
+    </> : <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>}
     <section className="trial-history"><div className="row-label"><h3>试稿记录 <span>{completed.length} 张</span></h3><button type="button" onClick={onHistory}>全部记录 →</button></div>
       {loading ? <p className="trial-history-empty">正在读取记录…</p> : tasks.length ? <div className="trial-filmstrip">{tasks.slice(0, 12).map((task) => <button type="button" key={task.id} aria-pressed={shown?.id === task.id} onClick={() => task.status === 'succeeded' && task.url ? onSelect(task.id) : onHistory()} aria-label={`查看${taskLabel(task)}，${generationLabels[task.status]}`}><span className="trial-film-image">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><strong>{task.name}</strong><small>{new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {generationLabels[task.status]}</small></button>)}</div> : <p className="trial-history-empty">生成后的效果图会自动保留在这里。</p>}
     </section>

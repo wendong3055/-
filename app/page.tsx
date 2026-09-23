@@ -271,7 +271,7 @@ export default function Home() {
   }, [frame, frameId]);
 
   async function createProduct() {
-    if (productSaving) return;
+    if (productSaving || previewGenerating || generations.busy || production || importedResult) return;
     const savedArtwork = libraryItems.find((item) => item.id === displayedTask?.recipe?.artworkId);
     const savedFrame = [...uploadedFrames, ...cabinetFrameStyles, ...frames].find((item) => item.id === displayedTask?.recipe?.frameId);
     const savedColor = frameColors.find((item) => item.id === displayedTask?.recipe?.colorId);
@@ -759,6 +759,7 @@ export default function Home() {
               loading={generations.loading} onSelect={(id) => { setImportedResult(null); setViewedTaskId(id); }} onReuse={reuseTask}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
+              nextStep={!production && !importedResult ? { onConfirm: createProduct, saving: productSaving } : undefined}
               outputSummary={`${model.name} · ${aspectRatio === 'auto' ? '应用画幅' : aspectRatio} · ${resolution === 'auto' ? '应用清晰度' : resolution.toUpperCase()}`}
               references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
             />
@@ -773,7 +774,6 @@ export default function Home() {
               </div>
               <p>{instruction || '使用默认制作要求'}</p>
             </details>
-            {!production && !importedResult && displayedTask?.assetId && displayedTask.recipe && <><button className="create-cta" disabled={productSaving} onClick={createProduct}>{productSaving ? '保存新品中…' : '确认样图，进入背景制作'} <span>→</span></button><p className="approval-note">保留这张产品，下一步选择并生成背景。其他试稿继续保留。</p></>}
             <details className="local-preview-import"><summary>可选：预览本地图片</summary><div className="official-result-import"><label>选择本地图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；工作台生成的结果自动保存，无需手动导入。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div></details>
           </aside>
         </ResizableWorkspace>
