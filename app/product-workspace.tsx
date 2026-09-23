@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { artworkRules, mainOptions, detailOptions, detailTemplateReference, type ProductWorkspace, type ProductionPlanInput, type ProductionPlan, type ProductionItem } from '../lib/production-plan';
+import { artworkRules, mainOptions, detailOptions, detailTemplateReference, initialProductionDraft, type ProductWorkspace, type ProductionPlanInput, type ProductionPlan, type ProductionItem } from '../lib/production-plan';
 import { generationLabels } from '../lib/generation-types';
 import { downloadBlob, exportProduction, publicationImage } from '../lib/production-export';
 import {sharedScene,canReuseScene,preservesSourceSizeMarks,sizeProductionBrief,type SizeMarks} from '../lib/production-scene';
@@ -17,13 +17,13 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen,a
   useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview.url);},[preview]);
   async function reload(){setLoading(true);setError('');try{
     const r=await fetch(productId?`/api/products/${encodeURIComponent(productId)}/workspace`:'/api/products',{cache:'no-store'});
-    if(productId){const b=await responseData<ProductWorkspace>(r);setData(b);setVersion(b.plans[0]?.id||'');}else{setProducts(await responseData<typeof products>(r));setData(null);}
+    if(productId){const b=await responseData<ProductWorkspace>(r);setData(b);setVersion(b.plans[0]?.id||'');if(!delivery&&!b.plans.length&&b.sample?.recipe)setEditor(initialProductionDraft(b));}else{setProducts(await responseData<typeof products>(r));setData(null);}
   }catch(e){setError(e instanceof Error?e.message:'读取失败。');}finally{setLoading(false);}}
   useEffect(()=>{setEditor(null);setData(null);setBackgroundTitle('玄关场景');setBackgroundNotes('明亮自然的室内空间，背景简洁，产品完整展示，周边家具不遮挡产品。');void reload();},[productId]); // project boundary resets its draft
   const plan=data?.plans.find(p=>p.id===version)||data?.plans[0];
-  const backgroundStep=!delivery&&(!plan||plan.config.backgroundOnly);
+  const backgroundStep=!delivery&&!!plan?.config.backgroundOnly;
   const backgroundItem=plan?.config.backgroundOnly?plan.items.find(i=>i.kind==='main'):undefined;
-  function edit(){if(!data)return;const sizes=data.sizes.map(s=>({...s,sourceIds:s.sourceIds.slice(0,1),sourceUrls:s.sourceUrls.slice(0,1)}));setEditor(plan?{...plan.config,backgroundOnly:false,...(plan.config.backgroundOnly?{sizes,details:detailOptions.filter(x=>x!=='完整详情长图'),main:Array.from(new Set(['白底主图',plan.config.sceneTitle!]))}:{}),expectedVersion:data.plans[0]?.version||0,confirmed:false}:{name:data.product.name,expectedVersion:0,rule:'all',notes:'',sceneTitle:'客厅场景',sizes,main:['客厅场景'],details:['新品形象','规格选择','选购须知'],confirmed:false});}
+  function edit(){if(!data)return;const sizes=data.sizes.map(s=>({...s,sourceIds:s.sourceIds.slice(0,1),sourceUrls:s.sourceUrls.slice(0,1)}));setEditor(plan?{...plan.config,backgroundOnly:false,...(plan.config.backgroundOnly?{sizes,details:detailOptions.filter(x=>x!=='完整详情长图'),main:Array.from(new Set(['白底主图',plan.config.sceneTitle!]))}:{}),expectedVersion:data.plans[0]?.version||0,confirmed:false}:initialProductionDraft(data));}
   async function prepareBackground(){if(!data||busy)return;setBusy(true);setError('');try{const input:ProductionPlanInput={name:data.product.name,expectedVersion:data.plans[0]?.version||0,rule:'all',notes:backgroundNotes,sizes:[],main:[backgroundTitle],details:[],sceneTitle:backgroundTitle,backgroundOnly:true,confirmed:true};const next=await responseData<ProductWorkspace>(await fetch(`/api/products/${data.product.id}/workspace`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)}));setData(next);setVersion(next.plans[0].id);}catch(e){setError(e instanceof Error?e.message:'保存失败，请刷新核对，不会自动重复提交。');}finally{setBusy(false);}}
   async function save(){if(!editor||!data)return;setBusy(true);setError('');try{const r=await fetch(`/api/products/${data.product.id}/workspace`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(editor)});const b=await responseData<ProductWorkspace>(r);setData(b);setVersion(b.plans[0].id);setEditor(null);}catch(e){setError(e instanceof Error?e.message:'保存失败，内容仍然保留。');}finally{setBusy(false);}}
   async function show(item:ProductionItem){if(!data||!plan)return;setBusy(true);try{setPreview({url:URL.createObjectURL(await publicationImage(item,data,plan)),title:item.title});}catch(e){setError(String(e));}finally{setBusy(false);}}

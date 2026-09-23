@@ -6,7 +6,7 @@ const moduleUrl=async path=>{
  if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
  return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
 };
-const {validateProductionPlan,planItems,reusableBackground}=await import(await moduleUrl('../lib/production-plan.ts'));
+const {validateProductionPlan,planItems,reusableBackground,initialProductionDraft}=await import(await moduleUrl('../lib/production-plan.ts'));
 const start={name:'测试新品',expectedVersion:0,rule:'all',notes:'明亮玄关',main:['玄关场景'],sceneTitle:'玄关场景',sizes:[],details:[],confirmed:true,backgroundOnly:true};
 const valid=validateProductionPlan(start,[]);
 assert.equal(valid.backgroundOnly,true);assert.equal(valid.sceneTitle,'玄关场景');assert.equal(planItems(valid).length,1);
@@ -22,6 +22,14 @@ for(const review of ['pending','rework'])assert.equal(reusableBackground({...pre
 assert.equal(reusableBackground({...previous,config:{...valid,backgroundOnly:false}},next),undefined);
 const view=await readFile(new URL('../app/product-workspace.tsx',import.meta.url),'utf8');
 assert.match(view,/aria-label="生成背景图"/);assert.match(view,/确认这张背景/);assert.match(view,/背景已确认，进入整套制作/);
-assert.match(view,/!delivery&&\(!plan\|\|plan.config.backgroundOnly\)/);
+assert.ok(view.includes('const backgroundStep=!delivery&&!!plan?.config.backgroundOnly;'));
+assert.ok(view.includes('if(!delivery&&!b.plans.length&&b.sample?.recipe)setEditor(initialProductionDraft(b))'));
+const sourceSize={key:'80x200',widthCm:80,heightCm:200,widthParts:[80],sourceIds:['frame-80','extra'],sourceUrls:['/api/files/frame-80','/extra']};
+const draft=initialProductionDraft({product:{name:'已确认样图'},sizes:[sourceSize],plans:[]});
+assert.equal(draft.confirmed,false);assert.ok(!draft.backgroundOnly);
+assert.equal(draft.main.length,3);assert.equal(draft.details.length,6);assert.equal(draft.sizes.length,1);
+assert.deepEqual(draft.sizes[0].sourceIds,['frame-80']);assert.equal(sourceSize.sourceIds.length,2);
+const full=validateProductionPlan({...draft,confirmed:true},['frame-80']);
+assert.equal(planItems(full).length,10);
 assert.match(view,/plan&&!editor&&!backgroundStep/);
 console.log('PASS background-only validation, explicit acceptance, safe same-product scene reuse, legacy workspace separation');

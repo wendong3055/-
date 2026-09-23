@@ -88,12 +88,45 @@ assert.ok(nextMarkup.includes('确认样图，进入下一步'));
 assert.ok(nextMarkup.includes('重新生成样图'));
 assert.ok(!nextMarkup.includes('继续下一轮'));
 assert.ok(nextMarkup.indexOf('确认样图，进入下一步') < nextMarkup.indexOf('trial-history'));
-assert.ok(nextMarkup.includes('不会立即生图扣费'));
+assert.ok(nextMarkup.includes('不会重新生成样图，也不会扣费'));
+assert.ok(nextMarkup.includes('下一步：制作主图、尺寸图和详情页'));
+assert.ok(!nextMarkup.includes('进入背景制作'));
 assert.ok(render({ ...base, tasks: [savedTask], nextStep: {...nextStep, saving: true} }).includes('disabled="">正在进入…'));
 assert.ok(render({ ...base, tasks: [savedTask], working: true, nextStep }).includes('disabled="">确认样图，进入下一步'));
 assert.ok(!render({ ...base, tasks: [savedTask], nextStep, importedResult: { url: 'blob:local', name: 'local' } }).includes('确认样图，进入下一步'));
-assert.ok(!render({ ...base, tasks: [task('legacy')], nextStep }).includes('确认样图，进入下一步'));
+const legacy = render({ ...base, tasks: [task('legacy')], nextStep });
+assert.ok(legacy.includes('disabled="">确认样图，进入下一步'));
+assert.ok(legacy.includes('缺少原始搭配记录'));
+assert.ok(!legacy.includes('继续下一轮'));
 assert.ok(!render({ ...base, tasks: [savedTask] }).includes('确认样图，进入下一步'));
 assert.ok(!page.includes('B 窗口'));
 assert.ok(page.indexOf('<details className="local-preview-import">') > page.indexOf('<TrialCanvas'));
 console.log('PASS: single output window, two equal full-height reference cells plus a third for a scene, missing references, full-window results/imports, safe history selection and unchanged generation.');
+
+// Invoke the rendered event handlers with inert hooks: next-step must call
+// confirmation only, while the separately labelled retry calls generation.
+const interactive = await build({
+  stdin: { contents: `export { TrialCanvas } from './app/trial-canvas';`, resolveDir: process.cwd(), loader: 'tsx' },
+  bundle:true,write:false,platform:'node',format:'cjs',logLevel:'silent',
+  plugins:[{name:'inert-hooks',setup(b){
+    b.onResolve({filter:/^react$/},args=>args.importer.endsWith('trial-canvas.tsx')?{path:'hooks',namespace:'test-hooks'}:undefined);
+    b.onLoad({filter:/.*/,namespace:'test-hooks'},()=>({contents:'export const useState = x => [typeof x === "function" ? x() : x, () => {}]; export const useRef = x => ({current:x}); export const useEffect = () => {};',loader:'js'}));
+  }}],
+});
+const handlers = {exports:{}};
+new Function('require','module','exports',interactive.outputFiles[0].text)(createRequire(import.meta.url),handlers,handlers.exports);
+let confirmations=0;
+const tree=handlers.exports.TrialCanvas({...base,tasks:[savedTask],nextStep:{onConfirm(){confirmations++;},saving:false}});
+function elements(node){if(Array.isArray(node))return node.flatMap(elements);if(!node||typeof node!=='object')return [];return [node,...elements(node.props?.children)];}
+function label(node){if(Array.isArray(node))return node.map(label).join('');if(node==null||typeof node==='boolean')return '';return typeof node==='object'?label(node.props?.children):String(node);}
+const buttons=elements(tree).filter(n=>n.type==='button');
+buttons.find(n=>label(n).includes('确认样图，进入下一步')).props.onClick();
+assert.equal(confirmations,1);assert.equal(submissions,0);
+buttons.find(n=>label(n)==='重新生成样图').props.onClick();
+assert.equal(confirmations,1);assert.equal(submissions,1);
+const confirmBody=page.slice(page.indexOf('async function createProduct()'),page.indexOf('function resetPreview()'));
+assert.ok(confirmBody.includes("fetch('/api/products'"));
+assert.ok(confirmBody.includes('sampleAssetId: displayedTask.assetId'));
+assert.ok(confirmBody.includes("setActiveNav('products')"));
+assert.ok(!/\/api\/generations|onGenerate|submitGeneration/.test(confirmBody));
+console.log('PASS: next-step click confirms existing sample without generating; retry is a separate action.');

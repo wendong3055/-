@@ -37,6 +37,14 @@ export type ProductionPlan = { id: string; version: number; createdAt: number; c
 export type ProductWorkspace = { product: {id:string;name:string;frameName:string;artworkName:string;sampleAssetId:string};
   sample: GenerationTask|null; sources: {id:string;name:string}[]; sizes: FrameSize[]; unknown: number; missing: number; plans: ProductionPlan[] };
 
+// Opening a confirmed sample only prepares an editable draft. No save or
+// generation is performed until the user explicitly requests that action.
+export function initialProductionDraft(data: ProductWorkspace): ProductionPlanInput {
+  return {name:data.product.name,expectedVersion:0,rule:'all',notes:'',sceneTitle:'客厅场景',
+    sizes:data.sizes.map(s=>({...s,sourceIds:s.sourceIds.slice(0,1),sourceUrls:s.sourceUrls.slice(0,1)})),
+    main:[...mainOptions],details:detailOptions.filter(x=>x!=='完整详情长图'),confirmed:false};
+}
+
 export function validateProductionPlan(value: unknown, sources: string[]): ProductionPlanInput {
   const p = value as ProductionPlanInput;
   if (!p || typeof p !== 'object' || p.confirmed !== true || !Number.isInteger(p.expectedVersion) || p.expectedVersion < 0 ||
