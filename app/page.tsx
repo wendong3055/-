@@ -163,7 +163,8 @@ export default function Home() {
   const homeFrames = [frame, ...visibleFrameOptions.filter((item) => item.id !== frame?.id)].filter(Boolean);
   const currentIntent = studioIntents.find((item) => item.id === intent)!;
   const previewTask = generations.tasks.find((task) => task.id === previewTaskId);
-  const completedTasks = generations.tasks.filter((task) => task.status === 'succeeded' && task.url);
+  const scopedTasks = production ? generations.tasks.filter(task => task.recipe?.productionItemId === production.itemId || task.id === production.generationId) : generations.tasks;
+  const completedTasks = scopedTasks.filter((task) => task.status === 'succeeded' && task.url);
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
   const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.international);
   const sceneInUse = production?.kind === 'size' ? undefined : scene;
@@ -197,7 +198,7 @@ export default function Home() {
     fetch(`/api/production/${encodeURIComponent(item)}`,{signal:controller.signal}).then(async r=>{const b=await r.json() as NonNullable<typeof production>&{error?:string};if(!r.ok||!b.sample?.recipe)throw new Error(b.error||'制作项信息不完整。');return b;}).then(b=>{
       const recipe=b.sample.recipe!;
       setProduction(b);setProductId(b.productId);setSelectedId(recipe.artworkId);setFrameId(recipe.frameId);setFrameColorId(recipe.colorId);
-      setInstruction(b.brief.slice(0,1500));setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
+      setInstruction('');setViewedTaskId(b.generationId || '');setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
       // The sample locks the product, not obsolete 4K/PRO generation parameters.
       setModelId(defaultImageModel.id);setAspectRatio(b.kind==='detail'?(b.title==='完整详情长图'?'1:3':'3:4'):'1:1');setResolution('2k');setQuality('medium');
       setActiveNav('new');
@@ -660,7 +661,7 @@ export default function Home() {
         <header className="topbar">
           <div>
             <p className="eyebrow">PRODUCT STUDIO / 徐艺木业</p>
-            <h1>{navItems.find(([id]) => id === activeNav)?.[1] || '新品项目'}</h1>
+            <h1>{activeNav==='new'&&production?`${production.kind==='size'?'尺寸图':production.kind==='detail'?'详情图':'主图'}调整` : navItems.find(([id]) => id === activeNav)?.[1] || '新品项目'}</h1>
           </div>
           <div className="top-actions">
             <span className="sync-state">{customConfig?.name || 'RunningHub'} 图像生成</span>
@@ -668,8 +669,8 @@ export default function Home() {
           </div>
         </header>
 
-        {activeNav === 'new' && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
-        {activeNav === 'new' && production && <div className="production-context"><strong>当前制作：{production.title}</strong><span>沿用确认样图与对应规格原图，结果自动归入这个新品的制作清单。</span><a href={`/?product=${production.productId}`}>返回新品清单</a><a href="/">退出此项，做其他新品</a></div>}
+        {activeNav === 'new' && !production && !productionLoading && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
+        {activeNav === 'new' && production && <div className="production-context"><strong>当前调整：{production.title}</strong><span>只调整这一张，保留同款产品搭配和历史结果。</span><a href={`/?product=${production.productId}&studio=${production.kind}`}>返回整套{production.kind==='size'?'尺寸图':production.kind==='detail'?'详情页':'主图'}</a></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
             <details className="studio-output-panel" aria-label="出图设置">
@@ -686,7 +687,7 @@ export default function Home() {
                 {!modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
               </fieldset>
             </details>
-            <fieldset className="intent-picker" disabled={previewGenerating}>
+            {!production && !productionLoading && <><fieldset className="intent-picker" disabled={previewGenerating}>
               <legend>这次想做什么图？</legend>
               <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
             </fieldset>
@@ -740,7 +741,7 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="scene-selection" aria-label="场景参考选择"><div><strong>场景参考 · 可选</strong><button type="button" onClick={()=>setActiveNav('scenes')}>从场景图库选择</button></div>{production?.kind==='size'?<p>尺寸图沿用本套已确认的共用场景，不在这里替换。</p>:sceneInUse?<><p>{sceneInUse.name} · 作为独立参考图随本次生成提交</p><img src={sceneInUse.image} alt={`已选场景：${sceneInUse.name}`} /><div><span>只参考空间，不改变画芯与框架</span><button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{setSceneId('');resetPreview();}}>取消场景</button></div></>:<p>未指定场景，按制作要求生成；选择场景不会自动出图。</p>}</section>
+            <section className="scene-selection" aria-label="场景参考选择"><div><strong>场景参考 · 可选</strong><button type="button" onClick={()=>setActiveNav('scenes')}>从场景图库选择</button></div>{sceneInUse?<><p>{sceneInUse.name} · 作为独立参考图随本次生成提交</p><img src={sceneInUse.image} alt={`已选场景：${sceneInUse.name}`} /><div><span>只参考空间，不改变画芯与框架</span><button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{setSceneId('');resetPreview();}}>取消场景</button></div></>:<p>未指定场景，按制作要求生成；选择场景不会自动出图。</p>}</section>
             <section className="generation-parameters" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generatePreview(); } }}>
               <div className="row-label"><label htmlFor="generation-instruction">制作要求</label><b>{currentIntent.label}</b></div>
               <p className="brief-help">说清楚想保留什么、调整什么；图案、框架和木色会自动带入。</p>
@@ -756,13 +757,29 @@ export default function Home() {
               <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 不跳转官网 · 每轮结果自动保留</p>
               {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
             </section>
+            </>}
+            {productionLoading && <p role="status">正在读取当前图片…</p>}
+            {production && <section className="generation-parameters">
+              <h2>{production.title}</h2>
+              <p>{selected?.name} · {frame?.name} · {frameColor.name}</p>
+              <p className="brief-help">产品搭配已固定，只需填写这张图要怎么调整。</p>
+              <label htmlFor="production-adjustment">修改要求</label>
+              <textarea id="production-adjustment" value={instruction} maxLength={1500} rows={5} disabled={previewGenerating} onChange={event=>changeInstruction(event.target.value)} placeholder="例如：产品再放大一些，各置物格放一个小摆件，保留完整尺寸标注。" />
+              <details className="saved-brief"><summary>查看默认制作规则</summary><p>{production.brief}</p></details>
+              <ReferenceCheck art={selected} frameUrl={production.frameUrl} disabled={previewGenerating}/>
+              <PromptPolish text={instruction} context={JSON.stringify({artwork:selected?.name,frame:frame?.name,color:frameColor.name,intent:production.kind==='size'?'电商SKU尺寸图':production.title})} disabled={previewGenerating} onApply={changeInstruction}/>
+              {generations.error&&<p role="alert">{generations.error}</p>}
+              <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{previewGenerating?'正在生成…':production.generationId?'重新生成这张':'生成这张'}</button>
+              <p className="generation-privacy">点击后才提交生图并按接口计费，历史图片保留。</p>
+            </section>}
           </section>
 
           <aside className="compose-panel">
             <TrialCanvas
-              stale={staleResult}
+              itemMode={Boolean(production)}
+              stale={production ? Boolean(instruction.trim()) : staleResult}
               importedResult={importedResult}
-              tasks={generations.tasks} activeTaskId={viewedTaskId || previewTaskId}
+              tasks={productionLoading?[]:scopedTasks} activeTaskId={viewedTaskId || previewTaskId || production?.generationId || ''}
               working={previewGenerating} status={previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}
               loading={generations.loading} onSelect={(id) => { setImportedResult(null); setViewedTaskId(id); }} onReuse={reuseTask}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
@@ -774,7 +791,7 @@ export default function Home() {
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
             {generations.busy && !previewGenerating && <button className="reuse-result" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
-            <details className="current-combination">
+            {!production && !productionLoading && <><details className="current-combination">
               <summary><span>下一张使用的搭配</span><strong>{selected?.name || '请选择图案'} · {frameColor.name}</strong></summary>
               <div className="selection-summary">
                 <div className="summary-art">{selected?.file && <img src={selected.file} alt="" />}<span><small>已选图案</small><strong>{selected?.name || '请选择图案'}</strong></span><button onClick={() => setActiveNav('gallery')}>更换</button></div>
@@ -783,6 +800,7 @@ export default function Home() {
               <p>{instruction || '使用默认制作要求'}</p>
             </details>
             <details className="local-preview-import"><summary>可选：预览本地图片</summary><div className="official-result-import"><label>选择本地图片<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) { if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 20 * 1024 * 1024) { setNotice('请选择 20 MB 以内的 JPG、PNG 或 WebP 图片。'); } else { setImportedResult({ url: URL.createObjectURL(file), name: file.name }); } } event.currentTarget.value = ''; }} /></label><small>仅在此页预览，刷新后不保留；工作台生成的结果自动保存，无需手动导入。</small>{importedResult && <button onClick={() => setImportedResult(null)}>返回工作台记录</button>}</div></details>
+            </>}
           </aside>
         </ResizableWorkspace>
 

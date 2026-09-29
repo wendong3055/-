@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { generationLabels, type GenerationTask } from '../lib/generation-types';
 
 type Props = {
+  itemMode?: boolean;
   stale?: boolean;
   importedResult?: { url: string; name: string } | null;
   tasks: GenerationTask[];
@@ -138,21 +139,21 @@ export function TrialCanvas(props: Props) {
   const picture: PreviewPicture | undefined = props.importedResult ? { src: props.importedResult.url, label: `本地临时预览 · ${props.importedResult.name}` } : shown ? { src: shown.url!, label: taskLabel(shown) } : undefined;
 
   return <section className="trial-canvas single-preview-canvas" aria-label="生成效果与试稿记录">
-    {props.stale && shown && <p className="generation-warning" role="status">搭配已修改，右侧为上一轮结果</p>}
+    {props.stale && shown && <p className="generation-warning" role="status">{props.itemMode?'修改要求尚未生成，当前仍为已保存结果':'搭配已修改，右侧为上一轮结果'}</p>}
     <header className="compose-heading"><h2>生成效果</h2><span className={working ? 'trial-status working' : 'trial-status'} role="status">{working ? status : props.importedResult ? '本地图片 · 临时预览' : shown ? '已保留生成结果' : '待生成'}</span></header>
     <PreviewWindow picture={picture} working={working} status={status} references={props.references}
       selector={picture && <label>查看图片<select aria-label="选择预览图片" value={props.importedResult ? 'local' : shown?.id || ''} onChange={(event) => onSelect(event.target.value)} disabled={!completed.length}>
         {props.importedResult && <option value="local">本地导入 · 临时预览</option>}
         {completed.map((task) => <option key={task.id} value={task.id}>{taskLabel(task)}</option>)}
       </select></label>} />
-    <div className="trial-caption"><span>放大后可拖动查看细节；填满窗口不裁切原文件。</span><a className="trial-controls-link" href="#studio-controls">返回调整搭配</a></div>
-    {shown && <div className="trial-result-actions"><button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button><a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
+    <div className="trial-caption"><span>放大后可拖动查看细节；填满窗口不裁切原文件。</span><a className="trial-controls-link" href="#studio-controls">{props.itemMode?'调整这张图':'返回调整搭配'}</a></div>
+    {shown && <div className="trial-result-actions">{!props.itemMode&&<button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button>}<a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
     {shown?.recipe && <details className="saved-brief"><summary>这张图的制作要求</summary><p>{shown.recipe.instruction || '使用默认制作要求'}</p></details>}
-    {shown && props.nextStep ? <>
+    {!props.itemMode && (shown && props.nextStep ? <>
       <div className="trial-next" aria-label="确认样图并进入下一步"><div><strong>下一步：制作主图、尺寸图和详情页</strong><span>{!shown.assetId || !shown.recipe ? '这张历史图缺少原始搭配记录，暂不能进入制作；原图仍可下载。' : '使用当前展示的样图进入制作清单，不会重新生成样图，也不会扣费。'}</span></div><button type="button" disabled={working || props.nextStep.saving || reuseDisabled || !shown.assetId || !shown.recipe} onClick={props.nextStep.onConfirm}>{props.nextStep.saving ? '正在进入…' : '确认样图，进入下一步'} →</button></div>
       <div className="trial-result-actions"><span>样图还不满意？</span><a href="#studio-controls">返回调整搭配</a><button type="button" disabled={!canGenerate || props.nextStep.saving} onClick={onGenerate}>{working ? '正在生成…' : '重新生成样图'}</button></div>
-    </> : <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>}
-    <section className="trial-history"><div className="row-label"><h3>试稿记录 <span>{completed.length} 张</span></h3><button type="button" onClick={onHistory}>全部记录 →</button></div>
+    </> : <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>)}
+    <section className="trial-history"><div className="row-label"><h3>{props.itemMode?'这张图的历史版本':'试稿记录'} <span>{completed.length} 张</span></h3>{!props.itemMode&&<button type="button" onClick={onHistory}>全部记录 →</button>}</div>
       {loading ? <p className="trial-history-empty">正在读取记录…</p> : tasks.length ? <div className="trial-filmstrip">{tasks.slice(0, 12).map((task) => <button type="button" key={task.id} aria-pressed={shown?.id === task.id} onClick={() => task.status === 'succeeded' && task.url ? onSelect(task.id) : onHistory()} aria-label={`查看${taskLabel(task)}，${generationLabels[task.status]}`}><span className="trial-film-image">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><strong>{task.name}</strong><small>{new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {generationLabels[task.status]}</small></button>)}</div> : <p className="trial-history-empty">生成后的效果图会自动保留在这里。</p>}
     </section>
   </section>;
