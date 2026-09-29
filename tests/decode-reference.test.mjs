@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';import {build} from 'esbuild';
+const built=await build({entryPoints:['lib/decode-reference.ts'],bundle:true,write:false,format:'esm'});
+const {decodeReference}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+let closed=0;globalThis.createImageBitmap=async()=>({width:12,height:24,close(){closed++;}});
+const blob=new Blob(['same bytes'],{type:'image/jpeg'});const a=await decodeReference(blob);assert.equal(a.width,12);a.close();assert.equal(closed,1);
+let revoked=0;URL.createObjectURL=b=>{assert.equal(b,blob);return'blob:test';};URL.revokeObjectURL=()=>revoked++;
+globalThis.createImageBitmap=async()=>{throw Error('unsupported');};
+globalThis.Image=class{naturalWidth=1969;naturalHeight=3500;set src(v){if(v)queueMicrotask(()=>this.onload?.());}};
+const b=await decodeReference(blob);assert.equal(b.height,3500);b.close();assert.equal(revoked,1);
+globalThis.Image=class{set src(v){if(v)queueMicrotask(()=>this.onerror?.());}};
+await assert.rejects(decodeReference(blob),/解码失败/);assert.equal(revoked,2);
+console.log('PASS same-byte image fallback, decode rejection and URL cleanup; no network.');

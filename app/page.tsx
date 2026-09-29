@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PromptPolish } from './prompt-polish';
+import {ReferenceCheck} from './reference-check';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { SceneLibrary } from './scene-library';
 import { findScene, sceneRequiresOpaqueBackground } from '../lib/scene-library';
@@ -744,6 +745,7 @@ export default function Home() {
               <div className="row-label"><label htmlFor="generation-instruction">制作要求</label><b>{currentIntent.label}</b></div>
               <p className="brief-help">说清楚想保留什么、调整什么；图案、框架和木色会自动带入。</p>
               <div className="brief-tools"><button disabled={previewGenerating} onClick={() => { if (!instruction.trim() || instruction === currentIntent.instruction || window.confirm('用整理好的默认要求替换当前文字？替换后可撤回。')) changeInstruction(currentIntent.instruction); }}>填入我的默认要求</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
+              <ReferenceCheck art={selected} frameUrl={frame?.file} disabled={previewGenerating}/>
               <PromptPolish text={instruction} context={JSON.stringify({artwork:selected?.name,frame:frame?.name,color:frameColor.name,intent:currentIntent.label})} disabled={previewGenerating} onApply={changeInstruction}/>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
