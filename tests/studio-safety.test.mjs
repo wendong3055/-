@@ -39,9 +39,9 @@ const audit=JSON.parse(readFileSync('public/library/2026-08-27-v2/originals-inde
 assert.equal(Object.keys(audit).length,267);
 for(const row of Object.values(audit)){
  assert.equal(row.originalStatus,'verified');
- const bytes=readFileSync('public'+row.originalFile);
+ const bytes=readFileSync(row.originalDiskFile);
  assert.equal(createHash('sha256').update(bytes).digest('hex'),row.originalHash);
  assert.ok(row.originalWidth>0&&row.originalHeight>0);
- assert.ok(statSync('public'+row.originalFile).size<25*1024*1024);
+ assert.ok(statSync(row.originalDiskFile).size<25*1024*1024);
 }
 console.log('PASS: original provenance (267 hashes), preflight failures, stale state, collapsed settings. No paid requests.');

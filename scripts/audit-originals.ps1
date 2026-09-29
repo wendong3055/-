@@ -20,18 +20,19 @@ foreach ($row in $manifest.items) {
   if ($preview -and $preview.hash -eq $row.hash) {
     $status='verified'; $url=$row.thumb; $original=$preview
   } elseif ($source -and $source.hash -eq $row.hash) {
-    $dir=Join-Path $base 'originals'
+    $dir=Join-Path $root 'source-assets/library-originals'
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
     $name=$row.id+[System.IO.Path]::GetExtension($row.sourcePath).ToLowerInvariant()
     Copy-Item -LiteralPath $row.sourcePath -Destination (Join-Path $dir $name)
-    $status='verified'; $url='/library/2026-08-27-v2/originals/'+$name; $original=$source
+    $status='verified'; $url='/api/library-originals/'+$row.id; $original=$source
   }
-  $entries[$row.id]=@{originalStatus=$status;originalFile=$url;originalWidth=$original.width;originalHeight=$original.height;originalHash=$original.hash}
+  $disk=if($url -like '/api/library-originals/*'){'source-assets/library-originals/'+$name}else{'public'+$url}
+  $entries[$row.id]=@{originalStatus=$status;originalFile=$url;originalDiskFile=$disk;originalBytes=$original.bytes;originalWidth=$original.width;originalHeight=$original.height;originalHash=$original.hash}
   $report+=@{id=$row.id;name=$row.name;status=$status;thumbnail=$preview;source=$source;originalFile=$url;manifestHash=$row.hash}
 }
 $entries | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $base 'originals-index.json') -Encoding UTF8
 New-Item -ItemType Directory -Force -Path (Join-Path $root 'docs') | Out-Null
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $root 'docs/original-audit-20260929.json') -Encoding UTF8
 $report | Group-Object status | Select-Object Name,Count
-$report | Where-Object {$_.originalFile -like '*/originals/*'} | Measure-Object | Select-Object Count
-($report | Where-Object {$_.originalFile -like '*/originals/*'} | ForEach-Object {$_.source.bytes} | Measure-Object -Sum).Sum
+$report | Where-Object {$_.originalFile -like '/api/library-originals/*'} | Measure-Object | Select-Object Count
+($report | Where-Object {$_.originalFile -like '/api/library-originals/*'} | ForEach-Object {$_.source.bytes} | Measure-Object -Sum).Sum
