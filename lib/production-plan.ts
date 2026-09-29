@@ -14,6 +14,8 @@ export const mainOptions = ['白底主图', '玄关场景', '客厅场景', '书
 export const detailOptions = ['完整详情长图', ...expandedDetails] as const;
 export const detailTemplateReference = {name:'家居编辑式长图',source:'https://www.zcool.com.cn/work/ZNDg1MzExODg%3D.html',note:'仅参考分区、图文节奏和留白；不复制原图、品牌、文案或产品卖点。'};
 export function detailProductionBrief(title:string,rule:string,notes:string,evidence?:DetailEvidence) {
+  const props='详情页摆件要求：凡展示完整产品或可见置物区域，默认在每个适合承托的现有台面、层板或置物格各放一个小巧摆件，如简约陶瓷器、小花瓶或小雕塑；根据画芯和木色统一搭配，若已有摆件则保留，不重复叠加。整套各页沿用同一摆件造型、配色和摆放逻辑；六色展示和半透／不透对比的各组摆件必须一致，只改变该模块指定的产品属性。只在真实已有且可见的位置摆放，不新增层板、不改变结构、不悬浮，不遮挡画芯、五金、木纹细节、尺寸标注或文案。画芯与木纹局部特写、示意轮廓及纯文字模块不强行添加摆件；无可摆放位置的产品不添加。摆件仅为拍摄道具，不宣称随产品赠送。';
+  notes=`${props} ${notes}`;
   const long=title==='完整详情长图';
   const illustrative=detailMissing(title,evidence).length>0;
   const fallbacks:Record<string,string>={

@@ -11,7 +11,14 @@ const moduleUrl=async path=>{
 };
 const load=async path=>import(await moduleUrl(path));
 const {sharedScene,canReuseScene,validSizeMarks,sceneSizeBrief}=await load('../lib/production-scene.ts');
-const {validateProductionPlan,planItems}=await load('../lib/production-plan.ts');
+const {validateProductionPlan,planItems,detailProductionBrief,detailOptions}=await load('../lib/production-plan.ts');
+for(const title of detailOptions){
+ const brief=detailProductionBrief(title,'保留画芯','');
+ assert.match(brief,/每个适合承托的现有台面、层板或置物格各放一个/);
+ assert.match(brief,/六色展示和半透／不透对比的各组摆件必须一致/);
+ assert.match(brief,/局部特写、示意轮廓及纯文字模块不强行添加摆件/);
+ assert.match(brief,/不新增层板、不改变结构/);
+}
 const spec={widthCm:60,heightCm:200,depthCm:30,sourceIds:['representative']};
 const scene={id:'main',title:'客厅场景',kind:'main',review:'accepted',generationId:'g',task:{status:'succeeded',url:'/api/files/a',model:'gpt-image-2',resolution:'2k',aspectRatio:'1:1'}};
 const plan={config:{sceneTitle:'客厅场景'},items:[scene]};
