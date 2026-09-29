@@ -14,7 +14,7 @@ assert.ok(scenes.sceneReferences.length >= 3, 'ship actual curated images, not e
 for(const scene of scenes.sceneReferences) {
   assert.ok(scene.source.startsWith('https://github.com/'));
   assert.ok(scene.author && scene.license && scene.licenseUrl);
-  const file=new URL('../public'+scene.image,import.meta.url);
+  const file=new URL('../source-assets/site-assets'+scene.image,import.meta.url);
   assert.ok(existsSync(file),scene.image);
   // The declared size must match the real file: the card reserves space with it
   // and the server rejects a reference whose dimensions disagree.

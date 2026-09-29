@@ -26,7 +26,7 @@ assert.equal(parsed.length, manifest.items.length, 'every shipped entry must sur
 const ids = parsed.map((item) => item.id);
 assert.equal(ids.length, new Set(ids).size, 'ids must be unique');
 for (const item of parsed) {
-  assert.ok(existsSync(new URL('../public' + item.thumb, import.meta.url)), 'missing image: ' + item.thumb);
+  assert.ok(existsSync(new URL('../source-assets/site-assets' + item.thumb, import.meta.url)), 'missing image: ' + item.thumb);
   assert.ok(item.name, 'every entry needs a label');
   assert.ok(item.totalWidth > 0 && item.height > 0, 'every entry needs real dimensions');
 }

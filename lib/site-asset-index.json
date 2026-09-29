@@ -1,0 +1,2228 @@
+{
+  "/library/2026-08-27-v2/art-0261.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0261.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "32430bb489dcf409f136b6d397d74010079a8e888283838b7ebfa8559736d42d",
+    "originalBytes": 32551
+  },
+  "/library/2026-08-27-v2/art-0182.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0182.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "42b2d616b0411f97eaa59d3a3caac44ba8a0a4145fc2a38d1ca9b558671bd24d",
+    "originalBytes": 49942
+  },
+  "/library/2026-08-27-v2/art-0082.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0082.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "884278374efab40f37b769bd20ed4df8dde8f3ad1c50760e66705079a2e99b15",
+    "originalBytes": 31019
+  },
+  "/library/2026-08-27-v2/art-0209.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0209.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "71abb83d8b6813796980bff35131bc2e386fcd8f08c9a3fd932d3ac216cf0278",
+    "originalBytes": 17952
+  },
+  "/library/2026-08-27-v2/art-0080.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0080.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "16d4a1c44b7968c52177b525591ed5c40585ecff699549f628a5ff3e62882c86",
+    "originalBytes": 22880
+  },
+  "/library/2026-08-27-v2/art-0162.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0162.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "393982bdb3718ad4c62650784d59546718e45802ae39d5740ebb6083fd277354",
+    "originalBytes": 36071
+  },
+  "/library/2026-08-27-v2/art-0186.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0186.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2417b14af5cf0a7121bb756e1796bdaf2c3864dd5da272adba17ec4ca7d4a95f",
+    "originalBytes": 17739
+  },
+  "/library/2026-08-27-v2/art-0021.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0021.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "47a01a8949a13b6365642dd3176b30a3b946f801a4d452027ab09bd97fc54c22",
+    "originalBytes": 16372
+  },
+  "/library/2026-08-27-v2/art-0176.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0176.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "aae0fc838297c13b4c8386efe8c611e9f79cc984802ef47601d2b7a9bdb94f16",
+    "originalBytes": 42360
+  },
+  "/library/2026-08-27-v2/art-0150.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0150.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "82496f04beff514a9cfa64aae4a7c72062324ea8fc3f401dda66caa865f0f3a7",
+    "originalBytes": 36962
+  },
+  "/library/2026-08-27-v2/art-0123.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0123.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "67c5b92e7b2924e5f440b19344b0c3a40fd2284319615354f27bbedb8e92449e",
+    "originalBytes": 38257
+  },
+  "/library/2026-08-27-v2/art-0092.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0092.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a00073be9a1d9ebd35b091e148e866fcf9583978d15e9024a551a887b6ef36cf",
+    "originalBytes": 14165
+  },
+  "/library/2026-08-27-v2/art-0045.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0045.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "66da4f6b62b67c38c8eddee5ef0f9c5abfbba616f547e6cebf2a4609215ced8c",
+    "originalBytes": 30924
+  },
+  "/library/2026-08-27-v2/art-0247.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0247.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "571920846717a13d81957da3d0f289b2c7b23e2fd771262e626d07fc788c86e9",
+    "originalBytes": 15653
+  },
+  "/frames/fubao-ankang/40_40_80-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_40_80-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e1fdcd98fd8e357ef9961c3f5fe56b911cb1fab5245947c63a2de4acedb9674e",
+    "originalBytes": 109377
+  },
+  "/library/2026-08-27-v2/art-0061.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0061.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d355799036427f572db4effb4aed7989a05b1a76e61727779a11ec5205a251c4",
+    "originalBytes": 20715
+  },
+  "/library/2026-08-27-v2/art-0015.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0015.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c6bbb402a76b7fd332379f75debb4cc8bc938841e083332832d5fca423bfa9eb",
+    "originalBytes": 34208
+  },
+  "/library/2026-08-27-v2/art-0255.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0255.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f3c155391085c7a4b2413dd322fdc258fa96a6fc6891a70f33d9071fe442222d",
+    "originalBytes": 39435
+  },
+  "/library/2026-08-27-v2/art-0159.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0159.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0ade5624e6073dfb67a1033ee5b617ecd85cbf301ea87eee5962686ed9427004",
+    "originalBytes": 29058
+  },
+  "/library/2026-08-27-v2/art-0005.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0005.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8839dfccfe6a6d988e1d356b824d0c1f8fa2acd12b0a31b8e9153707565d63ce",
+    "originalBytes": 15899
+  },
+  "/library/2026-08-27-v2/art-0199.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0199.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "808eb78bab139153404eee5ce07d355bce3c18fb4ddc171d25cecb4608019dcc",
+    "originalBytes": 29392
+  },
+  "/library/2026-08-27-v2/art-0042.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0042.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c5155c5584c44bc5ea25e01d4202c41aedb0ee8e6c9010bca8858046479d3893",
+    "originalBytes": 23159
+  },
+  "/library/2026-08-27-v2/art-0149.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0149.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f0b9805f4a723426554382e11ffb5ec10012286ce6e5d1571b78927284532f6d",
+    "originalBytes": 20364
+  },
+  "/library/2026-08-27-v2/art-0245.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0245.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "61a75e1e24e1120b4bd1488412d7a23ed36989531f94762cec2fc5bc0f4e188b",
+    "originalBytes": 31509
+  },
+  "/library/2026-08-27-v2/art-0215.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0215.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "044e909bfa17319942788211a956ffead114fa485701647c05013d895b62d9e2",
+    "originalBytes": 23703
+  },
+  "/library/2026-08-27-v2/art-0101.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0101.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6e270ed991858b44790bea94ef3bad8a909699307386cf083f0011f3831c7ee4",
+    "originalBytes": 27484
+  },
+  "/library/2026-08-27-v2/art-0105.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0105.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5438f75c6fc6d56aa097033741683f655da2b297148a36d6e4ff266b6bf6659a",
+    "originalBytes": 35262
+  },
+  "/library/2026-08-27-v2/art-0028.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0028.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "482faf8c88053d27529d3e17e588bc4c211bf7665b375a181f7b93377e0a0e07",
+    "originalBytes": 31745
+  },
+  "/library/2026-08-27-v2/art-0136.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0136.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "61dd943d426037d3dd10c57df6161b071d998a7a19f822d148ad575e411b7ac6",
+    "originalBytes": 46903
+  },
+  "/library/2026-08-27-v2/art-0017.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0017.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a7276dba4f0e22dcabe349e205de228248d2fb187ccb97beddcfd02265903fa6",
+    "originalBytes": 21188
+  },
+  "/frames/fubao-ankang/80-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/80-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "64dbed6769690ae0b5f133b067c27a791d39f55cc558e49acd326c3b5ec898a5",
+    "originalBytes": 109110
+  },
+  "/library/2026-08-27-v2/art-0050.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0050.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b0ce44e2afa7c0b9a5fedf95967066973b7aeec410a1caa0e34cf620a033508e",
+    "originalBytes": 29556
+  },
+  "/library/2026-08-27-v2/art-0139.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0139.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3d661e0d45604c8fec44e4dd1332c758a3f6423ebfdf476fd5f663d3e017e167",
+    "originalBytes": 35806
+  },
+  "/library/2026-08-27-v2/art-0185.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0185.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "9d34e1398b76f8f93d9e4d9ee421ba9bd420b3dc1ccc16c49b02bb9a604ff97e",
+    "originalBytes": 50696
+  },
+  "/library/2026-08-27-v2/art-0206.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0206.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "191b3489b3e6e2d74319e9fc2e0cb93e2df175255249ffc167c2a1476b391a1e",
+    "originalBytes": 27724
+  },
+  "/library/2026-08-27-v2/art-0049.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0049.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "122c9949b6cce4b6ecbbe77271b169ffbb8f85b3bfbcf67d62a15c18494dbee6",
+    "originalBytes": 27916
+  },
+  "/library/2026-08-27-v2/art-0119.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0119.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1f6bdc920a21b635dee6d35a7b66f05eb665bdf661fd92ed72ed83d9e74232b9",
+    "originalBytes": 33553
+  },
+  "/library/2026-08-27-v2/art-0008.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0008.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "58efad79b9aece612aef9360e41eb1529f7b6dec03292d27e0c5146ad15638ae",
+    "originalBytes": 27189
+  },
+  "/library/2026-08-27-v2/art-0094.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0094.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1e330d0ba494400be027d078c5d83d0a1b4fefc92289c682b4f9e39b222e0375",
+    "originalBytes": 55320
+  },
+  "/library/2026-08-27-v2/art-0235.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0235.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "90cb433e12dd60ef5991e637b07992d433e972743c685bfdd59cdf372d74bb92",
+    "originalBytes": 34511
+  },
+  "/scenes/github-interiors/living-room.png": {
+    "originalDiskFile": "source-assets/site-assets/scenes/github-interiors/living-room.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "67856bd4405d0dc16157acb852cb4b94a0a7a2dd84b86b8a66d3c77923b5606a",
+    "originalBytes": 1385991
+  },
+  "/library/2026-08-27-v2/art-0020.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0020.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "090fc82da10501be10ecf0a5f3009727a8fe8b9c8ccb60894edd0b69f75f19eb",
+    "originalBytes": 28855
+  },
+  "/library/2026-08-27-v2/art-0064.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0064.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d41b3cc44a43414d450cd63470fca640798582367228c1d4e59b8a15fb823cd7",
+    "originalBytes": 12334
+  },
+  "/library/2026-08-27-v2/art-0003.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0003.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "cbbf7d548496d99676968658520869df4a4a5263a2ed6df5356317ba0ed8febb",
+    "originalBytes": 49565
+  },
+  "/library/2026-08-27-v2/art-0142.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0142.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1b7238fee00ac8de0160a305efd308ec639e24c65861bc258f491033b361e351",
+    "originalBytes": 27099
+  },
+  "/frames/fubao-ankang/30_30_80-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_30_80-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "bb6b5a60b7981e9e7c874c64981640b7db0fa0ee81a106834bb4503d3359762f",
+    "originalBytes": 109310
+  },
+  "/library/2026-08-27-v2/art-0157.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0157.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "de8733e350cd838efff115cb68272ddec8e29acb74c365ebe3cc77ae7f1cb60d",
+    "originalBytes": 46393
+  },
+  "/library/2026-08-27-v2/art-0224.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0224.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0aa52fcbe7ddaaa77fa9a828c8b54ebc7b487f5f27e9e3c46bdf4c77917a04e2",
+    "originalBytes": 26363
+  },
+  "/library/2026-08-27-v2/art-0259.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0259.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ed0c12db5c42cfe7911b8f4fbbfcaf35086d3c144e9a2f6ca2c3c6a2b053d99e",
+    "originalBytes": 22174
+  },
+  "/frames/fubao-ankang/60_30_60-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60_30_60-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5b3bfe84f8f4f8a12f14f348e19af6231ebac20e8fb8363678bfe6b38f0dfcf7",
+    "originalBytes": 117170
+  },
+  "/materials/frame-colors/pear.png": {
+    "originalDiskFile": "source-assets/site-assets/materials/frame-colors/pear.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "9e5d27f74e901477dcaf2ce4e727aa26c2421b1e42a333b363a5479d7ab307d6",
+    "originalBytes": 66027
+  },
+  "/templates/transparency-comparison.jpg": {
+    "originalDiskFile": "source-assets/site-assets/templates/transparency-comparison.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "489f73164b7c7af92a1a55e89220dd2914a959cb127ade88178d5023ab3ce68f",
+    "originalBytes": 692847
+  },
+  "/library/2026-08-27-v2/art-0214.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0214.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4bb1043eef61f48c74b4d91617ef24fbadb066a840a7998178bb4e4be9f03543",
+    "originalBytes": 22054
+  },
+  "/frames/fubao-ankang/30_60-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b1afac1d58a759be3ee722b4deaf7c37786defc2b6038a217e288b5e9bad3313",
+    "originalBytes": 109441
+  },
+  "/library/2026-08-27-v2/art-0104.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0104.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0bfc17ec89f3a046b498ac07c78188d3e8a228dcba6df6be6c4cf8df8c43a24f",
+    "originalBytes": 58610
+  },
+  "/library/2026-08-27-v2/art-0144.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0144.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "df81faffd8448bfd9fcb6d6230714e562ce804a2a506db42007d7e6542c220e5",
+    "originalBytes": 55969
+  },
+  "/library/2026-08-27-v2/art-0117.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0117.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ec33ae683a9e522bffc73a684af446ff38866ef82c6631f72a793917c780dcbb",
+    "originalBytes": 62602
+  },
+  "/library/2026-08-27-v2/art-0063.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0063.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c278daf0b809fe5f478dc633ab08bb124e71928959153d93cb5a3a4b2cc55dee",
+    "originalBytes": 49966
+  },
+  "/library/2026-08-27-v2/art-0072.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0072.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6c5cc9a9f33cf133d06ece7ac767c1ee8e2e075e0022865bcb3c8d0f0753d396",
+    "originalBytes": 32579
+  },
+  "/library/2026-08-27-v2/art-0044.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0044.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3b23e4289881fb217c8e08ad0dcfeeb3c3fdc3c089edfdb29a03d8940d4ad198",
+    "originalBytes": 31704
+  },
+  "/scenes/github-interiors/staircase.png": {
+    "originalDiskFile": "source-assets/site-assets/scenes/github-interiors/staircase.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "61d98d8bea3e26b4661ef835e037424d3b67e6eee3dc49b78a2c2c207612b041",
+    "originalBytes": 1381385
+  },
+  "/library/2026-08-27-v2/art-0057.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0057.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2eec9305e74184363495c0b020f8972a4ce1b57c75ebaee7c005edb7f8751af3",
+    "originalBytes": 10581
+  },
+  "/library/2026-08-27-v2/art-0212.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0212.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3ebea3e0e76a1c92944d8cfcfe3e4eb9fb5d59c0070bab9de90e2e3642797437",
+    "originalBytes": 19311
+  },
+  "/library/2026-08-27-v2/art-0143.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0143.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d8aa7d42689c6f0bd8cebbea628b212350c02402d1e3498093e1e217150d7f66",
+    "originalBytes": 26310
+  },
+  "/library/2026-08-27-v2/art-0056.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0056.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8594db30e113d342c0552143abe773663befac7df1bbbf7894deeec23eff1684",
+    "originalBytes": 21095
+  },
+  "/library/2026-08-27-v2/art-0048.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0048.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2dbd4c486c73b75c9b60447b7762d73dcee6b93f17b555812b3c3605f9c27511",
+    "originalBytes": 44768
+  },
+  "/demo/米白灰绿植物.jpg": {
+    "originalDiskFile": "source-assets/site-assets/demo/米白灰绿植物.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8c457964b889dd964756d50ce9cb19740e969654722f010ea9ff1624d04a472c",
+    "originalBytes": 176600
+  },
+  "/library/2026-08-27-v2/art-0204.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0204.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2dcda7c9b1cd2a217d2aafc88d5580a78dd4b39dc3a67c0d65e30cd3200c45ce",
+    "originalBytes": 39449
+  },
+  "/library/2026-08-27-v2/art-0095.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0095.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8045ae91637dc33fb0ca5aa7ebad685c01842a38d3a36fc6d30c173599497953",
+    "originalBytes": 17229
+  },
+  "/library/2026-08-27-v2/art-0161.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0161.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e0790db71da4d28668169fffed88f0f6cc43fe4b19db3f079a58fa066f159cd5",
+    "originalBytes": 14151
+  },
+  "/library/2026-08-27-v2/art-0183.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0183.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3ebc349b37fe19f22be46346d29950f2c497a9dfb95b43426e8f9acefeeceb10",
+    "originalBytes": 52535
+  },
+  "/library/2026-08-27-v2/art-0062.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0062.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "766b4985e1a4d0cc6b49ae261762bd807f1adaf496675714762cd2ab13f1ae09",
+    "originalBytes": 24248
+  },
+  "/library/2026-08-27-v2/art-0202.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0202.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "202b6da9e9b99f95ec529979a29ce302a28aeb36c73700dd2053fa70d3e81031",
+    "originalBytes": 40373
+  },
+  "/library/2026-08-27-v2/art-0108.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0108.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "887c26bdc60f710386e1531841e95cfa9ce4593fa0ac69d221d1f936f212680c",
+    "originalBytes": 29732
+  },
+  "/library/2026-08-27-v2/art-0059.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0059.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b067d87935adbeaafbb76c0fb2cee9fe7bf53268573501559df66293a0024077",
+    "originalBytes": 22170
+  },
+  "/library/2026-08-27-v2/art-0146.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0146.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fee0aaafe22ab61af4e2726633ae639f54411c72cc6936179579cd6ee05ee528",
+    "originalBytes": 16814
+  },
+  "/library/2026-08-27-v2/art-0002.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0002.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d09d3b0651f71ce4b3121e6699b871e047c4c269e12ccc28b4a3412f5361ca07",
+    "originalBytes": 48998
+  },
+  "/library/2026-08-27-v2/art-0254.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0254.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "be0f2e17a47ca488d240176e1b5fc3e989e7fff6dd663749fb3da695f6e2938d",
+    "originalBytes": 30097
+  },
+  "/library/2026-08-27-v2/art-0006.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0006.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "300de2d0b85b5cd69ab6a508348b47da887802063ef9cd7572932269397c9485",
+    "originalBytes": 34661
+  },
+  "/library/2026-08-27-v2/art-0211.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0211.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7d8bf6487dc5bfcffe65bcc46081970eef555b537dc8e8c0cca9282f5b3e2d81",
+    "originalBytes": 55645
+  },
+  "/frames/fubao-ankang/30_60_60_30-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60_60_30-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "53099972222a06e86ab557797814c477b006e1589a1c14e84adcdf483def01d3",
+    "originalBytes": 122606
+  },
+  "/library/2026-08-27-v2/art-0113.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0113.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8e0ed003569c47166b595870b3ad1fa27691e9ce1da3553eaef173a833d5b6ef",
+    "originalBytes": 20984
+  },
+  "/library/2026-08-27-v2/art-0268.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0268.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "30450fbda10519e531ecb935dd4d2097194bee4885697c55e09ff56a2647b327",
+    "originalBytes": 12312
+  },
+  "/library/2026-08-27-v2/art-0103.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0103.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d09d28c6f79a1efcf4a56a7fcf06c6669c9e33719c297158a9e0e4f055a297e1",
+    "originalBytes": 29929
+  },
+  "/frames/fubao-ankang/30_60-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4da2ade56644503f03d4f386777b9c072b3a7ffc3e5236e9514caa8d87dc0bfe",
+    "originalBytes": 109427
+  },
+  "/library/2026-08-27-v2/art-0178.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0178.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "28ed947903a7d68413e98b204abe8a74446e19a31b360e018998da16065d246f",
+    "originalBytes": 50016
+  },
+  "/library/2026-08-27-v2/art-0200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "02ddccea533033f7840d24d59913014dbd1b951fbf61167672cf76b36d592c23",
+    "originalBytes": 31274
+  },
+  "/library/2026-08-27-v2/art-0145.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0145.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "692a334a1036cfa4a383c160d1e89a40e96fb1bd96c88f81ec118b9ac10230d3",
+    "originalBytes": 15063
+  },
+  "/library/2026-08-27-v2/art-0022.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0022.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "12ba865abff3b4da101deaa09900a504b287446472840b71b3516b94df59791a",
+    "originalBytes": 30503
+  },
+  "/frames/style-previews/青云直上_60-200.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/style-previews/青云直上_60-200.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "dc0b4ad5752850617ce7efd340bbab9dfcbf6c2c36297fc91c2f4c31bef98f60",
+    "originalBytes": 1365017
+  },
+  "/library/2026-08-27-v2/art-0040.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0040.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "493648fa8166ce4808980176905f8f2456efa7a7c0f0b76b896d7486d484e334",
+    "originalBytes": 29419
+  },
+  "/library/2026-08-27-v2/art-0216.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0216.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "242c30d1b1e648fda5fa6c4f16371a75d60eec6f2750643fa75998948b093346",
+    "originalBytes": 14491
+  },
+  "/library/2026-08-27-v2/art-0189.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0189.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "35eaca37b176dcc74f0f2b5ab7c0c7edcf420e9fe7963792c70a9a2bfe4bf98a",
+    "originalBytes": 48838
+  },
+  "/library/2026-08-27-v2/art-0138.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0138.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "00f9e2df39fd7f00ea00b5035592b56ad846ecef20ad2618457de7fe705cdc1b",
+    "originalBytes": 47482
+  },
+  "/library/2026-08-27-v2/art-0196.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0196.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a829229a56248c33780eff012e05094af738210235ec19150bd415fc913ca9e7",
+    "originalBytes": 43006
+  },
+  "/library/2026-08-27-v2/art-0027.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0027.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e0c17adcdfbea1149915f87b24af9ca66a27b87409710ac2120bb0732fb1299a",
+    "originalBytes": 23595
+  },
+  "/library/2026-08-27-v2/art-0107.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0107.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8ece58e0169588ea28c5f1c91d0fe4462756a222ea77627409f33f967534b8d1",
+    "originalBytes": 44018
+  },
+  "/library/2026-08-27-v2/art-0173.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0173.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ed0533db51016be7792097c7fbd2f5cbcaa766a7569647cb9ab0085ba270c8a0",
+    "originalBytes": 58629
+  },
+  "/library/2026-08-27-v2/art-0148.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0148.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ecafa74d1bf6f303110984408f0a1d40c0ea2f051e0f608e34157fa793e46ad2",
+    "originalBytes": 26929
+  },
+  "/library/2026-08-27-v2/art-0033.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0033.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0672b62d5b9356dd51f24fbc77d8c39a96ffc27bdc953db59d70cecc1318070d",
+    "originalBytes": 15810
+  },
+  "/library/2026-08-27-v2/art-0065.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0065.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0f8979d8b5e9f627bbfa6c30c2ae99c0b3bf5bbdedb658da1e71f95d7e64dc50",
+    "originalBytes": 36004
+  },
+  "/library/2026-08-27-v2/art-0166.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0166.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3ef7460d9f8a105cab52565e69809666ae32e34852883526ad959de55bfe5288",
+    "originalBytes": 24257
+  },
+  "/library/2026-08-27-v2/art-0249.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0249.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "67cc476f659a743571f19d6c7139647e366ae23315aa4a9012e5e36f090ca43b",
+    "originalBytes": 39027
+  },
+  "/library/2026-08-27-v2/art-0025.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0025.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4c53e59c42ae55d3220d73dfdf09da8f475c959118539268b8cd9111fdbc0a7f",
+    "originalBytes": 15175
+  },
+  "/demo/暖白花枝.jpg": {
+    "originalDiskFile": "source-assets/site-assets/demo/暖白花枝.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7933d5224fb0b9d6e7047be2fcda8090db05d15d754de34b86d9be728bd034ca",
+    "originalBytes": 242028
+  },
+  "/library/2026-08-27-v2/art-0169.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0169.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f2df09614199b6640130d2d62bb813ff65d785e5c81b07392e53ec1b63a4be82",
+    "originalBytes": 19244
+  },
+  "/library/2026-08-27-v2/art-0031.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0031.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "916635e7987ad15ce954b3d76c4d05f2985d7c9ecd5f0c17d2796a58abda1266",
+    "originalBytes": 22625
+  },
+  "/library/2026-08-27-v2/art-0147.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0147.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "50f505acc60cc6a0080edd48abb9724a1723756e15e8e99de81c697f864efdcb",
+    "originalBytes": 23462
+  },
+  "/library/2026-08-27-v2/art-0111.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0111.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "416e99d47541784517d0cd623eed08bd8ac3a9c66ac3b9253686729f1878cfd8",
+    "originalBytes": 41449
+  },
+  "/library/2026-08-27-v2/art-0228.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0228.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "75e97d19cd80d9d96627e6cb334a1825674d05a3dcd70cebda441b64c205b6bd",
+    "originalBytes": 49907
+  },
+  "/library/2026-08-27-v2/art-0115.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0115.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e0de0a799844a964ca12e9c1800f7f49c62b59faca82a3d1620853b601e466db",
+    "originalBytes": 14733
+  },
+  "/library/2026-08-27-v2/art-0083.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0083.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a284ea802fca3ba64c7cbb220475cd5b55b34c80cab06b27e1adb405e58eeb4e",
+    "originalBytes": 17837
+  },
+  "/library/2026-08-27-v2/art-0237.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0237.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fdd9d9bc7fa1094c0aac2428122672f200337a971c4a6b8edaf76e7b8750111e",
+    "originalBytes": 50096
+  },
+  "/library/2026-08-27-v2/art-0086.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0086.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c230b6a774c2964e10fdbf40f621dd77caa8613cd9a1059fbbc3da8a741b2925",
+    "originalBytes": 20873
+  },
+  "/library/2026-08-27-v2/art-0098.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0098.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "49ad17f7c1d6cf44c4fc24922a7f5f7c31d8999deb700c37124b999875a31450",
+    "originalBytes": 31009
+  },
+  "/library/2026-08-27-v2/art-0130.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0130.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8461faabdecf79ebe47f5e43f3ccfdc3c50081f9772061b90f8ac00c2abefec0",
+    "originalBytes": 32137
+  },
+  "/library/2026-08-27-v2/art-0014.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0014.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f01f58ef554cc04dca791e2ca597a3f1fb1790caa678ce6932e681880c884fab",
+    "originalBytes": 27928
+  },
+  "/library/2026-08-27-v2/art-0046.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0046.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "35dacd42d475c6d36336daf887ed6246c32a20857bea32ae6e8d89e268b4ec34",
+    "originalBytes": 33346
+  },
+  "/library/2026-08-27-v2/art-0129.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0129.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "074c3fdf029384b2f1703c00a45da06fa0078d7d0f3042e86cc2b06f6982332f",
+    "originalBytes": 23014
+  },
+  "/library/2026-08-27-v2/art-0193.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0193.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a4a7664c1c4d51bbbac3a22ec3171625ac8011a879d5db801c93a88b46ef93b4",
+    "originalBytes": 18528
+  },
+  "/frames/fubao-ankang/30_60_60_30-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60_60_30-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "aefb676475510cc75a502aac8f74fa9cdbefcf7bfb5313ac2fc778653951e828",
+    "originalBytes": 122617
+  },
+  "/frames/style-previews/飞鹤六连屏_50x6-190.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/style-previews/飞鹤六连屏_50x6-190.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "78de7be3e94d4e0a05fac49d948e0e67001cfac5981b4443695a2c46728862a8",
+    "originalBytes": 944217
+  },
+  "/library/2026-08-27-v2/art-0126.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0126.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "cc9e882822a352621a4544cfcff97420c808c8ca4ba1953f4aab622bd74b546d",
+    "originalBytes": 34806
+  },
+  "/library/2026-08-27-v2/art-0188.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0188.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "48d8519a80082594324fb528f14c7537fe1f2ad788fa69e9bfaaeecc944ac406",
+    "originalBytes": 50758
+  },
+  "/library/2026-08-27-v2/art-0043.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0043.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c9b7dc0e8412850b00944fd0a0d986d27428d6ef3ed60b31f2dbf865fa8059ce",
+    "originalBytes": 28402
+  },
+  "/library/2026-08-27-v2/art-0240.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0240.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5f1f8f42fe45d38da3a9f5e59c897f4d0970dff7d57d1914bfebf0c65511d708",
+    "originalBytes": 25638
+  },
+  "/library/2026-08-27-v2/art-0219.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0219.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "49d61b2f643b19fc593c08df3dd5e32e245140ba3760dbf740507b5c0f34d1eb",
+    "originalBytes": 38378
+  },
+  "/library/2026-08-27-v2/art-0039.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0039.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c25ba826aef0df34b00308476c37e5d6d19532655da1bac5019ae861be12c483",
+    "originalBytes": 28229
+  },
+  "/frames/fubao-ankang/80-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/80-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "48aca553e0ea7046373140fa49ca96e2eeaefafcb068f1ad2d82e7767b1ca948",
+    "originalBytes": 109144
+  },
+  "/frames/fubao-ankang/80-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/80-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3e11dccaaab05638eb7a0517ded187b035e1b3bb7c3cd98b981e0685a575a0d7",
+    "originalBytes": 109132
+  },
+  "/library/2026-08-27-v2/art-0244.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0244.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4a566e5090a7f88eefe46a6d5f38581b64e55b7d8ceb7440a6f2ba0a5a116c5f",
+    "originalBytes": 30278
+  },
+  "/library/2026-08-27-v2/art-0112.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0112.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "624d964a322bccf528a6089414a4df47524abac0c74fadc8844e0c2552b2eafa",
+    "originalBytes": 37818
+  },
+  "/library/2026-08-27-v2/art-0153.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0153.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7244b0278c07801a397e64d018e549a4d165e512e795871c0076737e7135cedb",
+    "originalBytes": 42704
+  },
+  "/library/2026-08-27-v2/art-0192.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0192.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4ea6aae273cf541d512f02fcef5394de3baf1ff4f078446d1e66e9cddbac09e8",
+    "originalBytes": 32494
+  },
+  "/library/2026-08-27-v2/art-0128.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0128.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "74edffe7fdae024c65a990ab6c8f10ffa7ccf559c2f6314f453074a414e3353d",
+    "originalBytes": 34033
+  },
+  "/frames/fubao-ankang/60_30_60-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60_30_60-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "36752a6e0ff4615ab3fc56bf2260eab58afc68cabfb92d52967a813ee47731be",
+    "originalBytes": 117181
+  },
+  "/library/2026-08-27-v2/art-0140.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0140.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "49d66d3e5f9cec7801c56ee00ad2f98f1d2e98aa9dbc34e61bbeb424d1fc4532",
+    "originalBytes": 22492
+  },
+  "/materials/frame-colors/redwood.png": {
+    "originalDiskFile": "source-assets/site-assets/materials/frame-colors/redwood.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "2cdaafcd22d9b4a80d548f3838f3f95cf9a23c30056c3c57c165e789d7141f14",
+    "originalBytes": 51016
+  },
+  "/library/2026-08-27-v2/art-0195.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0195.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fad0ad8c334371611c3997b1868349e098c9d6785cf4cbb10759470544eecb8f",
+    "originalBytes": 41784
+  },
+  "/frames/fubao-ankang/40_80-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_80-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2ede79b0f188f3305537eb2799d5b72fd2df5e542093313ab2c0250153106dcd",
+    "originalBytes": 106959
+  },
+  "/frames/fubao-ankang/30_60-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "43937591ce278afcc30c844c5f1a5e9fa2408281ff89b418805502d0fa3115a6",
+    "originalBytes": 109402
+  },
+  "/library/2026-08-27-v2/art-0069.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0069.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e8502c95598ccc5045946f75b0219549e4700c48c145b990b17cca7a725b60de",
+    "originalBytes": 28436
+  },
+  "/library/2026-08-27-v2/art-0026.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0026.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7bffd54f501dca216e4fa6132a2fedfc2ed64a9372ba92a37dcf19544324eddc",
+    "originalBytes": 25380
+  },
+  "/library/2026-08-27-v2/art-0218.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0218.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "31ec2c55190b4815e306623819324ed86572596b2d3061fa3645ef1f248ac048",
+    "originalBytes": 33314
+  },
+  "/library/2026-08-27-v2/art-0168.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0168.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d23e61a9d7ab25bc458617ccdc7124a2665087ad40afd17f6f96608685254cde",
+    "originalBytes": 52853
+  },
+  "/library/2026-08-27-v2/art-0248.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0248.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4f7e43166e8a876d35549832e03faaf410a6310da91314102f96f0b33d609090",
+    "originalBytes": 31827
+  },
+  "/library/2026-08-27-v2/art-0010.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0010.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5aa9738f7d87d601e2170c255443b286a9b316956b7cc4216107996eaf0e0ece",
+    "originalBytes": 20734
+  },
+  "/library/2026-08-27-v2/art-0077.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0077.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "dd9f6d879fb1d0f2963717f1be272622c3243bcc4aca1a630c4a14461e19aae7",
+    "originalBytes": 20638
+  },
+  "/frames/style-previews/五斗柜_胡桃60-200.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/style-previews/五斗柜_胡桃60-200.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "7c650e8d1665d3024baf0c9cd64a859d148d5078db17e4370b9ff25ec15f1988",
+    "originalBytes": 977888
+  },
+  "/library/2026-08-27-v2/art-0227.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0227.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "efb8e94bf13fbbf97fbcbb49faed16b90fd2620c37a21dd2109d6d0f9710e555",
+    "originalBytes": 36803
+  },
+  "/library/2026-08-27-v2/art-0102.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0102.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0a8a680fe3d360db61a5bad2db32f25fe569865508e8b97a73f32281f7376e58",
+    "originalBytes": 33561
+  },
+  "/library/2026-08-27-v2/art-0177.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0177.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "34683cb041bcb7734ada1b8c9c357434cc8f671ddeb7b76e3205aaddb07630c5",
+    "originalBytes": 46608
+  },
+  "/library/2026-08-27-v2/art-0207.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0207.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e4137a3c90b8ae4642d2a46dad58678035af93ce89eede61b9274e78ac01984c",
+    "originalBytes": 43089
+  },
+  "/frames/fubao-ankang/30_30_80-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_30_80-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d78db4ce5a759d9e76b5187816fc755c7f218be896213132d0e2e12f1f196ac1",
+    "originalBytes": 109305
+  },
+  "/library/2026-08-27-v2/art-0023.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0023.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "286bee51ca3a18ec6beaef383ebb7c9fdde2ef76c36c070d974c2a4b83ba96cb",
+    "originalBytes": 56572
+  },
+  "/library/2026-08-27-v2/art-0175.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0175.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b9b08d90a8e0277f4d8c86c138cd3e5b0e507267c3029f1a37eb524b59d907f7",
+    "originalBytes": 50546
+  },
+  "/library/2026-08-27-v2/art-0184.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0184.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e8c6bc0429ceb7c5602200569f1b5bedc546747fcdd1e501b9127cdf13d5a4d8",
+    "originalBytes": 25688
+  },
+  "/scenes/github-interiors/modern-hall.png": {
+    "originalDiskFile": "source-assets/site-assets/scenes/github-interiors/modern-hall.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "70cee21dfb711eed80972105d237a36f311a37d68ba5c0dfa74ddd1b12cf175d",
+    "originalBytes": 1213727
+  },
+  "/library/2026-08-27-v2/art-0222.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0222.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0dac6c7e11169f42599a8c9b520eb6148ed66d6cef1690d8d8d5a6e2e4a5044c",
+    "originalBytes": 33436
+  },
+  "/library/2026-08-27-v2/art-0132.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0132.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "07cb5e731a7bb852c057f0072e46d447ffc8b49826ad56939c93ed0ac974f6e1",
+    "originalBytes": 41311
+  },
+  "/library/2026-08-27-v2/art-0036.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0036.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ab83eff4ab4eeee3a57d158e7be644972a9e09f8812be9b968b02edeb8d617c5",
+    "originalBytes": 16774
+  },
+  "/library/2026-08-27-v2/art-0269.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0269.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "25a811af185264232e926bbc10684c27bfd9ce60b37f93f6ef3648769f2916ee",
+    "originalBytes": 12291
+  },
+  "/library/2026-08-27-v2/art-0110.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0110.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e5ab5b799abcaa9e9e175195224112f714ec81c5c5987141a1bc6459b7ffc6cb",
+    "originalBytes": 38180
+  },
+  "/demo/雾蓝极简单花.png": {
+    "originalDiskFile": "source-assets/site-assets/demo/雾蓝极简单花.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "8f12826da5cb2e412ace03792f8c03936edef72e578814ecbcf6bb85e08e7b20",
+    "originalBytes": 2015690
+  },
+  "/library/2026-08-27-v2/art-0264.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0264.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e09b39ef31f44b0e99fad7292586c1680749cdd6eabb957a170705cb5c9dcf1b",
+    "originalBytes": 13744
+  },
+  "/library/2026-08-27-v2/art-0165.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0165.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "17f9e5ac6e01169cc0ad3d8a4c08e5588578507221687b7b4a40d9a4c4f0790e",
+    "originalBytes": 63578
+  },
+  "/library/2026-08-27-v2/art-0232.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0232.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7ca8c53d8088541da1bb7ebbe8022cbc599c9a767bb3cc32ad250a6da5676e0e",
+    "originalBytes": 20835
+  },
+  "/library/2026-08-27-v2/art-0260.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0260.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "522a8b5f2c1ce8c7de8d66d9b807c9dcc132ae623707cbc8de00b3fa4a6e87a9",
+    "originalBytes": 36131
+  },
+  "/library/2026-08-27-v2/art-0133.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0133.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fb67fc066b1dfcfdabfee0e41cc46ddd65a686dbed586658bba28ae1da44d4f7",
+    "originalBytes": 12168
+  },
+  "/library/2026-08-27-v2/art-0242.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0242.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "54b649b589a810eec08bfc62bc21ef45cec2622c354c6f26d83951e479f483f4",
+    "originalBytes": 41611
+  },
+  "/library/2026-08-27-v2/art-0024.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0024.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "9d7ea5437127a2b2be7298634ffa93caa50e977b0d9bd8496e36426d8e4330d9",
+    "originalBytes": 18498
+  },
+  "/frames/fubao-ankang/空框白底_80-200.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/空框白底_80-200.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "2a01cd916dc60fd2cbb33969b037b1811eb09478781d6fa49f90c78e505c7fcd",
+    "originalBytes": 1046464
+  },
+  "/library/2026-08-27-v2/art-0137.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0137.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "affc7f098481ee47f94284881347b70e0af4345174909aa85923de4e31bfa6e3",
+    "originalBytes": 23500
+  },
+  "/library/2026-08-27-v2/art-0131.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0131.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "290282d422e5e60e7fec6435de496e8daf79b004231fc71da8046bd9aa62df9b",
+    "originalBytes": 23031
+  },
+  "/materials/frame-colors/simple-gray.png": {
+    "originalDiskFile": "source-assets/site-assets/materials/frame-colors/simple-gray.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "5b8a4a63e546d1c28b4f0c9e69472ba2ca32fc3c316bcb37114aac50a4396a2b",
+    "originalBytes": 31478
+  },
+  "/library/2026-08-27-v2/art-0229.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0229.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8d758fdc948ce2ce04901dd96b36d7201f4388a6087e4c7213b842e9747f8bf3",
+    "originalBytes": 52097
+  },
+  "/library/2026-08-27-v2/art-0007.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0007.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "576f4b94b0c0c638a99a0d714feeed25f9cac0403ec6e479ab5eb6f1b0023a93",
+    "originalBytes": 44881
+  },
+  "/library/2026-08-27-v2/art-0265.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0265.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5caf01974c2562e82be4814ee1bcf7d4879f9ed731a63b76406f9929f0dc5607",
+    "originalBytes": 21276
+  },
+  "/library/2026-08-27-v2/art-0085.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0085.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "90d49be888265be2e4a40cc6ef9f83b363dce39b3e6a2d427d2509502a4b52ed",
+    "originalBytes": 44223
+  },
+  "/library/2026-08-27-v2/art-0233.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0233.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fd0131aeb934a46f7637bb38980bf8a7c372bd2be7a805d60f7ed56f7fe015f6",
+    "originalBytes": 27764
+  },
+  "/library/2026-08-27-v2/art-0051.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0051.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3b0ccc14ffa27d7c5bbc51bf75f6e4b95c78136d18c80a680f7912b259827744",
+    "originalBytes": 40983
+  },
+  "/library/2026-08-27-v2/art-0179.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0179.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "655c0a690d2116dae07e072ab105ce32f75ba5ee13e58fe35109b80ae2413491",
+    "originalBytes": 37898
+  },
+  "/library/2026-08-27-v2/art-0041.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0041.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e8a53ec90cd83b11aea007ce9cca36072ca25f1f26a121e4a490a781e9fd1a0f",
+    "originalBytes": 34370
+  },
+  "/library/2026-08-27-v2/art-0035.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0035.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "234dfc63b3a145e90d14458a57f4b57224e45870a90e284d78469c022dca2003",
+    "originalBytes": 40335
+  },
+  "/scenes/github-interiors/living-room-2.png": {
+    "originalDiskFile": "source-assets/site-assets/scenes/github-interiors/living-room-2.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "c02be94dd2c7a04877304349fad7b0337eee44c3d197905f65be686da0a14341",
+    "originalBytes": 934579
+  },
+  "/frames/fubao-ankang/30_80-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_80-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7f8e11a955a4080af8fb2ec447dbdc36b1407fed422959c449b5e3bbb8cb93ff",
+    "originalBytes": 110765
+  },
+  "/frames/fubao-ankang/40_40_80-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_40_80-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f6fc80c91186259152943b80bce43aca51188186f1bfdc451a900cb382f14ec0",
+    "originalBytes": 109438
+  },
+  "/library/2026-08-27-v2/art-0127.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0127.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "92f0c94ae12f559954e9d8bfeade9bab4dedceda3cd060da4cb3a7180e541417",
+    "originalBytes": 40555
+  },
+  "/library/2026-08-27-v2/art-0081.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0081.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "48b8ab6345dddc5f12d826a55de5a99a96dd7dac5d52fdc8efc8eb61e1eb0089",
+    "originalBytes": 41812
+  },
+  "/library/2026-08-27-v2/art-0208.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0208.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a8cc587c7f11f0071daf2b083bd738afbe1cb1de2a6dd40e3d02cd2f32d186dd",
+    "originalBytes": 18504
+  },
+  "/frames/fubao-ankang/40_60-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_60-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "bc3ce03536e5fe4e2b05331cf2d92a8c70d9da29253337572b4bf0d76fedad2a",
+    "originalBytes": 104846
+  },
+  "/frames/fubao-ankang/30_60_60_30-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_60_60_30-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ba65e3499ad0534eac2ac86940bb09bd57bfd46a393dc03a92bfecbc0a27c774",
+    "originalBytes": 122620
+  },
+  "/library/2026-08-27-v2/art-0047.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0047.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0eb5c1d63c3aeb045772da6fb74ce195bf7022cb0550f32ceb5925d4f7a996ab",
+    "originalBytes": 47540
+  },
+  "/frames/fubao-ankang/60_30_60-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60_30_60-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2ebe577e5d6047d18a008682ad4936e1e66d716409bce2b4c1bbe439f2d8ca5d",
+    "originalBytes": 117203
+  },
+  "/frames/fubao-ankang/40_80-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_80-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f8687d8c9373606a5d55d400c87ab7e94a872cdf1e8e51ddb8be6c90ea1c8376",
+    "originalBytes": 106959
+  },
+  "/library/2026-08-27-v2/art-0030.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0030.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d870d7e623a7809a0cec04dd4e09217da2d747d20577ebd96a44f57c8e43255b",
+    "originalBytes": 14626
+  },
+  "/frames/fubao-ankang/30_30_80-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_30_80-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a31ac12d5d09a3f3d641dc0512b0db3e39f65c64a08594a9e15255e135c84943",
+    "originalBytes": 109328
+  },
+  "/frames/fubao-ankang/60-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8c23d2d4993c061bb580fe800c6a8c1bb06de2944e9564ed3c8356df385790d5",
+    "originalBytes": 107180
+  },
+  "/library/2026-08-27-v2/art-0071.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0071.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8b97d0beef645b5806ad53e2473dd247c9554b475d880504e70a16735c91374e",
+    "originalBytes": 30690
+  },
+  "/library/2026-08-27-v2/art-0055.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0055.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5552bc06191a7e45c4e23337fda54070c1d2b865767c5643bb86f3b90161fe97",
+    "originalBytes": 55811
+  },
+  "/library/2026-08-27-v2/art-0190.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0190.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "341f4dbd10ba5543795aed5abd3973678fb2ac0084343914fb82d3dac0293c14",
+    "originalBytes": 38138
+  },
+  "/library/2026-08-27-v2/art-0225.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0225.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "43f1a946c89f79f5532af5d2774cb932f1aab5bd9c41fef88d96ca5c0f393807",
+    "originalBytes": 39471
+  },
+  "/library/2026-08-27-v2/art-0012.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0012.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ea9681e4bbab2ba597b6f362d87c3b14ab37fbfbe4e7f923f73ffe8cb4966f9b",
+    "originalBytes": 16915
+  },
+  "/library/2026-08-27-v2/art-0052.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0052.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5db0517a8c5526294573569535c2525640f80b4062774f80382cd1fe8df79026",
+    "originalBytes": 17905
+  },
+  "/library/2026-08-27-v2/art-0163.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0163.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f2fbecce67b447eeb646a2d39c81297a533141fc365a407d6eb4b7db3a834721",
+    "originalBytes": 28564
+  },
+  "/library/2026-08-27-v2/art-0257.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0257.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "31bb6e0386ca2a64337139879bd2932279e57213c9b66ab1e7124fab3c2f0a83",
+    "originalBytes": 52345
+  },
+  "/library/2026-08-27-v2/art-0096.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0096.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "767dd45f67d861f22f64e98a137046f4b61691ddae2a817298a96d8e70deab22",
+    "originalBytes": 22241
+  },
+  "/library/2026-08-27-v2/art-0172.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0172.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "28f2a1a17d9e2bda888d8569bb1bf458871618314a0483a68b0c236b69a82247",
+    "originalBytes": 23791
+  },
+  "/frames/style-previews/福报安康_80-200.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/style-previews/福报安康_80-200.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "70ed1a6045949abf280f93063669dfa9211ce2a266677b566e8727d07b29d450",
+    "originalBytes": 1088989
+  },
+  "/library/2026-08-27-v2/art-0093.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0093.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1a851898bd50ee877a0a93d523b9ee84dfa9896071f0a33af1cf54b10c2b690c",
+    "originalBytes": 34314
+  },
+  "/library/2026-08-27-v2/art-0066.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0066.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "40dad1e777e4ed906a1c3465be59d1e510c0005c191d21545d68baa974ddb20a",
+    "originalBytes": 17757
+  },
+  "/library/2026-08-27-v2/art-0018.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0018.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5a49d91dc2606903aeae4f24c10756dbdca67162630aa6739ca893200c1d5bba",
+    "originalBytes": 33242
+  },
+  "/library/2026-08-27-v2/art-0210.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0210.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "06b74e54f62f6af00df9d31d92907435804becb19039951983f0ad26237d13ff",
+    "originalBytes": 28715
+  },
+  "/materials/frame-colors/natural.png": {
+    "originalDiskFile": "source-assets/site-assets/materials/frame-colors/natural.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "16ca7c2511df800afa806924246d3c458bf7587138d58282b1ad585c4c26705e",
+    "originalBytes": 76810
+  },
+  "/library/2026-08-27-v2/art-0174.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0174.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ed6cb4dfdc5386efa8e3cb3f82f4136b9d217455571b23986f09698caf7d3f00",
+    "originalBytes": 42570
+  },
+  "/library/2026-08-27-v2/art-0221.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0221.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4f74244686e882529cb5179e3bc1f460648c83f16894701bcbf87b845fa6f05f",
+    "originalBytes": 27466
+  },
+  "/library/2026-08-27-v2/art-0037.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0037.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "54802b199226bbaf28484f7668cdad8bf56540b7bca41df5c834ff7441d01242",
+    "originalBytes": 26784
+  },
+  "/library/2026-08-27-v2/art-0238.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0238.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b196596123b4b5837f386a3de565b7a1d4c506507e5bc1dcb07591a8bfb6cfd4",
+    "originalBytes": 31596
+  },
+  "/library/2026-08-27-v2/art-0053.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0053.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e1dfca375586691f3eff1a20cce299ef48bcc5a9c0178ac871d69419a11e6356",
+    "originalBytes": 25929
+  },
+  "/library/2026-08-27-v2/art-0060.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0060.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ddb112ca42951bd3af5e31bf31aed55586d7a7760fbdd9d23208876cce9460fb",
+    "originalBytes": 15104
+  },
+  "/library/2026-08-27-v2/art-0220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ab4fa75ae26c7d7cb7062b17608c3d5d2d23709b35c7ad640b5e367fd68fbed2",
+    "originalBytes": 50855
+  },
+  "/library/2026-08-27-v2/art-0262.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0262.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "56b2a4749fa8f35dc0a5e4fb4f6bc84685f4f34aaec20cdc95ba2db6744ace36",
+    "originalBytes": 27956
+  },
+  "/library/2026-08-27-v2/art-0100.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0100.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6cb3ccfbf83e4ddab32e3262d45be2c80347c6dd24db62594a4400fdc64e498b",
+    "originalBytes": 38307
+  },
+  "/materials/frame-colors/walnut.png": {
+    "originalDiskFile": "source-assets/site-assets/materials/frame-colors/walnut.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "becbf1f76cbeceabc8a023704079cb9f2015953241bd32e5d963d99f3055c0d6",
+    "originalBytes": 45141
+  },
+  "/frames/fubao-ankang/30_80-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_80-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "94d2bea834c18c72e943b2ece4b65da8564b9b10cd5b1ec80666645cb31ea834",
+    "originalBytes": 110754
+  },
+  "/library/2026-08-27-v2/art-0073.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0073.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "bdc9f44b6d60fe097ed8775de2829b2d9bb080812cc854e2c0f76a3afd761af4",
+    "originalBytes": 72018
+  },
+  "/library/2026-08-27-v2/art-0198.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0198.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0a292903be4d47d262752fde0c47ff62d1002bac2af57c91cdceb4f9f65c5195",
+    "originalBytes": 18605
+  },
+  "/library/2026-08-27-v2/art-0234.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0234.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5a0e4452ac21acc5686a7a8572f98916ab0a6baeb2ef1fdc6d12428ffb627fc1",
+    "originalBytes": 14408
+  },
+  "/library/2026-08-27-v2/art-0197.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0197.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8abe9777e0252d8346cc6f4037570a4f737f9fc6185347ede3fb773f282ad461",
+    "originalBytes": 24393
+  },
+  "/library/2026-08-27-v2/art-0001.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0001.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f8f2435a5403aa5a3470c4c31ebf65e8a36580a4419621ae03bdf69f64319f21",
+    "originalBytes": 39651
+  },
+  "/library/2026-08-27-v2/art-0170.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0170.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "bc9007d9203663f2da39a7615fd869d6b5adfe9538a3a2ff263ace56b1d5ad12",
+    "originalBytes": 36578
+  },
+  "/library/2026-08-27-v2/art-0067.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0067.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "71bb64df83c87dec9836584b2b0c036cd7b84b3be8b80f7a2f36b34b4de936ef",
+    "originalBytes": 27795
+  },
+  "/library/2026-08-27-v2/art-0203.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0203.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "645914585765d888d6a4fddd07a6d1252611dc9f7db372909145b8d67ce200ad",
+    "originalBytes": 43270
+  },
+  "/library/2026-08-27-v2/art-0155.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0155.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "957dfb50a82bb47c8aaa900e4651a6623f3be59a578748bc2c5ceef5e6dfcfaa",
+    "originalBytes": 35708
+  },
+  "/library/2026-08-27-v2/art-0205.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0205.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3f2f399044232dd400d8f7126bfe2ff5a6f6b45f2e1e5935d9154d766e5ff32b",
+    "originalBytes": 23394
+  },
+  "/library/2026-08-27-v2/art-0070.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0070.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1975bcfd5aa2a0c5e65834b9020f744587bbd5129dafb6f2089d211d302ca67f",
+    "originalBytes": 14402
+  },
+  "/library/2026-08-27-v2/art-0258.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0258.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e0d389a3be0c8e239dc453848dfdb7c066823497686169077c5fd5a2ad75e111",
+    "originalBytes": 37224
+  },
+  "/library/2026-08-27-v2/art-0156.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0156.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c6f097f30605e724ba2e39c391167c4b07adbad99fb1fe8ba7362fbff8744434",
+    "originalBytes": 21915
+  },
+  "/library/2026-08-27-v2/art-0239.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0239.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5b270220818f15fe1d72ee2a6d1492fbabc43ef60d5d491fedb2093a2b30cc3b",
+    "originalBytes": 23469
+  },
+  "/library/2026-08-27-v2/art-0068.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0068.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "9742bef0eb201aedf5960e7dbc09170297536c5981709f2a191dd18dbc90151c",
+    "originalBytes": 30689
+  },
+  "/frames/fubao-ankang/40_60-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_60-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c71737fe8c33230c950abf097d6807f073bfcc86973938342ec637d920e982ab",
+    "originalBytes": 104860
+  },
+  "/library/2026-08-27-v2/art-0075.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0075.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "15351ac73f955ee03e8b2c09fee820c0aa8f8047387d819d8437dba853a46731",
+    "originalBytes": 30618
+  },
+  "/library/2026-08-27-v2/art-0121.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0121.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c531be206801c4d8222c203d48739f5379640f996099aa3238f2e5df55075592",
+    "originalBytes": 26426
+  },
+  "/library/2026-08-27-v2/art-0079.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0079.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6c2b3fb83ae85fe15f2e638092e318193fabc6a1f80f4526d1a91066bc24e381",
+    "originalBytes": 26531
+  },
+  "/library/2026-08-27-v2/art-0078.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0078.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ccfc8936f2e9864869ea83cff5d53662556ec1bf0b2bf202992851485b450fc7",
+    "originalBytes": 78394
+  },
+  "/library/2026-08-27-v2/art-0124.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0124.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "cd42fa5159c0ea361f6311a1671a40ad3c3a18dd2f70d4512caf2df52c88520c",
+    "originalBytes": 22432
+  },
+  "/library/2026-08-27-v2/art-0029.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0029.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "077f9718b4deedf80e30f1f5d0b0106a95003b5e01495b6a1cbb3216085e2e12",
+    "originalBytes": 31067
+  },
+  "/library/2026-08-27-v2/art-0034.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0034.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "68f458f70684752d8680c4dee1bc3dcd8205e4b9a1df5718d5dc439091d3a3dc",
+    "originalBytes": 42289
+  },
+  "/frames/fubao-ankang/60-220.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60-220.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "42e2bfa1b30b1411166b009ed3c3ff76d196948290362b573abef1340731e2df",
+    "originalBytes": 107205
+  },
+  "/library/2026-08-27-v2/art-0076.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0076.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8c8a57bcb3b1496b2bb9043416b4f357be5e39fb47975160a3713912b6c07b02",
+    "originalBytes": 22803
+  },
+  "/library/2026-08-27-v2/art-0106.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0106.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "043fd68e3ce31fdaaa60371c472ad892a1de7f49f90f82028f03cf310de85565",
+    "originalBytes": 61307
+  },
+  "/library/2026-08-27-v2/art-0201.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0201.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "522974c2cf678043ec5b10f3a5aea268f1c4d7dca4451158117068cbb827ce90",
+    "originalBytes": 21670
+  },
+  "/library/2026-08-27-v2/art-0164.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0164.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "95c557f6813c5f46f918b1ca8d488b5e51895061727065cc600261f3c79d2560",
+    "originalBytes": 36724
+  },
+  "/frames/fubao-ankang/30_80-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/30_80-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c3da0e2edce57327789c4cbb54bf9552dc5e9f2eaa2d2badf83744ad07fef7e3",
+    "originalBytes": 110749
+  },
+  "/library/2026-08-27-v2/art-0181.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0181.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "dfd7a2e8932c751d2796f91e6cc998b7876ace5cebaef92b14671ee167212cb0",
+    "originalBytes": 40955
+  },
+  "/library/2026-08-27-v2/art-0250.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0250.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6c2ea9febf4fe78e74074b456dcaf1a6a81d27a008f6baee3ac000e05e5f3c4a",
+    "originalBytes": 66349
+  },
+  "/library/2026-08-27-v2/art-0263.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0263.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6378b08625732723a6f8521905abbac0f68a7e97fcc09ab4c3d921eb6191cae6",
+    "originalBytes": 32308
+  },
+  "/library/2026-08-27-v2/art-0054.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0054.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f1b92c62e098c3c7e1592c6c0cfb41354790d08ced33281dae327eb94d95f7e5",
+    "originalBytes": 22793
+  },
+  "/library/2026-08-27-v2/art-0013.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0013.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c2a167423a12899217a334c6c59a6fdbd78a93341315450042afa9954d1cbeef",
+    "originalBytes": 34311
+  },
+  "/library/2026-08-27-v2/art-0236.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0236.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5fc8b7194c8d259f4e86f576be58e7a881c387842eb2e3b431fb227abb4cfeb1",
+    "originalBytes": 30682
+  },
+  "/library/2026-08-27-v2/art-0114.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0114.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a2daab4061dae578e4b67a86d25e8f14f15e89d1216ca24f628252e4539160ed",
+    "originalBytes": 28656
+  },
+  "/library/2026-08-27-v2/art-0152.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0152.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1dce089d1e0e514de102c1e12808cbeab55d38ce02ca047c3c28d51468cb60c6",
+    "originalBytes": 40490
+  },
+  "/library/2026-08-27-v2/art-0241.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0241.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "32c66fe423f8b2763a1179c063346737639b80ac1ca45b9b4505627662bffa46",
+    "originalBytes": 42345
+  },
+  "/frames/fubao-ankang/40_40_80-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_40_80-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "64b136103bbdc36aee01b66d48db9a47de4e6b20add7e6dbcfe4369912d39c6f",
+    "originalBytes": 109430
+  },
+  "/library/2026-08-27-v2/art-0016.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0016.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "3e2852ae175a9da2785504f4a7b60b7f19298c6b4f47684464d4857b6f52db3e",
+    "originalBytes": 29069
+  },
+  "/demo/米灰抽象花影.jpg": {
+    "originalDiskFile": "source-assets/site-assets/demo/米灰抽象花影.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "5a014c07f1ed9b331a5075c46d24cefe26f0ed4671bd0afb6534944f82f88656",
+    "originalBytes": 1126533
+  },
+  "/library/2026-08-27-v2/art-0088.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0088.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "78b0d8b2b348ef23e704c9b205a8302b64e75c7693f115216cc8a6e7fe5f198f",
+    "originalBytes": 61595
+  },
+  "/library/2026-08-27-v2/art-0038.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0038.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8ef14ad53a5fc45b8041ae8b43736bd0ffa42d5ac7e1f13029928aa9c696730d",
+    "originalBytes": 25390
+  },
+  "/library/2026-08-27-v2/art-0180.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0180.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b5c43da9fec5826ab26e15f122ffa275a22ed98bb65e262150011b81343eac02",
+    "originalBytes": 42649
+  },
+  "/library/2026-08-27-v2/art-0171.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0171.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e15ef87a759ce041c8351ca13678d37fb146a7a0896354dade320a10b8de8b69",
+    "originalBytes": 38309
+  },
+  "/library/2026-08-27-v2/art-0120.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0120.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "70a8d0481866cea75bee31f1b0c306290406861f50edac56fa48dc451ceef07f",
+    "originalBytes": 25575
+  },
+  "/library/2026-08-27-v2/art-0118.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0118.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c51618961304125530b3fa6abaf193f75b34812e1643539673cf619dd8514e49",
+    "originalBytes": 49306
+  },
+  "/library/2026-08-27-v2/art-0252.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0252.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e30dc0102b69f4b4a525ab98e8593df92a2f5279cd0e9352062e53c747e62607",
+    "originalBytes": 50103
+  },
+  "/library/2026-08-27-v2/art-0141.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0141.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "35a57d9cecdb9899c5e4345ee3a7419484d77d1b97346c5b98ee8bf4312aceab",
+    "originalBytes": 37924
+  },
+  "/library/2026-08-27-v2/art-0217.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0217.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "bdde2a1a7e30205faadfc61b8444a0e8fa74ffa84f113bff3a09252976c60245",
+    "originalBytes": 38676
+  },
+  "/frames/fubao-ankang/60-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/60-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "dee27d91c66483a879a412caa1985de594023e57ce716c57090e3ed7568b1c62",
+    "originalBytes": 107205
+  },
+  "/demo/浅绿云雾山影.png": {
+    "originalDiskFile": "source-assets/site-assets/demo/浅绿云雾山影.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "9bb078e301140942cbb7c161740312a5f29645778a94b5696538bf9d2eb74447",
+    "originalBytes": 1736897
+  },
+  "/frames/fubao-ankang/40_60-200.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_60-200.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "9517447bacd080055a89835323bbc874a89046b9a1976443d4b1563a326c8efb",
+    "originalBytes": 104821
+  },
+  "/library/2026-08-27-v2/art-0135.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0135.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "fe4194471c07cafbbe3ec7fff0db31d03a3b3661d5bcb93c2c28c3807dc76054",
+    "originalBytes": 39239
+  },
+  "/library/2026-08-27-v2/art-0243.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0243.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d970765abe6dfa9808c22e47766a906236e65a2851a12a50765c1ec69a8e311b",
+    "originalBytes": 41530
+  },
+  "/library/2026-08-27-v2/art-0253.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0253.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "06c7cfd3272226b1a1327e4f7a4184194af1c53b7c8866f03fa17522103b1111",
+    "originalBytes": 25741
+  },
+  "/library/2026-08-27-v2/art-0230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "eaadb73a47f4cdddff926a756d4ebf4468d8f3be11a88429cb71eef2078c4dbc",
+    "originalBytes": 18486
+  },
+  "/library/2026-08-27-v2/art-0116.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0116.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "4e6f94996d69d267a217c6fea5c38341ed95fb33b48d26cf214a6aa96fa4c6d2",
+    "originalBytes": 25503
+  },
+  "/library/2026-08-27-v2/art-0226.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0226.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "59016650791084188ce7c30d62154d26faa2f2081287ad5c2d3bc4b7b5052075",
+    "originalBytes": 25819
+  },
+  "/library/2026-08-27-v2/art-0151.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0151.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "8fd45e3982c6998588ced84f7cd653ca62fa24805e433b39baabe57679bab352",
+    "originalBytes": 18226
+  },
+  "/library/2026-08-27-v2/art-0125.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0125.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f6383232d7a975977ff9b490fb8c0f1f7b015598d91c5a2e7d878de59c38ac95",
+    "originalBytes": 17364
+  },
+  "/library/2026-08-27-v2/art-0158.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0158.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "59d9ad17cf47e7abcefcfc587d73af07256481432bfad89d8fa1c9c4e91489db",
+    "originalBytes": 27844
+  },
+  "/library/2026-08-27-v2/art-0032.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0032.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "cdb3fa3c7955f02b7c7453f5edc3d7a9febb4236a285839b457ce50b027914c2",
+    "originalBytes": 24466
+  },
+  "/library/2026-08-27-v2/art-0194.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0194.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "20c1df2581896308995ae77c1dff02ec0c11e6053eb1ed0d1e60421b185e15e3",
+    "originalBytes": 29872
+  },
+  "/library/2026-08-27-v2/art-0251.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0251.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a221284cc734659d45aa71e7de2fbc6835f19122c7ce6af5f7360968749c523f",
+    "originalBytes": 49995
+  },
+  "/frames/fubao-ankang/40_80-230.jpg": {
+    "originalDiskFile": "source-assets/site-assets/frames/fubao-ankang/40_80-230.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "f8bfcf05692dc733176223e78ed2ba84b1d904de0622121e9529c98376ab7f45",
+    "originalBytes": 106986
+  },
+  "/library/2026-08-27-v2/art-0058.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0058.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "1b2a6fc07c36122236a8f0c12015bcee6a03b627f99e645f28a06dadbba308f9",
+    "originalBytes": 39446
+  },
+  "/library/2026-08-27-v2/art-0004.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0004.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "548a4f098ad49c2fd0221baf2e5469a8fd36e190d10703da561553e9f6ddc0c4",
+    "originalBytes": 20015
+  },
+  "/library/2026-08-27-v2/art-0134.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0134.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0d43f872defa0f7815b64c9c3c920081a3a32f4ceda927be6daeaab92d8b31cd",
+    "originalBytes": 44232
+  },
+  "/library/2026-08-27-v2/art-0187.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0187.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a689a838a1ff04cd27136cce74da4afea1a80f4bba21027eceb946847fd84a2e",
+    "originalBytes": 29431
+  },
+  "/library/2026-08-27-v2/art-0011.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0011.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "b64812d88db506104aae41f950a826c1119fb02758ce43096ec2a1c4dd46b978",
+    "originalBytes": 48958
+  },
+  "/library/2026-08-27-v2/art-0074.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0074.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "cf368953a38348f574f585c913cf8d78bb3239118accd0c0255e339434168bf6",
+    "originalBytes": 16550
+  },
+  "/library/2026-08-27-v2/art-0090.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0090.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "60d4877a942b8cbc4c254b3442202c7dba442f05e6c7eed2521cafa93b90f7f0",
+    "originalBytes": 43793
+  },
+  "/library/2026-08-27-v2/art-0089.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0089.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "e7f9e316c8f90038becae30f7c321f689421433003b30ca42266732a7953f1c7",
+    "originalBytes": 18989
+  },
+  "/library/2026-08-27-v2/art-0091.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0091.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "194625f788d3f469baed7deab790f1d9cb4dcdf32d088b957731d92a2ddcd27d",
+    "originalBytes": 28240
+  },
+  "/library/2026-08-27-v2/art-0122.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0122.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "a9c6fe8f65899994a9262268ba173d3da774cd3aef7d3df5935fcacdee96f26d",
+    "originalBytes": 30246
+  },
+  "/library/2026-08-27-v2/art-0160.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0160.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d417ec3ceac8c6b156a12d03312d5de18672544aa8d796fed48c105e134e3827",
+    "originalBytes": 21352
+  },
+  "/library/2026-08-27-v2/art-0097.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0097.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6bbc8f87469352cfae8b495b8b0d0725546b5d8658d97adb59c9afc993b7ec9c",
+    "originalBytes": 34932
+  },
+  "/library/2026-08-27-v2/art-0084.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0084.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0a6406507c9b2fac5ac63b7e30bb50b8fb73d49ec8222949a86080144fed8c94",
+    "originalBytes": 63240
+  },
+  "/library/2026-08-27-v2/art-0223.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0223.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "25eff1d527f3195245fa786467f031332fc3ad6b89c0d4d253014923e9dbd97a",
+    "originalBytes": 42388
+  },
+  "/frames/style-previews/大屏风_白100-190.png": {
+    "originalDiskFile": "source-assets/site-assets/frames/style-previews/大屏风_白100-190.png",
+    "mime": "image/png",
+    "originalStatus": "verified",
+    "originalHash": "b7ecfa60233c7e4bca3573a4038996908ad67b1aec1b8ec1fce84e87e47dd4e5",
+    "originalBytes": 778445
+  },
+  "/library/2026-08-27-v2/art-0191.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0191.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c7408cd5d172f1249461218dbdc92e36d97776e08cd734bab5b426071a7d9bea",
+    "originalBytes": 15162
+  },
+  "/library/2026-08-27-v2/art-0231.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0231.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "0ee7082df4412b4ab02db2d5acd7e58592cadb93c19814626aee6be0f0ba0416",
+    "originalBytes": 33442
+  },
+  "/library/2026-08-27-v2/art-0099.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0099.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "2b7a7c36636d28e799de29d5bfda8c9d21425f09c65d317c72eedd8890488f85",
+    "originalBytes": 37031
+  },
+  "/library/2026-08-27-v2/art-0154.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0154.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "6381212427c55ba45118d4081c686e8897d0b11c1555fdc239ca66bb5840eec3",
+    "originalBytes": 67057
+  },
+  "/library/2026-08-27-v2/art-0019.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0019.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "d802e65e633d3b7c3e2d707d92ff74d5bc553ff63062125d6ff5647684b59b85",
+    "originalBytes": 12860
+  },
+  "/library/2026-08-27-v2/art-0009.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0009.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "c9250779f85916f259c9d8bb38ce85ee4b9066173b66b62a5269f11e6dbf86e4",
+    "originalBytes": 32511
+  },
+  "/library/2026-08-27-v2/art-0213.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0213.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "818a232ac748d2bc5507c3bd23e30ebc9fabd19f6af31f8708a12fb28f7bd06e",
+    "originalBytes": 31134
+  },
+  "/library/2026-08-27-v2/art-0167.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0167.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "9c56d3a4348e06462fb15d432268eb36f3fcb8c5841b7143e67d7632491c05c5",
+    "originalBytes": 44692
+  },
+  "/library/2026-08-27-v2/art-0109.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0109.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "494fb3d761777080d5add58f5bced796e86b91df0adae6f201f9abe7dc53ac93",
+    "originalBytes": 30641
+  },
+  "/library/2026-08-27-v2/art-0256.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0256.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "15ee46dc7fae1c76c3abaedb6997d38f38ee7069b207b5d45aa958fb948143d6",
+    "originalBytes": 35163
+  },
+  "/library/2026-08-27-v2/art-0087.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0087.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "ad4bb57d5b14fa4b35eab0b65ca53cdfa1be2abfa1923c40ed57ede3fb603f78",
+    "originalBytes": 41252
+  },
+  "/library/2026-08-27-v2/art-0246.jpg": {
+    "originalDiskFile": "source-assets/site-assets/library/2026-08-27-v2/art-0246.jpg",
+    "mime": "image/jpeg",
+    "originalStatus": "verified",
+    "originalHash": "7414e8d0e99413b2c0e05e16f7b6c8c75b460e49a1b81a5d134fb1c646bf61cb",
+    "originalBytes": 43424
+  }
+}

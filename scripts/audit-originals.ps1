@@ -15,6 +15,7 @@ function Inspect-Image([string]$path) {
 }
 foreach ($row in $manifest.items) {
   $preview = Inspect-Image (Join-Path $root ('public'+$row.thumb))
+  if(!$preview){$preview=Inspect-Image (Join-Path $root ('source-assets/site-assets'+$row.thumb))}
   $source = Inspect-Image $row.sourcePath
   $status='missing'; $url=$null; $original=$null
   if ($preview -and $preview.hash -eq $row.hash) {
