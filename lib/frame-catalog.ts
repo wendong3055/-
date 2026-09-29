@@ -38,6 +38,14 @@ export function frameSizeFromFilename(style: string, name: string): Omit<FrameSi
   } else if (style === 'fei-he') {
     const match = file.match(/(40|50|60)(?:[x×]([2-6]))?-(180|190|200)(?:_|$)/i);
     if (match) { panels = Number(match[2] || 1); parts = Array.from({ length: panels }, () => Number(match[1])); height = Number(match[3]); if (panels === 1) depth = 29; }
+  } else if (style === '葫芦大屏风柜') {
+    // Verified against this style's eight uploaded originals and 2026-08-28
+    // delivery manifest: component widths, fixed height 200 / depth 30 cm.
+    // Do not apply these defaults to other styles or unlisted filenames.
+    const widths = file.replace(/-/g, '+');
+    if (['30+70', '30+80', '30+90', '30+100', '30+110', '30+30+90', '30+30+100', '40+40+100'].includes(widths)) {
+      parts = widths.split('+').map(Number); height = 200; depth = 30;
+    }
   } else if (style === 'fubao-ankang' || style === 'qingyun') {
     const match = file.match(/^(?:原木|红木|黄花梨|胡桃木?|灰|白)?(\d+(?:\+\d+)*)-(200|220|230)(?:_|$)/);
     if (match) { parts = match[1].split('+').map(Number); height = Number(match[2]); depth = 30; }
@@ -54,7 +62,8 @@ export function frameSources(rows: FrameAsset[], representative: FrameAsset) {
     let originalName = '';
     try { originalName = decodeURIComponent(row.tags?.match(/原始文件名:([^;]+)/)?.[1] || ''); } catch { /* Older metadata may not contain an encoded original name. */ }
     if (/(?:QA总览|联系表|contact[-_ ]?sheet)/i.test(originalName || row.name)) { ignored++; continue; }
-    const size = frameSizeFromFilename(style, originalName) || frameSizeFromFilename(style, row.name) || frameSizeFromFilename(style, filename);
+    const representativeName = row.category === '框架模板' ? row.tags?.match(/代表图:([^;]+)/)?.[1] || '' : '';
+    const size = frameSizeFromFilename(style, originalName) || frameSizeFromFilename(style, row.name) || frameSizeFromFilename(style, representativeName) || frameSizeFromFilename(style, filename);
     if (!size) { unknown++; continue; }
     const existing = sizes.get(size.key) || { ...size, sourceIds: [], sourceUrls: [] };
     existing.sourceIds.push(row.id); existing.sourceUrls.push(row.url || `/api/files/${row.id}`); sizes.set(size.key, existing);

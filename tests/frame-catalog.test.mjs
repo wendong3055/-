@@ -12,6 +12,23 @@ assert.equal(frameSizeFromFilename('福字双门抽屉', 'sku_2.png'), null);
 assert.deepEqual(frameSizeFromFilename('竹报平安无把手组合玄关柜', 'SKU_07_60加30_200高_空框结构图.png').widthParts, [60,30]);
 assert.deepEqual(frameSizeFromFilename('竖纹圆形置物架大橱柜', 'SKU_07_40加50_200高_圆圈无隔板结构图.png').widthParts, [40,50]);
 assert.equal(frameSizeFromFilename('fubao-ankang', '30-30-80-200.png'), null);
+// Uploaded names retain '+', storage keys sanitize it to '-'. The style's
+// representative is SKU_03, not a ninth spec and not a missing original.
+const huluNames = ['30+70','30+80','30+90','30+100','30+110','30+30+90','30+30+100','40+40+100'];
+const huluRows = huluNames.map((widths,i) => ({ id:`hulu-${i}`, name:i===2?'葫芦大屏风柜':`葫芦大屏风柜/SKU_${i+1}_${widths}.png`, category:i===2?'框架模板':'框架规格原图', tags:i===2?'款式文件夹:08_葫芦大屏风柜;规格数量:8;代表图:SKU_03_30+90.png':'所属款式:08_葫芦大屏风柜', object_key:`local/id/SKU_${i+1}_${widths.replaceAll('+','-')}.png` }));
+const hulu = frameSources(huluRows,huluRows[2]);
+assert.deepEqual(hulu.sizes.map(s=>s.widthCm),[100,110,120,130,140,150,160,180]);
+assert.equal(hulu.unknown,0); assert.equal(hulu.missing,0);
+assert.equal(frameSpecStatus(hulu),'waiting_for_production');
+for (const [i,s] of hulu.sizes.entries()) {
+  assert.equal(s.heightCm,200); assert.equal(s.depthCm,30);
+  assert.deepEqual(s.sourceIds,[`hulu-${i}`]); assert.deepEqual(s.sourceUrls,[`/api/files/hulu-${i}`]);
+  assert.deepEqual(s.widthParts,huluNames[i].split('+').map(Number));
+}
+assert.equal(frameSizeFromFilename('别的框架','SKU_01_30+70.png'),null);
+assert.equal(frameSizeFromFilename('葫芦大屏风柜','SKU_10_30+120.png'),null);
+assert.equal(frameSizeFromFilename('葫芦大屏风柜','SKU_01_30-70.png').widthCm,100);
+assert.equal(frameSources([...huluRows,{...huluRows[2],id:'duplicate'}],huluRows[2]).sizes.length,8);
 const source = { id:'p', name:'福报安康双门抽屉玄关柜', category:'框架模板', objectKey:'owner/id/30-30-80-200.png', tags:'款式文件夹:福报安康双门抽屉玄关柜;原始文件名:30%2B30%2B80-200.png' };
 assert.equal(frameSources([source], source).sizes[0].widthCm, 140);
 assert.equal(frameSpecStatus(frameSources([source], source)), 'waiting_for_production');
