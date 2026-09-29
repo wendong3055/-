@@ -288,7 +288,7 @@ export default function Home() {
     setProductSaving(true);
     const response = await fetch('/api/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artworkId: savedArtwork.id, artworkName: savedArtwork.name, frameId: savedFrame.id, frameName: `${savedFrame.name}·${savedColor.name}`, sampleAssetId: displayedTask.assetId }) }).catch(() => null);
     setProductSaving(false);
-    if(response?.ok){const p=await response.json() as {id:string};setProductId(p.id);setActiveNav('products');setNotice('样图已保存。请核对这个新品的规格与制作清单，保存清单不会扣费。');}
+      if(response?.ok){const p=await response.json() as {id:string};setProductId(p.id);setActiveNav('products');window.history.replaceState(null,'',`/?product=${encodeURIComponent(p.id)}&studio=detail`);setNotice('样图已保存。选择主图、尺寸图或详情页，即可一键制作。');}
     else setNotice('新品保存失败，请稍后重试；生成的效果图仍然保留。');
     window.setTimeout(() => setNotice(''), 3600);
   }

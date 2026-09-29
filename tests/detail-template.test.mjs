@@ -28,11 +28,15 @@ assert.ok(detailProductionBrief('正反对比','','',evidence).includes('不得�
 const ctx={row:{title:'三视图'},config:{detailEvidence:evidence}};
 const refs=await productionDetailFiles('owner',ctx);assert.equal(refs.length,2);assert.equal(refs[0].label,'同款侧面原图');assert.equal(refs[1].label,'同款背面原图');
 assert.ok(lookups.every(x=>x.owner==='owner'&&x.sql.includes("category='详情参考'")&&x.sql.includes('owner_id=?')));
-await assert.rejects(()=>productionDetailFiles('owner',{row:{title:'三视图'},config:{}}),/需先补充/);
+assert.deepEqual(await productionDetailFiles('owner',{row:{title:'三视图'},config:{}}),[]);
+assert.match(detailProductionBrief('三视图','',''),/轮廓示意/);
+assert.match(detailProductionBrief('正反对比','',''),/不将镜像正面当背面/);
+assert.match(detailProductionBrief('半透与不透对比','',''),/效果示意，实际表现以实物为准/);
+assert.match(detailProductionBrief('材质介绍','',''),/不推测实际材料成分/);
 assetAvailable=false;await assert.rejects(()=>productionDetailFiles('owner',ctx),/无法读取/);assetAvailable=true;
 objectAvailable=false;await assert.rejects(()=>productionDetailFiles('owner',ctx),/不存在/);
 const route=readFileSync('app/api/generate-preview/route.ts','utf8');
 assert.ok(route.indexOf('await productionDetailFiles(owner,context)')<route.indexOf('await insertTask(row)'));
 assert.ok(route.includes('refs.push(ref.file)'));assert.ok(route.includes('context.config.detailEvidence'));
-const batch=readFileSync('app/detail-batch.tsx','utf8');assert.ok(batch.includes('!detailMissing(i.title,fresh.config.detailEvidence).length'));
-console.log('PASS 12-module template, facts, six-color lock exception, reference ownership/bytes, missing evidence blocked before submission, batch skips unready pages. No paid calls.');
+const batch=readFileSync('app/production-batch.tsx','utf8');assert.ok(!batch.includes('detailMissing'));
+console.log('PASS 12-module template, optional references with safe illustrative fallback, facts and ownership preserved. No paid calls.');

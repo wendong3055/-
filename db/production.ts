@@ -3,7 +3,8 @@ import { getTask, publicTask, type TaskRow } from './generation-tasks';
 import { assetStyle, frameSources, frameStyle, type FrameAsset } from '../lib/frame-catalog';
 import { planItems, validateProductionPlan, reusableBackground, type ProductWorkspace, type ProductionPlanInput } from '../lib/production-plan';
 import { sharedScene, canReuseScene, validSizeMarks } from '../lib/production-scene';
-import { detailMissing,detailReferenceKeys,detailReferenceLabels } from '../lib/detail-template';
+import { detailReferenceKeys,detailReferenceLabels } from '../lib/detail-template';
+import { reusableWorkflowBackground } from '../lib/production-workflow';
 export class ProductionError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function productWorkspace(owner:string,id:string): Promise<ProductWorkspace> {
   const p = await env.DB.prepare('SELECT * FROM products WHERE owner_id = ? AND id = ?').bind(owner,id).first<Record<string,string>>();
@@ -37,10 +38,10 @@ export async function saveProductionPlan(owner:string,id:string,value:unknown) {
   }
   if(plan.expectedVersion!==(workspace.plans[0]?.version||0)) throw new ProductionError('制作清单已有更新，请重新读取后再保存。',409);
   const planId=crypto.randomUUID(), version=plan.expectedVersion+1;
-  const background=reusableBackground(workspace.plans[0],plan);
+  const background=reusableBackground(workspace.plans[0],plan)||reusableWorkflowBackground(workspace.plans,plan);
   try { await env.DB.batch([
     env.DB.prepare('INSERT INTO production_plans (id,owner_id,product_id,version,plan_json,created_at) VALUES (?,?,?,?,?,?)').bind(planId,owner,id,version,JSON.stringify(plan),Date.now()),
-    ...planItems(plan).map(item=>{const reuse=background&&item.kind==='main'&&item.title===background.title;return env.DB.prepare("INSERT INTO production_items (id,owner_id,plan_id,title,kind,brief,spec_json,review,note,generation_id) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),owner,planId,item.title,item.kind,item.brief,JSON.stringify(item.spec),reuse?'accepted':'pending',reuse?'沿用上一环节已确认的背景效果图':'',reuse?background.generationId:null);}),
+    ...planItems(plan).map(item=>{const reuse=background&&item.kind==='main'&&item.title===background.title;return env.DB.prepare("INSERT INTO production_items (id,owner_id,plan_id,title,kind,brief,spec_json,review,note,generation_id) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(crypto.randomUUID(),owner,planId,item.title,item.kind,item.brief,JSON.stringify(item.spec),reuse?background.review:'pending',reuse?'沿用此新品已有的统一背景，验收状态保持不变':'',reuse?background.generationId:null);}),
   ]); } catch {throw new ProductionError('清单保存未完成。请重新读取，确认是否已保存后再试；原版本不变。',409);}
   return productWorkspace(owner,id);
 }
@@ -58,8 +59,7 @@ export async function claimProductionItem(owner:string,itemId:string,taskId:stri
   if(!result.meta.changes) throw new ProductionError('此项已生成或正在处理；需要重做时先在新品清单标记重做。',409);
 }
 export async function productionDetailFiles(owner:string,context:Awaited<ReturnType<typeof productionContext>>){
-  const evidence=context.config.detailEvidence,missing=detailMissing(context.row.title,evidence);
-  if(missing.length)throw new ProductionError(`“${context.row.title}”需先补充${missing.join('、')}，请在新品清单中调整详情资料；尚未提交生图。`);
+  const evidence=context.config.detailEvidence;
   const result:{file:File;label:string}[]=[];
   for(const key of detailReferenceKeys(context.row.title)){
     const id=evidence?.refs?.[key];if(!id)continue;

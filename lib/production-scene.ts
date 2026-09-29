@@ -8,7 +8,9 @@ export function validSizeMarks(value:unknown,generationId:string,depth:boolean):
     v.points.every((p,i)=>i%2===0||Math.hypot(p.x-v.points[i-1].x,p.y-v.points[i-1].y)>.005);
 }
 export function sharedScene(plan:ProductionPlan) {
-  return plan.items.find(i=>i.kind==='main'&&i.title===plan.config.sceneTitle&&i.review==='accepted'&&i.task?.status==='succeeded'&&i.task.url);
+  // In the explicit one-click workflow a saved background is a reference, not
+  // an accepted deliverable. Legacy plans keep their original acceptance gate.
+  return plan.items.find(i=>i.kind==='main'&&i.title===plan.config.sceneTitle&&(i.review==='accepted'||(plan.config.workflow==='one-click-v1'&&i.review!=='rework'))&&i.task?.status==='succeeded'&&i.task.url);
 }
 export function canReuseScene(item:ProductionItem,workspace:ProductWorkspace,plan:ProductionPlan) {
   // New size jobs need the annotated frame, not an unannotated main image.
