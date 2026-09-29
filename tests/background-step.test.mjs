@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import ts from 'typescript';
 const moduleUrl=async path=>{
  let code=ts.transpileModule(await readFile(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+ if(code.includes("from './main-props'"))code=code.replace("from './main-props'",`from '${await moduleUrl('../lib/main-props.ts')}'`);
  if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
  if(code.includes("from './detail-template'"))code=code.replace("from './detail-template'",`from '${await moduleUrl('../lib/detail-template.ts')}'`);
  return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');

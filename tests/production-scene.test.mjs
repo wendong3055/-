@@ -4,6 +4,7 @@ import ts from 'typescript';
 import vm from 'node:vm';
 const moduleUrl=async path=>{
   let code=ts.transpileModule(await readFile(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
+  if(code.includes("from './main-props'"))code=code.replace("from './main-props'",`from '${await moduleUrl('../lib/main-props.ts')}'`);
   if(code.includes("from './production-scene'"))code=code.replace("from './production-scene'",`from '${await moduleUrl('../lib/production-scene.ts')}'`);
   if(code.includes("from './detail-template'"))code=code.replace("from './detail-template'",`from '${await moduleUrl('../lib/detail-template.ts')}'`);
   return 'data:text/javascript;base64,'+Buffer.from(code).toString('base64');
@@ -24,6 +25,13 @@ assert.ok(validSizeMarks(marks,'g',true));assert.ok(!validSizeMarks(marks,'other
 assert.ok(!validSizeMarks({...marks,points:marks.points.map(()=>({x:2,y:1}))},'g',true));
 assert.match(sceneSizeBrief(spec,'only upper',''),/图3为共用场景主图/);assert.match(sceneSizeBrief(spec,'',''),/不沿用图3产品的尺寸或数量/);
 assert.match(sceneSizeBrief(spec,'',''),/完整保留框架原图里的尺寸文字、数字、单位、尺寸线、箭头/);
+assert.match(sceneSizeBrief(spec,'',''),/85%—90%/);
+assert.match(sceneSizeBrief(spec,'',''),/不拉伸产品/);
+assert.match(sceneSizeBrief(spec,'',''),/每个适合摆放/);
+assert.match(sceneSizeBrief(spec,'',''),/不照搬图3的远景机位/);
+const noProps=sceneSizeBrief(spec,'','[尺寸图摆件] 不添加摆件。');
+assert.doesNotMatch(noProps,/每个适合摆放/);
+assert.match(noProps,/不添加摆件/);
 assert.doesNotMatch(sceneSizeBrief(spec,'','不要生成文字或尺寸箭头；根据确认数据添加标注，成品预览与下载一致。'),/不要生成文字或尺寸箭头/);
 const {preservesSourceSizeMarks}=await load('../lib/production-scene.ts');
 assert.equal(preservesSourceSizeMarks({...item,id:'i',task:{recipe:{productionItemId:'i',sizeAnnotationMode:'source-preserved-v1'}}}),true);

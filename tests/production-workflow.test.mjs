@@ -47,6 +47,9 @@ try{
       if(url==='/api/generate-preview'){
         const id=init.body.get('productionItemId');submitted.push(id);const i=plan.items.find(i=>i.id===id);
         assert.equal(init.body.get('aspectRatio'),i.kind==='detail'?'3:4':'1:1');assert.ok(init.body.get('frame') instanceof File);
+        const instruction=init.body.get('instruction');
+        if(i.kind==='size')assert.match(instruction,/\[尺寸图摆件\].*每个适合摆放/);
+        if(i.kind==='detail')assert.doesNotMatch(instruction,/\[尺寸图摆件\]|\[主图摆件\]/);
         i.generationId=id;i.task={id,status:scenario==='unknown'?'unknown':'succeeded',url:scenario==='unknown'?null:'/result'};return Response.json(i.task);
       }
       if(scenario==='missing-frame'&&url==='/api/files/frame')return new Response('missing',{status:404});
@@ -56,7 +59,7 @@ try{
     const tree=ProductionBatch({data:ws,plan,page,count:plan.items.length,artworks:[{id:'art',name:'图案',file:'/thumb',originalStatus:'verified',originalFile:'/original'}],colors:[{id:'color',name:'原木',color:'#aaa'}],onPrepare:async()=>{prepared++;return{data:ws,plan};},onUpdate(){},onBusy:b=>{if(!b)done=true;}});
     assert.equal(prepared,0);assert.equal(submitted.length,0);
     assert.ok(nodes(tree).find(n=>n.type==='details'&&n.props.className==='batch-settings'&&!n.props.open));
-    const start=nodes(tree).find(n=>n.type==='button'&&text(n).startsWith('一键生成'));assert.ok(start);
+    const start=nodes(tree).find(n=>n.type==='button'&&text(n)===`一键生成${page==='detail'?'详情页':page==='size'?'尺寸图':'主图'}`);assert.ok(start);
     start.props.onClick();start.props.onClick(); // double click must not duplicate a batch
     for(let n=0;n<100&&!done;n++)await new Promise(r=>setImmediate(r));
     assert.ok(done,scenario);assert.equal(prepared,1);

@@ -1,4 +1,5 @@
 import type { ProductionPlan, ProductionItem, ProductWorkspace } from './production-plan';
+import {mainPropsBrief} from './main-props';
 export type AnnotationPoint = {x:number;y:number};
 export type SizeMarks = {generationId:string;points:AnnotationPoint[]};
 export function validSizeMarks(value:unknown,generationId:string,depth:boolean):value is SizeMarks {
@@ -28,8 +29,9 @@ function cleanSizeNotes(notes:string) {
     .replace(/不添加文字、尺寸线或无关装饰。/g,'不添加无关装饰。');
 }
 export function sizeProductionBrief(spec:NonNullable<ProductionItem['spec']>,rule:string,notes:string,sceneTitle='本套统一场景') {
-  return `依据本规格框架原图制作尺寸图，沿用${sceneTitle}背景。完整保留框架原图里的尺寸文字、数字、单位、尺寸线、箭头及其与产品的对应位置，不能删除、改写、遮挡、裁切或重复添加。仅替换画芯、确认木色和环境背景；本规格的产品结构、数量、比例和透视以框架原图为准，不使用场景主图里的产品替代。核对清单：宽${spec.widthCm}cm、高${spec.heightCm}cm${spec.depthCm?`、深${spec.depthCm}cm`:''}；若与原图标注不符或原图标注缺失，停止并核对，不自行编造。完整展示产品及全部原有标注。${rule} ${cleanSizeNotes(notes)}`;
+  const props=notes.includes('[尺寸图摆件]')?'':mainPropsBrief('size','auto','');
+  return `依据本规格框架原图制作电商SKU尺寸图，沿用${sceneTitle}背景。完整保留框架原图里的尺寸文字、数字、单位、尺寸线、箭头及其与产品的对应位置，不能删除、改写、遮挡、裁切或重复添加。替换画芯、确认木色和环境背景，并按摆件要求布置现有置物格；本规格的产品结构、数量、比例和透视以框架原图为准，不使用场景主图里的产品替代。核对清单：宽${spec.widthCm}cm、高${spec.heightCm}cm${spec.depthCm?`、深${spec.depthCm}cm`:''}；若与原图标注不符或原图标注缺失，停止并核对，不自行编造。完整展示产品及全部原有标注。${rule} ${cleanSizeNotes(notes)} ${props} 电商SKU构图：1:1方图，产品居中放大，不做房间全景。产品较长边目标占画面对应边的85%—90%；高款以高度为准，宽款以宽度为准，不拉伸产品凑满画面。产品与原有标注作为一个整体等比放大，全部尺寸文字和箭头清晰可读，四周留足3%—5%安全边距；有冲突时优先完整保留产品和标注。压缩顶部空墙和前景地面留白，背景只保留少量墙地面与自然接触阴影，不让沙发、茶几、大盆栽抢占画面或遮挡产品。`;
 }
 export function sceneSizeBrief(spec:NonNullable<ProductionItem['spec']>,rule:string,notes:string) {
-  return `图1为本规格真实框架（含原有尺寸标注），图2为原画芯，图3为共用场景主图。仅沿用图3的房间背景、地面、布置和光线，不沿用图3产品的尺寸或数量，也不复制图3的文字。背景透视适配图1产品，保持统一场景，不另换房间。${sizeProductionBrief(spec,rule,notes)} 最终优先要求：图1原有尺寸标注必须完整清晰地保留；不新增另一套标注，不执行旧补充要求中去除尺寸或换白底的指令。`;
+  return `图1为本规格真实框架（含原有尺寸标注），图2为原画芯，图3为共用场景主图。仅沿用图3的房间背景、地面材质和光线风格，不沿用图3产品的尺寸或数量，也不复制图3的文字。背景透视适配图1产品，保持统一场景，不另换房间；可以收紧取景、减少背景可见范围，不照搬图3的远景机位、产品占比和外围家具布置。${sizeProductionBrief(spec,rule,notes)} 最终优先要求：图1原有尺寸标注必须完整清晰地保留；不新增另一套标注，不执行旧补充要求中去除尺寸或换白底的指令。`;
 }
