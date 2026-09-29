@@ -12,7 +12,13 @@ export async function GET(_request:Request,context:Context){
   try{
     const object=await env.FILES.get(entry.key);
     if(!object)return new Response('原图尚未完成同步，请稍后重试，不会以缩略图代替。',{status:404,headers:{'Cache-Control':'no-store'}});
-    return new Response(object.body,{headers:{'Content-Type':entry.mime,'Content-Length':String(object.size),'X-Original-SHA256':entry.originalHash,'Cache-Control':'private, max-age=3600','X-Content-Type-Options':'nosniff'}});
+    // Finish and verify the storage read BEFORE sending HTTP 200. Streaming
+    // failures after headers otherwise look like a successful but broken image.
+    const bytes=await object.arrayBuffer();
+    if(bytes.byteLength!==entry.originalBytes)return new Response('原图读取不完整，请重试',{status:503,headers:{'Cache-Control':'no-store'}});
+    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+    if(hash!==entry.originalHash)return new Response('原图校验未通过',{status:503,headers:{'Cache-Control':'no-store'}});
+    return new Response(bytes,{headers:{'Content-Type':entry.mime,'X-Original-Bytes':String(bytes.byteLength),'X-Original-SHA256':entry.originalHash,'Cache-Control':'private, max-age=3600, no-transform','X-Content-Type-Options':'nosniff'}});
   }catch{return new Response('原图存储暂不可用',{status:503});}
 }
 export async function HEAD(_request:Request,context:Context){

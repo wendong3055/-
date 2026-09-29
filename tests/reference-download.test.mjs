@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';import {build} from 'esbuild';
+const out=await build({entryPoints:['lib/studio-reference.ts'],bundle:true,write:false,format:'esm'});
+const {readReference}=await import('data:text/javascript;base64,'+Buffer.from(out.outputFiles[0].text).toString('base64'));
+globalThis.createImageBitmap=async()=>({width:2,height:2,close(){}});
+const good=()=>new Response(new Uint8Array([1,2,3]),{headers:{'Content-Type':'image/jpeg','X-Original-Bytes':'3'}});
+let calls=0;
+globalThis.fetch=async()=>{calls++;if(calls===1)return new Response(new ReadableStream({start(c){c.error(new TypeError('connection reset'));}}),{headers:{'Content-Type':'image/jpeg'}});return good();};
+assert.equal((await readReference('/original','图案原图')).size,3);assert.equal(calls,2);
+calls=0;globalThis.fetch=async()=>{calls++;return new Response('x',{headers:{'Content-Type':'image/jpeg','X-Original-Bytes':'9'}});};
+await assert.rejects(readReference('/original','图案原图'),/传输不完整/);assert.equal(calls,3);
+calls=0;globalThis.fetch=async()=>{calls++;return new Response('',{status:401});};
+await assert.rejects(readReference('/original','图案原图'),/登录状态/);assert.equal(calls,1);
+calls=0;globalThis.fetch=async()=>{calls++;return calls<3?new Response('',{status:503}):good();};
+assert.equal((await readReference('/original','图案原图')).size,3);assert.equal(calls,3);
+console.log('PASS interrupted body recovery, bounded retries, byte length checks, auth stop; no live requests.');
