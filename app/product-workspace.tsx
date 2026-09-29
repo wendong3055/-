@@ -24,9 +24,9 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen,a
   const plan=!newSet?(selected||data?.plans.find(p=>usablePlan(p,page))):undefined;
   const workingPlan=usablePlan(plan,page)?plan:undefined;
   function navigate(next:ProductionPage){if(busy)return;const url=new URL(window.location.href);url.searchParams.set('product',productId);url.searchParams.set('studio',next);window.history.pushState(null,'',url);setPage(next);setVersion('');setNewSet(false);setError('');}
-  async function prepare(){
-    const fresh=await read();let active=!newSet?fresh.plans.find(p=>p.id===workingPlan?.id):undefined;
-    if(!active){const input=oneClickDraft(fresh,page,selected||fresh.plans[0]);const next=await responseData<ProductWorkspace>(await fetch(`/api/products/${encodeURIComponent(productId)}/workspace`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)}));active=next.plans[0];setData(next);setVersion(active.id);setNewSet(false);return{data:next,plan:active};}
+  async function prepare(target:ProductionPage=page){
+    const fresh=await read();let active=target===page?(!newSet?fresh.plans.find(p=>p.id===workingPlan?.id):undefined):fresh.plans.find(p=>usablePlan(p,target));
+    if(!active){const input=oneClickDraft(fresh,target,selected||fresh.plans[0]);const next=await responseData<ProductWorkspace>(await fetch(`/api/products/${encodeURIComponent(productId)}/workspace`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)}));active=next.plans[0];setData(next);if(target===page){setVersion(active.id);setNewSet(false);}return{data:next,plan:active};}
     setData(fresh);return{data:fresh,plan:active};
   }
   async function show(item:ProductionItem){if(!data||!plan)return;setBusy(true);try{setPreview({url:URL.createObjectURL(await publicationImage(item,data,plan)),title:item.title});}catch(e){setError(String(e));}finally{setBusy(false);}}
