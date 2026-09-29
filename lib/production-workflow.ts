@@ -39,6 +39,6 @@ export function reusableWorkflowBackground(plans:ProductionPlan[],next:Productio
   for(const plan of plans){
     if(plan.config.rule!==next.rule||plan.config.notes!==next.notes)continue;
     const scene=plan.items.find(i=>i.kind==='main'&&i.title===next.sceneTitle&&i.review!=='rework'&&i.generationId&&i.task?.status==='succeeded'&&i.task.url);
-    if(scene)return scene;
+    if(scene&&!scene.task?.recipe?.instruction.includes('[主图摆件]'))return scene;
   }
 }
