@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     if (previous) return NextResponse.json(publicTask(previous));
     const artwork = form.get('artwork');
     const frame = form.get('frame');
-    const refs = frame instanceof File && frame.size ? [frame, artwork] : [artwork];
+    if (!(frame instanceof File) || !frame.size) return NextResponse.json({ error: '框架参考图缺失，已停止提交，请重新选择或上传框架。' }, { status: 400 });
+    const refs = [frame, artwork];
     if (refs.some((file) => !(file instanceof File) || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || !file.size || file.size > 10 * 1024 * 1024)) return NextResponse.json({ error: '请选择 JPG、PNG 或 WebP 参考图，每张不超过 10 MB。' }, { status: 400 });
     const field = (name: string, fallback = '') => String(form.get(name) || fallback).trim().slice(0, name === 'instruction' ? 1500 : 160);
     let ratio = field('aspectRatio', '16:9');

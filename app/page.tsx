@@ -12,6 +12,8 @@ import { ResizableWorkspace } from './resizable-workspace';
 import {ImageModelPicker} from './image-model-picker';
 import { backgroundLabels, defaultImageModel, getImageModel, imageModels, qualityLabels } from '../lib/generation-models';
 import { referenceUpload } from '../lib/reference-upload';
+import { artworkOriginal, prepareStudioReferences, type OriginalReference } from '../lib/studio-reference';
+import { isPreviousResult } from '../lib/studio-result';
 import { generationLabels, isActiveGeneration, type GenerationTask } from '../lib/generation-types';
 import { studioIntents, type StudioIntent } from '../lib/studio-brief';
 import { frameSources, frameStyle, frameVariantImages, groupFrameOptions, parseFrameSkuIndex, validFrameStyleName, type FrameAsset, type FrameSize, type FrameVariantImage } from '../lib/frame-catalog';
@@ -54,7 +56,8 @@ const frameColors: FrameColorOption[] = [
   { id: 'warm-white', name: '暖白色', color: '#efeee9', note: '低黄度象牙暖白' },
 ];
 
-const artworks = [
+type ArtworkOption = OriginalReference & { id: string; tag: string; ratio: string; tone: string };
+const artworks: ArtworkOption[] = [
   { id: 'mist', name: '浅绿云雾山影', file: '/demo/浅绿云雾山影.png', tag: '山水风景', ratio: '1:1', tone: '雾绿' },
   { id: 'floral', name: '暖白花枝', file: '/demo/暖白花枝.jpg', tag: '花卉植物', ratio: '1:1', tone: '暖白' },
   { id: 'collage', name: '米白灰绿植物', file: '/demo/米白灰绿植物.jpg', tag: '花卉植物', ratio: '1:1', tone: '灰绿' },
@@ -162,6 +165,7 @@ export default function Home() {
   const displayedTask = completedTasks.find((task) => task.id === (viewedTaskId || previewTaskId)) || completedTasks[0];
   const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.international);
   const sceneInUse = production?.kind === 'size' ? undefined : scene;
+  const staleResult = isPreviousResult(displayedTask, { artworkId: selected?.id || '', frameId: frame?.id || '', colorId: frameColor.id, instruction, intent, sceneId: sceneInUse?.id });
   const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
   const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : '在工作台生成效果图';
   const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:aspectRatio,resolution,quality,
@@ -234,10 +238,11 @@ export default function Home() {
       setHiddenFrameIds((current) => [...new Set([...current, ...frameIds])]);
       await Promise.all([syncHiddenOptions('artwork', localArtworkIds), syncHiddenOptions('frame', localFrameIds)]);
     }).catch(() => undefined);
-    fetch('/library/2026-08-27-v2/library-index.json').then((response) => response.ok ? response.json() : null).then((data) => {
+    Promise.all([fetch('/library/2026-08-27-v2/library-index.json').then(response => response.ok ? response.json() : null), fetch('/library/2026-08-27-v2/originals-index.json').then(response => response.ok ? response.json() : {}).catch(() => ({}))]).then(([data, originals]) => {
       const manifest = data as { items?: Array<{ id: string; name: string; thumb: string; category: string; collection: string; date: string }> } | null;
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
-      const localItems = manifest.items.map((row: { id: string; name: string; thumb: string; category: string; collection: string; date: string }) => ({ id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
+      const originalIndex = originals as Record<string, Partial<OriginalReference>>;
+      const localItems: ArtworkOption[] = manifest.items.map(row => ({ ...originalIndex[row.id], id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
       setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
     }).catch(() => undefined);
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
@@ -246,7 +251,7 @@ export default function Home() {
         const { sizes, fileCount, styleKey, unknown, missing } = frameSources(rows, row);
         return { id: `uploaded-frame-${row.id}`, name: row.name, styleKey, file: row.url, tone: sizes.length ? `${sizes.length} 种已识别规格 · ${fileCount} 张原图${unknown || missing ? ' · 尚有规格待确认' : ''}` : '尺寸规格待确认', color: '#432d24', profile: 'cabinet', variantCount: fileCount, sizes };
       });
-      const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
+      const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, originalFile: row.url, originalStatus: 'verified', tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
       setUploadedFrames(frameUploads);
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
     }).catch(() => undefined);
@@ -291,7 +296,7 @@ export default function Home() {
   function resetPreview() {
     if (previewGenerating || submitGuard.current) return;
     setPreviewTaskId('');
-    setViewedTaskId('');
+    setViewedTaskId(displayedTask?.id || '');
     setPreviewReady(false);
     setPreviewGenerating(false);
     setPreviewError('');
@@ -338,6 +343,7 @@ export default function Home() {
     setBackground(savedModel.backgrounds?.includes(recipe.background || '') ? recipe.background! : 'auto');
     setOutputFormat(savedModel.outputFormats?.includes(recipe.outputFormat || '') ? recipe.outputFormat! : 'png');
     if (task.status === 'succeeded' && task.url) {
+      setViewedTaskId(task.id);
       setPreviewTaskId(task.id);
       setPreviewReady(true);
     }
@@ -369,6 +375,7 @@ export default function Home() {
     setPreviewGenerating(true);
     setPreviewError('');
     try {
+        const checked = await prepareStudioReferences(selected, production?.frameUrl || frame.file);
         let receipt:ProductionConsent|null=null;
         const pricing=`使用 ${model.name}，${aspectRatio}，${resolution.toUpperCase()}。参考图和制作要求发送到 ${customConfig ? new URL(customConfig.baseUrl).hostname : 'RunningHub'}，按服务商实际规则计费；当前无法保证固定总价。`;
         if(production){
@@ -388,15 +395,9 @@ export default function Home() {
           }
         }else if(customConfig && !window.confirm(`${pricing}确认生成一张效果图？`)){setPreviewGenerating(false);return;}
         setImportedResult(null);setViewedTaskId('');setPreviewTaskId('');setPreviewReady(false);
-        const artworkResponse = await fetch(selected.file);
-        if (!artworkResponse.ok) throw new Error('所选图案暂时无法读取。');
         const form = new FormData();
-        form.set('artwork', await referenceUpload(await artworkResponse.blob(), selected.name));
-        if (production?.frameUrl || frame.file) {
-          const frameResponse = await fetch(production?.frameUrl || frame.file!);
-          if (!frameResponse.ok) throw new Error('所选框架暂时无法读取。');
-          form.set('frame', await referenceUpload(await frameResponse.blob(), frame.name));
-        }
+        form.set('artwork', checked.artwork);
+        form.set('frame', checked.frame);
         form.set('artworkName', selected.name);
         form.set('artworkId', selected.id);
         form.set('frameName', frame.name);
@@ -544,7 +545,7 @@ export default function Home() {
       return;
     }
     const row = await response.json() as { id: string; name: string; url: string; category: string };
-    const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, tag: classifyArtworkCategory(row.name as string, row.category as string), ratio: '原图', tone: '自动归类' };
+    const uploaded = { id: row.id as string, name: row.name as string, file: row.url as string, originalFile: row.url, originalStatus: 'verified', tag: classifyArtworkCategory(row.name as string, row.category as string), ratio: '原图', tone: '自动归类' };
     setLibraryItems((current) => [uploaded, ...current]);
     selectArtwork(uploaded.id);
     setNotice(`“${uploaded.name}”已自动归入“${uploaded.tag}”。`);
@@ -669,8 +670,9 @@ export default function Home() {
         {activeNav === 'new' && production && <div className="production-context"><strong>当前制作：{production.title}</strong><span>沿用确认样图与对应规格原图，结果自动归入这个新品的制作清单。</span><a href={`/?product=${production.productId}`}>返回新品清单</a><a href="/">退出此项，做其他新品</a></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
-            <section className="studio-output-panel" aria-label="模型与出图设置">
-              <div className="row-label"><strong>模型与出图设置</strong><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
+            <details className="studio-output-panel" aria-label="出图设置">
+              <summary><strong>出图设置</strong><span>{model.name} · {aspectRatio === 'auto' ? '自动画幅' : aspectRatio} · {resolution === 'auto' ? '自动清晰度' : resolution.toUpperCase()}{model.qualities.length ? ` · ${qualityLabels[quality] || quality}` : ''}</span></summary>
+              <div className="row-label"><span>展开调整参数，不会自动生图</span><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
               <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
                 <legend className="sr-only">选择生成模型和图片参数</legend>
                 <ImageModelPicker value={modelId} onChange={chooseModel} scene={Boolean(production?.sceneTitle)} />
@@ -681,7 +683,7 @@ export default function Home() {
                 {model.note && <p className="home-gallery-note">{model.note}</p>}
                 {!modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
               </fieldset>
-            </section>
+            </details>
             <fieldset className="intent-picker" disabled={previewGenerating}>
               <legend>这次想做什么图？</legend>
               <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
@@ -693,6 +695,7 @@ export default function Home() {
               </div>
 
               <p className="home-gallery-note">已选图案固定在首位，也可以直接上传新的画芯。</p>
+              {selected && <p className={selected.originalStatus === 'verified' ? 'home-gallery-note' : 'generation-warning'} role="status">{selected.originalStatus === 'verified' ? `生成使用原图${selected.originalWidth ? ` · ${selected.originalWidth} × ${selected.originalHeight} 像素` : ' · 上传文件原始内容'}；下方卡片仅用于浏览。` : '当前图案缺少已核对的原图，请补充原图后生成，不会用缩略图替代。'}</p>}
               <div className="gallery-grid home-gallery-grid">
                 {(homeArtworks.length ? homeArtworks : visibleLibraryItems.slice(0, 3)).map((item) => (
                   <div className="option-card-wrap" key={item.id}>
@@ -753,6 +756,7 @@ export default function Home() {
 
           <aside className="compose-panel">
             <TrialCanvas
+              stale={staleResult}
               importedResult={importedResult}
               tasks={generations.tasks} activeTaskId={viewedTaskId || previewTaskId}
               working={previewGenerating} status={previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}
@@ -761,7 +765,7 @@ export default function Home() {
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               nextStep={!production && !importedResult ? { onConfirm: createProduct, saving: productSaving } : undefined}
               outputSummary={`${model.name} · ${aspectRatio === 'auto' ? '应用画幅' : aspectRatio} · ${resolution === 'auto' ? '应用清晰度' : resolution.toUpperCase()}`}
-              references={[...(selected?.file ? [{ src: selected.file, label: '图案原图' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
+              references={[...(selected?.file ? [{ src: selected.originalFile || selected.file, label: selected.originalStatus === 'verified' ? '图案原图' : '图案预览（原图待补充）' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
             />
             {previewError && <p className="generation-warning" role="alert">{previewError}</p>}
             {generations.paused && <button className="resume-generation" onClick={generations.resume}>恢复任务查询</button>}
@@ -849,9 +853,10 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
     try {
       const files: Record<string, Uint8Array> = {};
       for (const [index, item] of chosen.entries()) {
-        const response = await fetch(item.file, { cache: 'no-store' });
+        const original = artworkOriginal(item);
+        const response = await fetch(original, { cache: 'no-store' });
         if (!response.ok) throw new Error(`“${item.name}”读取失败，已停止导出。`);
-        files[exportFileName(item.name, index, item.file)] = new Uint8Array(await response.arrayBuffer());
+        files[exportFileName(item.name, index, original)] = new Uint8Array(await response.arrayBuffer());
       }
       const archive = zipSync(files, { level: 0 });
       const url = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));

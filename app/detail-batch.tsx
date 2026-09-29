@@ -4,11 +4,11 @@ import type {ProductWorkspace,ProductionPlan,ProductionItem} from '../lib/produc
 import type {GenerationTask} from '../lib/generation-types';
 import {generationLabels} from '../lib/generation-types';
 import {detailCandidates,runDetailBatch} from '../lib/detail-batch';
-import {referenceUpload} from '../lib/reference-upload';
+import {artworkOriginal,readReference,type OriginalReference} from '../lib/studio-reference';
 import {downloadBlob,detailLongImage,exportDetailDraft} from '../lib/production-export';
 import {detailMissing} from '../lib/detail-template';
 
-type Reference={id:string;file:string;name:string};
+type Reference=OriginalReference&{id:string};
 type Color={id:string;name:string;color:string};
 async function json<T>(url:string,init?:RequestInit):Promise<T>{const r=await fetch(url,init);const b=await r.json() as T&{error?:string};if(!r.ok)throw new Error(b.error||'请求未完成，请先刷新核对任务。');return b;}
 export function DetailBatch({data,plan,artworks,colors,onUpdate,onBusy}:{data:ProductWorkspace;plan:ProductionPlan;artworks:Reference[];colors:Color[];onUpdate:(data:ProductWorkspace)=>void;onBusy:(busy:boolean)=>void}){
@@ -36,8 +36,7 @@ export function DetailBatch({data,plan,artworks,colors,onUpdate,onBusy}:{data:Pr
       if(!recipe||!art||!color)throw new Error('原画芯或颜色资料尚未加载，请刷新后重试；不会使用替代素材。');
       if(stop.current||!mounted.current)return;
       if(!window.confirm(`${retryOnly?'仅重试失败或已标记重做的':'开始制作'} ${items.length} 张详情页：${items.map(i=>i.title).join('、')}。\n使用 ${model==='gpt-image-2'?'GPT Image 2':'GPT Image 2.5 Sunburst'}，2K，标准质量；切片3:4、长图1:3。参考图与制作要求发送到 RunningHub，按实际规则计费，总费用暂无法预估。\n确认一次后自动逐页完成，不包含主图和尺寸图。失败或状态不明会暂停，不会自动重试。保持页面打开；离开或刷新会停止后续提交。`)){setMessage('已取消，未提交生成。');return;}
-      const file=async(url:string,name:string)=>{const r=await fetch(url);if(!r.ok)throw new Error('参考图读取失败，未继续提交。');return referenceUpload(await r.blob(),name);};
-      const [artFile,sampleFile]=await Promise.all([file(art.file,art.name),file(`/api/files/${next.product.sampleAssetId}`,'确认样图')]);
+      const [artFile,sampleFile]=await Promise.all([readReference(artworkOriginal(art),art.name),readReference(`/api/files/${next.product.sampleAssetId}`,'确认样图')]);
       await runDetailBatch(items,{
         stopped:()=>stop.current||!mounted.current,
         submit:async(item:ProductionItem)=>{

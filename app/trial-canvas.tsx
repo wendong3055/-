@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { generationLabels, type GenerationTask } from '../lib/generation-types';
 
 type Props = {
+  stale?: boolean;
   importedResult?: { url: string; name: string } | null;
   tasks: GenerationTask[];
   activeTaskId: string;
@@ -88,7 +89,7 @@ function PreviewWindow({ picture, selector, references, working = false, status 
   const referenceKey = references.map(reference => reference.src).join('|');
   useEffect(() => { setZoom(100); }, [picture?.src, referenceKey]);
   const previewReferences = [
-    references.find(reference => reference.label === '图案原图') || {src:'',label:'图案原图'},
+    references.find(reference => reference.label.startsWith('图案')) || {src:'',label:'图案原图'},
     references.find(reference => reference.label === '框架原图' || reference.label === '本项确认参考图') || {src:'',label:'框架原图'},
     ...references.filter(reference => reference.label.includes('场景')),
   ];
@@ -137,6 +138,7 @@ export function TrialCanvas(props: Props) {
   const picture: PreviewPicture | undefined = props.importedResult ? { src: props.importedResult.url, label: `本地临时预览 · ${props.importedResult.name}` } : shown ? { src: shown.url!, label: taskLabel(shown) } : undefined;
 
   return <section className="trial-canvas single-preview-canvas" aria-label="生成效果与试稿记录">
+    {props.stale && shown && <p className="generation-warning" role="status">搭配已修改，右侧为上一轮结果</p>}
     <header className="compose-heading"><h2>生成效果</h2><span className={working ? 'trial-status working' : 'trial-status'} role="status">{working ? status : props.importedResult ? '本地图片 · 临时预览' : shown ? '已保留生成结果' : '待生成'}</span></header>
     <PreviewWindow picture={picture} working={working} status={status} references={props.references}
       selector={picture && <label>查看图片<select aria-label="选择预览图片" value={props.importedResult ? 'local' : shown?.id || ''} onChange={(event) => onSelect(event.target.value)} disabled={!completed.length}>

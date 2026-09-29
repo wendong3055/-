@@ -21,4 +21,7 @@ assert.ok(markup.includes('请选择图案'));
 assert.ok(markup.includes('请选择框架'));
 assert.ok(!markup.includes('src="undefined"'));
 assert.ok(markup.includes('所选图案、框架与场景参考'));
+assert.match(markup,/<details class="studio-output-panel" aria-label="出图设置">/);
+assert.ok(markup.includes('出图设置'));
+assert.ok(markup.includes('清晰度 / 分辨率'));
 console.log('PASS: empty or not-yet-loaded owned artwork and frame catalogs render without resurrecting defaults or crashing.');

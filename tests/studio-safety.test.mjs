@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+import {createRequire} from 'node:module';
+import {readFileSync,statSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const built=await build({stdin:{contents:`export * from './lib/studio-reference';export * from './lib/studio-result';`,resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,platform:'node',format:'cjs',logLevel:'silent'});
+const m={exports:{}};new Function('require','module','exports',built.outputFiles[0].text)(createRequire(import.meta.url),m,m.exports);
+const {artworkOriginal,prepareStudioReferences,isPreviousResult}=m.exports;
+const art={name:'测试画芯',file:'/thumb.jpg',originalFile:'/original.jpg',originalStatus:'verified'};
+assert.equal(artworkOriginal(art),'/original.jpg');
+// The field/path word thumb does not determine quality: verified original bytes may live there.
+assert.equal(artworkOriginal({...art,originalFile:'/thumb.jpg'}),'/thumb.jpg');
+assert.throws(()=>artworkOriginal({...art,originalStatus:'missing'}),/缺少已核对/);
+assert.throws(()=>artworkOriginal({name:'未核对',file:'/large-original.jpg'}),/缺少已核对/);
+const calls=[];let mode='ok',closed=0;
+globalThis.fetch=async url=>{calls.push(url);return new Response(mode==='html'?'not an image':new Uint8Array([1,2,3]),{status:mode==='404'||(mode==='frame404'&&url==='/frame.jpg')?404:200,headers:{'Content-Type':mode==='html'?'text/html':'image/jpeg'}});};
+globalThis.createImageBitmap=async()=>{if(mode==='corrupt')throw Error('decode failed');return{width:1600,height:2400,close(){closed++;}};};
+await assert.rejects(prepareStudioReferences(art,undefined),/框架参考图缺失/);
+assert.equal(calls.length,0);
+for(mode of ['404','html','corrupt'])await assert.rejects(prepareStudioReferences(art,'/frame.jpg'),/读取或解码失败/);
+mode='frame404';await assert.rejects(prepareStudioReferences(art,'/frame.jpg'),/框架参考图读取或解码失败/);
+mode='ok';calls.length=0;
+const refs=await prepareStudioReferences(art,'/frame.jpg');
+assert.deepEqual(calls,['/original.jpg','/frame.jpg']);assert.equal(refs.artwork.size,3);assert.equal(refs.frame.size,3);assert.ok(closed>=2);
+const recipe={artworkId:'a',frameId:'f',colorId:'c',intent:'composition',instruction:'保留结构'};
+assert.equal(isPreviousResult(undefined,recipe),false);
+assert.equal(isPreviousResult({recipe},recipe),false);
+for(const key of ['artworkId','frameId','colorId','instruction','intent','sceneId'])assert.equal(isPreviousResult({recipe},{...recipe,[key]:'changed'}),true);
+assert.equal(isPreviousResult({recipe},{...recipe}),false);
+const page=readFileSync('app/page.tsx','utf8');
+assert.match(page,/<details className="studio-output-panel" aria-label="出图设置">/);
+assert.match(page,/<summary><strong>出图设置<\/strong>/);
+for(const label of ['图片比例','清晰度 / 分辨率','生成质量','输出背景','图片格式','ImageModelPicker'])assert.ok(page.includes(label));
+assert.ok(page.indexOf('await prepareStudioReferences')<page.indexOf('await generations.submit(form)'));
+const api=readFileSync('app/api/generate-preview/route.ts','utf8');
+assert.ok(api.indexOf('框架参考图缺失')<api.indexOf('await runningHubConnection'));
+assert.match(readFileSync('app/trial-canvas.tsx','utf8'),/搭配已修改，右侧为上一轮结果/);
+const audit=JSON.parse(readFileSync('public/library/2026-08-27-v2/originals-index.json','utf8').replace(/^\uFEFF/,''));
+assert.equal(Object.keys(audit).length,267);
+for(const row of Object.values(audit)){
+ assert.equal(row.originalStatus,'verified');
+ const bytes=readFileSync('public'+row.originalFile);
+ assert.equal(createHash('sha256').update(bytes).digest('hex'),row.originalHash);
+ assert.ok(row.originalWidth>0&&row.originalHeight>0);
+ assert.ok(statSync('public'+row.originalFile).size<25*1024*1024);
+}
+console.log('PASS: original provenance (267 hashes), preflight failures, stale state, collapsed settings. No paid requests.');

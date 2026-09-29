@@ -32,6 +32,7 @@ const ctx={...helpers,FormData,URL,console,canGenerate:true,selected:{file:'/art
  window:{localStorage:storage,confirm:s=>{dialogs.push(s);return confirm;},setTimeout:noop},
  fetch:async url=>url.startsWith('/api/production/')?{ok:true,json:async()=>fresh}:{ok:true,blob:async()=>new Blob(['test'])},
  referenceUpload:async blob=>blob,
+ prepareStudioReferences:async()=>({artwork:new Blob(['art']),frame:new Blob(['frame'])}),
  generations:{busy:false,submit:async()=>{calls++;if(fail)throw new Error('unknown submit');return {id:'task1',status:'queued'};}},
  isActiveGeneration:()=>true,
  storeProductionConsent:value=>value?storage.setItem(consentKey(value.planId),JSON.stringify(value)):storage.removeItem(consentKey('p1')),
@@ -53,5 +54,8 @@ await ctx.generatePreview();assert.equal(dialogs.length,1);
 storage.removeItem(consentKey('p1'));dialogs=[];await ctx.generatePreview();assert.equal(dialogs.length,1);
 // Cancellation and active-task gates still prevent charging.
 const before=calls;ctx.generations.busy=true;await ctx.generatePreview();assert.equal(calls,before);
+ctx.generations.busy=false;dialogs=[];
+ctx.prepareStudioReferences=async()=>{throw new Error('框架参考图读取或解码失败，已停止提交');};
+await ctx.generatePreview();assert.equal(calls,before);assert.equal(dialogs.length,0);assert.equal(ctx.submitGuard.current,false);
 assert.match(page,/撤销本套确认/);
 console.log('PASS: plan-scoped consent, reload reuse, scope changes, retry, cancellation, revoke and submission gates (mock only).');

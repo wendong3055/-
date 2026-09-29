@@ -115,3 +115,7 @@ body{font-size:15px}.brand-lockup strong{font-size:16px}.brand-lockup small{font
 .detail-batch select{margin:0 12px;padding:10px;max-width:100%;font-size:16px}.detail-batch small{display:block;font-size:14px;line-height:1.6}
 .detail-batch .product-actions{flex-wrap:wrap;gap:12px}.detail-batch button{min-height:44px;font-size:16px}
 @media(max-width:600px){.detail-batch{padding:18px}.detail-batch select{display:block;margin:8px 0;width:100%}.detail-batch button{width:100%}}
+/* Output controls remain available, but start collapsed on a fresh page. */
+.studio-output-panel > summary { cursor: pointer; padding: 12px 0; font-size: 16px; }
+.studio-output-panel > summary > span { display: block; margin-top: 7px; color: #456052; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.studio-output-panel[open] > summary { margin-bottom: 12px; border-bottom: 1px solid #dce4de; }
