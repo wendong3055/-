@@ -58,6 +58,17 @@ export async function claimProductionItem(owner:string,itemId:string,taskId:stri
     (g.status = 'failed' OR (g.status = 'succeeded' AND production_items.review = 'rework'))))`).bind(taskId,owner,itemId,owner).run();
   if(!result.meta.changes) throw new ProductionError('此项已生成或正在处理；需要重做时先在新品清单标记重做。',409);
 }
+export async function productionFrameFile(owner:string,context:Awaited<ReturnType<typeof productionContext>>){
+  const id=context.row.kind==='size'?context.spec?.sourceIds?.[0]:context.workspace.sample!.recipe!.frameId.replace(/^uploaded-frame-/, '');
+  if(!id)throw new ProductionError('缺少本款框架结构原图，已停止提交。');
+  const asset=await env.DB.prepare("SELECT name,object_key,mime_type FROM assets WHERE owner_id=? AND id=? AND category IN ('框架模板','框架规格原图')").bind(owner,id).first<{name:string;object_key:string;mime_type:string}>();
+  if(!asset||!['image/jpeg','image/png','image/webp'].includes(asset.mime_type))throw new ProductionError('本款框架结构原图不存在或格式无效，已停止提交。');
+  const object=await env.FILES.get(asset.object_key);
+  if(!object||!object.size||object.size>10*1024*1024)throw new ProductionError('框架结构原图读取失败，已停止提交。');
+  const bytes=await object.arrayBuffer();
+  if(bytes.byteLength!==object.size)throw new ProductionError('框架结构原图下载未完成，已停止提交。');
+  return new File([bytes],asset.name,{type:asset.mime_type});
+}
 export async function productionDetailFiles(owner:string,context:Awaited<ReturnType<typeof productionContext>>){
   const evidence=context.config.detailEvidence;
   const result:{file:File;label:string}[]=[];
