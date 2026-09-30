@@ -13,6 +13,8 @@ assert.match(frameStructureLock('五斗柜',1),/图1/);
 assert.doesNotMatch(frameStructureLock('五斗柜',1),/五个开放格/);
 const views=frameStructureLock('葫芦大屏风柜',3,'三视图');
 assert.match(views,/木纹实心侧板/);
+assert.match(views,/与背沿齐平/);
+assert.match(views,/不随观察方向移动/);
 assert.match(views,/遮住内部层板和所有摆件/);
 assert.match(views,/轻微降低饱和度/);
 assert.match(views,/置物架相对正面左右换位/);
