@@ -3,9 +3,10 @@ import type { ProductionItem, ProductionPlan, ProductWorkspace } from './product
 import { drawSizeAnnotations, detailCaptions } from './production-annotations';
 import { validSizeMarks, preservesSourceSizeMarks } from './production-scene';
 import { findScene } from './scene-library';
+import { detailPageOrder } from './detail-template';
 const safeName=(s:string)=>s.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').slice(0,100);
 function readyDetails(plan:ProductionPlan){
-  const items=plan.items.filter(i=>i.kind==='detail');
+  const items=detailPageOrder(plan.items.filter(i=>i.kind==='detail'));
   if(!items.length||items.some(i=>i.task?.status!=='succeeded'||!i.task.url||i.review==='rework'))throw new Error('请先完成全部详情页，已标记重做的页面需重新制作。');
   return items;
 }
@@ -104,7 +105,7 @@ export function drawSceneSizeMarks(ctx:CanvasRenderingContext2D,item:ProductionI
   ctx.restore();
 }
 export async function exportProduction(workspace:ProductWorkspace,plan:ProductionPlan,onProgress:(s:string)=>void) {
-  const accepted=plan.items.filter(i=>i.review==='accepted'&&i.task?.status==='succeeded'&&i.task.url);
+  const accepted=detailPageOrder(plan.items.filter(i=>i.review==='accepted'&&i.task?.status==='succeeded'&&i.task.url));
   if(!accepted.length)throw new Error('请先验收至少一张图片。');
   const files:Record<string,Uint8Array>={}, prefix=`${safeName(plan.config.name)}_v${plan.version}`;
   const missing=plan.items.filter(i=>!accepted.includes(i)).map(i=>i.title);

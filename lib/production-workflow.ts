@@ -1,5 +1,5 @@
 import {mainOptions, type ProductWorkspace, type ProductionItem, type ProductionPlan, type ProductionPlanInput} from './production-plan';
-import {expandedDetails} from './detail-template';
+import {expandedDetails,detailPageOrder} from './detail-template';
 import {sharedScene} from './production-scene';
 
 export type ProductionPage = 'main'|'size'|'detail';
@@ -7,7 +7,7 @@ export const productionPageNames = {main:'主图制作',size:'尺寸图',detail:
 export function batchCandidates(items:ProductionItem[],retry=false) {
   return items.filter(i=>retry ? i.task?.status==='failed'||(i.task?.status==='succeeded'&&i.review==='rework') : !i.generationId&&!i.task);
 }
-export function pageItems(plan:ProductionPlan,page:ProductionPage) {return plan.items.filter(i=>i.kind===page);}
+export function pageItems(plan:ProductionPlan,page:ProductionPage) {const items=plan.items.filter(i=>i.kind===page);return page==='detail'?detailPageOrder(items):items;}
 export function usablePlan(plan:ProductionPlan|undefined,page:ProductionPage) {
   if(!plan||plan.config.backgroundOnly)return false;
   const items=pageItems(plan,page);

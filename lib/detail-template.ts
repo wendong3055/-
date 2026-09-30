@@ -3,7 +3,14 @@ export const detailReferenceLabels = {
 } as const;
 export type DetailReferenceKey = keyof typeof detailReferenceLabels;
 export type DetailEvidence = { material?:string; transparency?:string; refs?:Partial<Record<DetailReferenceKey,string>> };
-export const expandedDetails = ['新品形象','画芯设计','半透与不透对比','木纹装饰面细节','六种颜色展示','材质介绍','框架与配色','正反对比','三视图','空间搭配','规格选择','选购须知'] as const;
+export const expandedDetails = ['新品形象','画芯设计','半透与不透对比','木纹装饰面细节','六种颜色展示','材质介绍','框架与配色','正反对比','三视图','空间搭配','选购须知','规格选择'] as const;
+// Keep the stored module title and historical item IDs; only move the size
+// overview to the end when presenting or exporting an existing suite.
+export function detailPageOrder<T extends {kind:string;title:string}>(items:readonly T[]):T[] {
+  const last=(item:T)=>item.kind==='detail'&&item.title==='规格选择';
+  return [...items.filter(item=>!last(item)),...items.filter(last)];
+}
+export function detailDisplayTitle(title:string){return title==='规格选择'?'全规格尺寸总览':title;}
 export const extraDetailBriefs:Record<string,string> = {
   '半透与不透对比':'左右等宽对照，同一图案、同一框架、同一场景、机位与照明，仅画芯透景程度不同。左栏“半透效果”，右栏“不透效果”，按已确认实物与说明展示；不能通过整体降透明度让木框也变透明。参考“详情12”的大标题、左右对照、底部大字标签布局，不复制其中山川画芯或实物。未经证实不写“透光不透景”、透光率或隐私保证。',
   '木纹装饰面细节':'以真实木纹装饰面近照为依据，做一张大幅局部特写和一处接缝细节，说明可见纹理、饰面与边缘处理。装饰木纹不等于实木，不能把木色名写成木材树种，不能编造截面、厚度、工艺或触感测试。',

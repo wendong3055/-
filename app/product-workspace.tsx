@@ -3,6 +3,7 @@ import {useEffect,useState} from 'react';
 import {mainOptions,type ProductWorkspace,type ProductionItem} from '../lib/production-plan';
 import {productionPageNames,oneClickDraft,usablePlan,pageItems,type ProductionPage} from '../lib/production-workflow';
 import {generationLabels} from '../lib/generation-types';
+import {detailDisplayTitle} from '../lib/detail-template';
 import {downloadBlob,exportProduction,publicationImage} from '../lib/production-export';
 import {sharedScene,preservesSourceSizeMarks,type SizeMarks} from '../lib/production-scene';
 import {SizeMarksEditor} from './size-marks-editor';
@@ -56,7 +57,7 @@ export function ProductWorkspaceView({productId='',delivery=false,onNew,onOpen,a
 function ProductionCard({item,busy,onPreview,onReview,onDownload,sceneReady,onMarks}:{item:ProductionItem;busy:boolean;onPreview:()=>void;onReview:(v:'accepted'|'rework',n:string)=>void;onDownload:()=>void;sceneReady:boolean;onMarks:(marks:SizeMarks)=>void}){
   const [note,setNote]=useState(item.note);
   const ready=!item.task||item.task.status==='failed'||item.review==='rework';
-  return <article className="production-card"><div>{item.task?.url?<img src={item.task.url} alt={item.title}/>:<span>{item.task?generationLabels[item.task.status]:'待制作'}</span>}</div><section><h3>{item.title}</h3><p>{item.review==='accepted'?'已验收':item.review==='rework'?'待调整':item.task?.status==='succeeded'?'已生成':item.task?generationLabels[item.task.status]:'待制作'}</p>{item.task?.error&&<p role="status">{item.task.error}</p>}
+  return <article className="production-card"><div>{item.task?.url?<img src={item.task.url} alt={detailDisplayTitle(item.title)}/>:<span>{item.task?generationLabels[item.task.status]:'待制作'}</span>}</div><section><h3>{detailDisplayTitle(item.title)}</h3><p>{item.review==='accepted'?'已验收':item.review==='rework'?'待调整':item.task?.status==='succeeded'?'已生成':item.task?generationLabels[item.task.status]:'待制作'}</p>{item.task?.error&&<p role="status">{item.task.error}</p>}
     {ready&&(item.kind!=='size'||sceneReady)&&<a className="production-start" aria-disabled={busy} onClick={e=>{if(busy)e.preventDefault();}} href={`/?production=${item.id}`}>{item.task?'调整后重做此图':'单独制作此图'}</a>}
     {item.task?.url&&<><div className="product-actions"><button disabled={busy} onClick={onPreview}>查看大图</button><button disabled={busy} onClick={onDownload}>下载</button><button disabled={busy||item.review==='accepted'} onClick={()=>onReview('accepted',note)}>确认这张图</button></div><details className="result-adjustment"><summary>调整这张图</summary><label>修改要求<textarea value={note} maxLength={600} onChange={e=>setNote(e.target.value)} placeholder="告诉我这张图要改哪里…"/></label><button disabled={busy||!note.trim()} onClick={()=>onReview('rework',note)}>保存修改要求</button></details>{item.kind==='size'&&!preservesSourceSizeMarks(item)&&<details><summary>调整旧图尺寸标注</summary><SizeMarksEditor item={item} busy={busy} onSave={onMarks}/></details>}</>}
   </section></article>;
