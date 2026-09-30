@@ -116,7 +116,7 @@ export async function POST(request: Request) {
           recipe.sizeAnnotationMode='source-preserved-v1';
         }
       }
-        prompt+=`\n${frameStructureLock(context.workspace.product.frameName,structureIndex)}`;
+        prompt+=`\n${frameStructureLock(context.workspace.product.frameName,structureIndex,context.row.title)}`;
         if(refs.some(f=>(f as File).type==='image/webp')&&model.id!=='gpt-image-2')throw new ProductionError('框架原图为 WebP，请使用支持该格式的模型。');
         if((refs as File[]).reduce((n,f)=>n+f.size,0)>20*1024*1024)throw new ProductionError('参考图合计超过20MB，已停止提交。');
       }
