@@ -2,7 +2,7 @@ import type { FrameSize } from './frame-catalog';
 import type { GenerationTask } from './generation-types';
 import type { SizeMarks } from './production-scene';
 import { sizeProductionBrief } from './production-scene';
-import { expandedDetails, extraDetailBriefs, validateDetailEvidence, detailMissing, type DetailEvidence } from './detail-template';
+import { expandedDetails, extraDetailBriefs, backArtworkBrief, validateDetailEvidence, detailMissing, type DetailEvidence } from './detail-template';
 
 export const artworkRules = {
   upper: '只在上方屏芯装画，柜门、抽屉和其余木质部件不加图案。',
@@ -22,8 +22,8 @@ export function detailProductionBrief(title:string,rule:string,notes:string,evid
     '半透与不透对比':'按用户的半透／不透需求制作左右对比效果示意。同一产品、图案、场景与照明，只改变画芯的透景程度，木框不透明。左标“半透效果”，右标“不透效果”，清楚标注“效果示意，实际表现以实物为准”，不写透光率或性能保证。',
     '木纹装饰面细节':'直接从确认样图的可见木纹装饰面取局部放大，表现纹理和边缘；不要求额外上传，不臆造内部、厚度或触感，不把木纹饰面称为实木。',
     '材质介绍':'以画芯、木纹装饰面、框架等可见部分排版介绍，描述其位置和可见外观；不推测实际材料成分或木材树种。注明“材料以商品实际说明为准”，不宣称环保、防水、承重或认证。',
-    '正反对比':'正面用确认样图；缺少真实背面资料，不将镜像正面当背面。右栏采用不含未知构件的简洁背面轮廓示意，并清楚标注“背面示意，以实物为准”，不要假设背面画芯、抽屉或五金。',
-    '三视图':'正面使用确认样图；缺少对应实物资料的侧面、背面只做简洁轮廓示意，分别标明“侧面示意”“背面示意”，下方写“结构以实物为准”。不编造隐藏构件和数值，不伪装成真实三视实拍。',
+    '正反对比':`正面使用确认样图，背面为同款产品的写实效果图，两栏同等比例、相同木色和照明，标签“正面”“背面”。从现有同款参考中可确认的结构关系出发，保留木纹、厚度、接缝和自然落地阴影，不增加未知背板、门抽、五金或内部结构。禁止用轮廓线稿、空白背板或正面整图镜像代替背面，不能伪称实拍；底部短注“产品效果图”。${backArtworkBrief}`,
+    '三视图':`正面沿用确认样图，侧面和背面必须是同款产品的写实效果图，三栏同等尺度、同一基线、同一木色和照明，标签“正面”“侧面”“背面”。侧面为90度正侧视，背面展示完整产品，保留木纹、厚度、接缝和自然落地阴影，依据现有同款参考中可确认的进深和结构关系，不添加未知构件或未确认数值。禁止用轮廓线稿、技术草图、空框或几何示意替代侧面和背面，不伪称实拍；底部短注“产品效果图”。${backArtworkBrief}`,
   };
   const modules:Record<string,string>={
     ...extraDetailBriefs,
@@ -38,7 +38,7 @@ export function detailProductionBrief(title:string,rule:string,notes:string,evid
     ? '输出一张1:3竖版完整电商详情长图，不是单张场景照，不是多视图联系表。五段从上到下连贯排版：①首屏，中文大标题“让图案融入日常”，副标题“画芯与框架的搭配”，配一张完整正面产品场景图；②“画芯之美”，正文“在色彩与线条间，感受画面的层次”，仅放大已有画芯；③“细节有序”，正文“框架与画芯，自然相衬”，仅裁切参考图可见结构，不打开柜门或抽屉；④“融入空间”，正文“为日常空间，添一处风景”，保持同一产品和视角；⑤“选购提示”，只写“下单前请确认规格、颜色与摆放空间。屏幕显示存在色差，请以实物为准。”'
     : `只输出一张3:4竖版、带中文排版的“${title}”详情切片，不要将整套其他模块拼入本页。${(illustrative?fallbacks[title]:undefined)||modules[title]||'一个明确标题，配与本页主题相关的产品图和简短介绍。'}标题默认使用“${title==='规格选择'?'全规格尺寸一览':title}”，补充要求指定本页标题时以指定标题为准，不重复两套文案。不是无文字配图，不生成整套联系表。`;
   const facts=title==='材质介绍'&&evidence?.material?`已确认材质：${evidence.material}`:title==='半透与不透对比'&&evidence?.transparency?`已确认透光说明：${evidence.transparency}`:'';
-  const views=['正反对比','三视图'].includes(title)?(illustrative?'有对应参考的视角按参考展示，缺少的视角只允许明确标记的轮廓示意，不得当作实物结构证明。':'仅按额外提供并标明用途的同款侧面／背面原图展示对应视角，禁止推测缺失结构。'):'禁止新增未经参考图证实的侧面、背面、俯视、爆炸图或内部结构。';
+  const views=['正反对比','三视图'].includes(title)?(illustrative?'所有视角都用写实产品效果图，不使用线稿或轮廓示意替代；以现有参考中可确认的结构为准，未知内部或隐藏构件不展示，不把效果图说成实拍或结构证明。':'仅按额外提供并标明用途的同款侧面／背面原图展示对应视角，禁止推测缺失结构；各视角均保留写实材质和光影，不转成线稿。'):'禁止新增未经参考图证实的侧面、背面、俯视、爆炸图或内部结构。';
   const colorLock=title==='六种颜色展示'?'本页仅允许按六色要求替换木质部分颜色，画芯与结构不变。':'保持确认样图木色不变。';
   return `${layout}参考家居编辑式模板的场景大图、局部细节、短文案与留白节奏，重新设计，不复制参考品牌或商品。自然暖白底、深棕标题、清晰中文无衬线正文，统一边距和字号层级；不得使用微小文字、乱码、英文占位或水印。严格锁定确认样图的产品比例、画芯、门、抽屉、五金和脚轮；同一产品在各分区保持一致。${colorLock}${views}${facts}不得编造材质、认证、承重、尺寸、价格或服务承诺；不印未经核实的参数。${rule} ${notes} 最终输出必须包含清晰中文标题和说明；忽略旧规则中的“不带文字配图、交付时再排版”，不得用无依据的新视角填充版面。`;
 }

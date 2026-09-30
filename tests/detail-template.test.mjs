@@ -30,13 +30,23 @@ const colors=detailProductionBrief('六种颜色展示','规则','',evidence);
 for(const name of ['原木','红木色','黄花梨色','胡桃木色','简约灰','暖白色'])assert.ok(colors.includes(name));
 assert.ok(colors.includes('画芯与结构不变'));assert.ok(!colors.includes('保持确认样图木色不变'));
 assert.ok(detailProductionBrief('材质介绍','','',evidence).includes(evidence.material));
-assert.ok(detailProductionBrief('正反对比','','',evidence).includes('不得将正面镜像当背面'));
+assert.match(detailProductionBrief('正反对比','','',evidence),/不将整件产品镜像当作背面/);
 const ctx={row:{title:'三视图'},config:{detailEvidence:evidence}};
 const refs=await productionDetailFiles('owner',ctx);assert.equal(refs.length,2);assert.equal(refs[0].label,'同款侧面原图');assert.equal(refs[1].label,'同款背面原图');
 assert.ok(lookups.every(x=>x.owner==='owner'&&x.sql.includes("category='详情参考'")&&x.sql.includes('owner_id=?')));
 assert.deepEqual(await productionDetailFiles('owner',{row:{title:'三视图'},config:{}}),[]);
-assert.match(detailProductionBrief('三视图','',''),/轮廓示意/);
-assert.match(detailProductionBrief('正反对比','',''),/不将镜像正面当背面/);
+for(const refs of [undefined,evidence]){
+  const three=detailProductionBrief('三视图','','',refs),back=detailProductionBrief('正反对比','','',refs);
+  assert.match(three,/90度正侧视/);assert.match(three,/木纹、.*厚度/);
+  assert.doesNotMatch(three,/只做简洁轮廓|只允许明确标记的轮廓|侧面示意/);
+  assert.doesNotMatch(back,/采用.*轮廓示意|背面示意，以实物为准/);
+  for(const brief of [three,back]){
+    assert.match(brief,/图案相对正面左右反向/);assert.match(brief,/颜色稍浅但仍清楚可见/);
+    assert.match(brief,/不能变成空白/);assert.match(brief,/不淡化木框、柜体、五金或摆件/);
+    assert.match(brief,/不将整件产品镜像当作背面/);
+  }
+}
+assert.match(detailProductionBrief('三视图','',''),/不伪称实拍/);
 assert.match(detailProductionBrief('半透与不透对比','',''),/效果示意，实际表现以实物为准/);
 assert.match(detailProductionBrief('材质介绍','',''),/不推测实际材料成分/);
 assetAvailable=false;await assert.rejects(()=>productionDetailFiles('owner',ctx),/无法读取/);assetAvailable=true;
