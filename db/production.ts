@@ -61,6 +61,21 @@ export async function claimProductionItem(owner:string,itemId:string,taskId:stri
 export async function productionDetailFiles(owner:string,context:Awaited<ReturnType<typeof productionContext>>){
   const evidence=context.config.detailEvidence;
   const result:{file:File;label:string}[]=[];
+  if(context.row.title==='规格选择'){
+    // Every uploaded specification is a geometry/annotation reference, never a
+    // new artwork or an output to import into the artwork library.
+    const loaded=new Set<string>();
+    for(const spec of context.workspace.sizes){
+      const id=spec.sourceIds[0];if(!id)throw new ProductionError('全规格尺寸总览缺少对应尺寸原图，未提交生图。');
+      if(loaded.has(id))continue;
+      const asset=await env.DB.prepare("SELECT object_key,mime_type FROM assets WHERE owner_id=? AND id=? AND category IN ('框架模板','框架规格原图')").bind(owner,id).first<{object_key:string;mime_type:string}>();
+      if(!asset||!['image/jpeg','image/png','image/webp'].includes(asset.mime_type))throw new ProductionError('全规格尺寸原图无法读取，未提交生图。');
+      const object=await env.FILES.get(asset.object_key);
+      if(!object||object.size>10*1024*1024)throw new ProductionError('全规格尺寸原图不存在或超过10MB，未提交生图。');
+      result.push({file:new File([await object.arrayBuffer()],`spec-${result.length+1}.${asset.mime_type.split('/')[1]}`,{type:asset.mime_type}),label:`本款尺寸原图，分段宽${spec.widthParts.join('+')}cm，总宽${spec.widthCm}cm，高${spec.heightCm}cm${spec.depthCm===undefined?'':`，深${spec.depthCm}cm`}；仅用于产品结构和尺寸标注位置，画芯与木色沿用确认样图`});
+      loaded.add(id);
+    }
+  }
   for(const key of detailReferenceKeys(context.row.title)){
     const id=evidence?.refs?.[key];if(!id)continue;
     const asset=await env.DB.prepare("SELECT object_key,mime_type FROM assets WHERE owner_id=? AND id=? AND category='详情参考'").bind(owner,id).first<{object_key:string;mime_type:string}>();

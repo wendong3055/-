@@ -26,7 +26,7 @@ const detail=makePlan('detail');detail.items[0]={...detail.items[0],generationId
 assert.equal(batchQueue(detail,'detail').length,11);assert.equal(batchQueue(detail,'detail',true).length,0);
 const view=readFileSync('app/product-workspace.tsx','utf8');
 for(const removed of ['图案放置规则','结构、颜色与排版补充要求','使用新版12页详情模板','只做整套详情','DetailEvidenceEditor','spec-editor','保存确认清单','布局参考：'])assert.ok(!view.includes(removed),removed);
-assert.match(view,/调整这张图/);assert.match(view,/production-pages/);
+assert.match(view,/ProductionItemActions/);assert.match(view,/production-pages/);
 
 // Exercise actual rendered batch handlers with inert hooks and entirely mocked I/O.
 const hooks={name:'test-hooks',setup(b){b.onResolve({filter:/^react$/},a=>a.importer.endsWith('production-batch.tsx')?{path:'hooks',namespace:'test'}:undefined);b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export const useState=x=>[x,()=>{}];export const useRef=x=>({current:x});export const useEffect=()=>{};',loader:'js'}));}};

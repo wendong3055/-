@@ -35,6 +35,11 @@ const ctx={row:{title:'三视图'},config:{detailEvidence:evidence}};
 const refs=await productionDetailFiles('owner',ctx);assert.equal(refs.length,2);assert.equal(refs[0].label,'同款侧面原图');assert.equal(refs[1].label,'同款背面原图');
 assert.ok(lookups.every(x=>x.owner==='owner'&&x.sql.includes("category='详情参考'")&&x.sql.includes('owner_id=?')));
 assert.deepEqual(await productionDetailFiles('owner',{row:{title:'三视图'},config:{}}),[]);
+const specRef={row:{title:'规格选择'},config:{},workspace:{sizes:[{widthParts:[30,70],widthCm:100,heightCm:200,depthCm:30,sourceIds:[a]},{widthParts:[30,80],widthCm:110,heightCm:200,depthCm:30,sourceIds:[b]}]}};
+lookups.length=0;const specFiles=await productionDetailFiles('owner',specRef);
+assert.equal(specFiles.length,2);assert.match(specFiles[0].label,/分段宽30\+70cm/);
+assert.ok(lookups.every(x=>x.owner==='owner'&&x.sql.includes("'框架规格原图'")));
+assetAvailable=false;await assert.rejects(()=>productionDetailFiles('owner',specRef),/全规格尺寸原图无法读取/);assetAvailable=true;
 for(const refs of [undefined,evidence]){
   const three=detailProductionBrief('三视图','','',refs),back=detailProductionBrief('正反对比','','',refs);
   assert.match(three,/90度正侧视/);assert.match(three,/木纹、.*厚度/);

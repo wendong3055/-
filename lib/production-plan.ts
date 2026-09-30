@@ -13,6 +13,17 @@ export const artworkRules = {
 export const mainOptions = ['白底主图', '玄关场景', '客厅场景', '书房场景', '办公场景', '画芯特写', '框架细节', '空间全景'] as const;
 export const detailOptions = ['完整详情长图', ...expandedDetails] as const;
 export const detailTemplateReference = {name:'家居编辑式长图',source:'https://www.zcool.com.cn/work/ZNDg1MzExODg%3D.html',note:'仅参考分区、图文节奏和留白；不复制原图、品牌、文案或产品卖点。'};
+export function sizeOverviewBrief(sizes:FrameSize[]) {
+  if(!sizes.length)return '暂未匹配到本款的规格数据，不得编造尺寸或声称已列全规格。';
+  const values=(numbers:number[])=>[...new Set(numbers)].sort((a,b)=>a-b).join('/');
+  const groups=new Map<string,FrameSize[]>();
+  for(const s of sizes){const key=`${s.widthParts.length}:${s.panelCount||1}`;groups.set(key,[...(groups.get(key)||[]),s]);}
+  const diagrams=[...groups.values()].map((group,i)=>{
+    const first=group[0],depths=group.flatMap(s=>s.depthCm===undefined?[]:[s.depthCm]);
+    return `产品图${i+1}：${first.widthParts.length}段结构${first.panelCount?`，${first.panelCount}扇`:''}，严格按该组尺寸原图外形绘制。右侧竖向双箭头标总高 ${values(group.map(s=>s.heightCm))}cm；底部外侧横向双箭头标总宽 ${values(group.map(s=>s.widthCm))}cm。${first.widthParts.length>1?first.widthParts.map((_,n)=>`第${n+1}段宽度箭头对应原图该段边界，标 ${values(group.map(s=>s.widthParts[n]))}cm`).join('；'):'单段只标总宽，不重复标注'}。${depths.length?`右下侧边斜向双箭头标进深 ${values(depths)}cm${depths.length<group.length?'，仅用于已提供深度的规格，其他规格写“进深未提供”':''}`:'进深未提供，省略进深箭头，不猜测'}。此组实际可选组合：${group.map(s=>`${s.widthParts.join('+')}cm（总宽${s.widthCm}cm，高${s.heightCm}cm，深${s.depthCm??'未提供'}${s.depthCm===undefined?'':'cm'}）`).join('；')}。`;
+  });
+  return `本页是详情最后一张全规格尺寸总览，标题“全规格尺寸总览”。参考用户提供的“参数展示”图的产品主体与尺寸箭头布局，不复制其图案、文字、印章、材质或包装声明。纯白或自然暖白背景，完整写实产品为主体，保留木纹、画芯和每个可摆放位置的摆件，底座不裁切。尺寸直接对应产品标注：高度箭头在右侧，宽度与分段宽度箭头在底部，进深箭头沿右下可见侧边；黑色细实线、双向箭头、清晰大字、单位cm。尺寸线紧贴对应部位的外侧，不压在画芯、柜体或摆件上；总宽与分段宽度分两行，避免重叠。全部${sizes.length}个规格均须覆盖，不使用“产品小图＋尺寸表格”排版。共${groups.size}组结构，结构相同的规格共用一张大产品图，在对应尺寸箭头旁用斜杠列出可选值；结构不同则在同一页分组用各自尺寸原图的完整产品图展示，不把不同段数、扇数或深度强行套进一个外形，不拉伸样图冒充规格。\n${diagrams.join('\n')}\n尺寸数据逐项核对（仅供制作，不画成表格）：\n${sizes.map((s,i)=>`${i+1} | ${s.widthCm} | ${s.heightCm} | ${s.depthCm??'未提供'} | ${s.widthParts.join('+')}`).join('\n')}\n实际可选组合用简短中文列在对应产品图下，不暗示各段宽度可以任意交叉组合；不能产生数据之外的新规格，不能漏规格。同总宽不同结构分别保留。若尺寸多，可增加本页纵向排版空间，不用微小字号塞满。底部短注“尺寸单位：cm；以对应规格原图为准”。`;
+}
 export function detailProductionBrief(title:string,rule:string,notes:string,evidence?:DetailEvidence,sizes:FrameSize[]=[]) {
   const props='详情页摆件要求：凡展示完整产品或可见置物区域，默认在每个适合承托的现有台面、层板或置物格各放一个小巧摆件，如简约陶瓷器、小花瓶或小雕塑；根据画芯和木色统一搭配，若已有摆件则保留，不重复叠加。整套各页沿用同一摆件造型、配色和摆放逻辑；六色展示和半透／不透对比的各组摆件必须一致，只改变该模块指定的产品属性。只在真实已有且可见的位置摆放，不新增层板、不改变结构、不悬浮，不遮挡画芯、五金、木纹细节、尺寸标注或文案。画芯与木纹局部特写、示意轮廓及纯文字模块不强行添加摆件；无可摆放位置的产品不添加。摆件仅为拍摄道具，不宣称随产品赠送。';
   notes=`${props} ${notes}`;
@@ -31,12 +42,12 @@ export function detailProductionBrief(title:string,rule:string,notes:string,evid
     '画芯设计':'画芯展示：以原画芯正面放大特写为主，配短句描述可见色彩与构图；不增加完整产品小图，不改变原画芯内容。',
     '框架与配色':'结构细节：放大参考图中已有的框架或柜体正面细节，准确保留抽屉、门、拉手和木色。只介绍可见结构，不打开门抽、不展示未知内部。',
     '空间搭配':'空间场景：同一产品完整正面置于简洁客厅，周边家具陪衬且不遮挡产品，配两句简短搭配说明。不要重复细节页构图。',
-    '规格选择':sizes.length?`本页是一张全规格尺寸总览，标题“全规格尺寸一览”。上方用一张确认产品示意图（注明“款式示意”），下方以清晰中文表格一次列出全部${sizes.length}个规格，单位cm。表头：序号、总宽、高、深、分段宽度。逐行严格使用以下数据，不省略、合并、改写或补造数值：\n${sizes.map((s,i)=>`${i+1} | ${s.widthCm} | ${s.heightCm} | ${s.depthCm??'未提供'} | ${s.widthParts.length>1?s.widthParts.join('+'):'—'}`).join('\n')}\n同样总宽但结构不同的规格也分别保留。表格为主体，清晰大字，不把全部规格的箭头堆到一张产品上，不拉伸样图冒充其他规格，不为未提供的侧面或背面补图。缺失深度显示“未提供”，不能猜测。底部短注“尺寸单位：cm；具体结构以对应规格图为准”。`:'暂未匹配到本款的规格数据，不得编造尺寸或声称已列全规格。',
+    '规格选择':sizeOverviewBrief(sizes),
     '选购须知':'选购说明：以三条清楚的大字信息为主：“确认规格与摆放空间”“屏幕显示存在色差，请以实物为准”“产品尺寸以所选规格原图为准”。辅以一张完整正面产品小图。',
   };
   const layout=long
     ? '输出一张1:3竖版完整电商详情长图，不是单张场景照，不是多视图联系表。五段从上到下连贯排版：①首屏，中文大标题“让图案融入日常”，副标题“画芯与框架的搭配”，配一张完整正面产品场景图；②“画芯之美”，正文“在色彩与线条间，感受画面的层次”，仅放大已有画芯；③“细节有序”，正文“框架与画芯，自然相衬”，仅裁切参考图可见结构，不打开柜门或抽屉；④“融入空间”，正文“为日常空间，添一处风景”，保持同一产品和视角；⑤“选购提示”，只写“下单前请确认规格、颜色与摆放空间。屏幕显示存在色差，请以实物为准。”'
-    : `只输出一张3:4竖版、带中文排版的“${title}”详情切片，不要将整套其他模块拼入本页。${(illustrative?fallbacks[title]:undefined)||modules[title]||'一个明确标题，配与本页主题相关的产品图和简短介绍。'}标题默认使用“${title==='规格选择'?'全规格尺寸一览':title}”，补充要求指定本页标题时以指定标题为准，不重复两套文案。不是无文字配图，不生成整套联系表。`;
+    : `只输出一张3:4竖版、带中文排版的“${title}”详情切片，不要将整套其他模块拼入本页。${(illustrative?fallbacks[title]:undefined)||modules[title]||'一个明确标题，配与本页主题相关的产品图和简短介绍。'}标题默认使用“${title==='规格选择'?'全规格尺寸总览':title}”，补充要求指定本页标题时以指定标题为准，不重复两套文案。不是无文字配图，不生成整套联系表。`;
   const facts=title==='材质介绍'&&evidence?.material?`已确认材质：${evidence.material}`:title==='半透与不透对比'&&evidence?.transparency?`已确认透光说明：${evidence.transparency}`:'';
   const views=['正反对比','三视图'].includes(title)?(illustrative?'所有视角都用写实产品效果图，不使用线稿或轮廓示意替代；以现有参考中可确认的结构为准，未知内部或隐藏构件不展示，不把效果图说成实拍或结构证明。':'仅按额外提供并标明用途的同款侧面／背面原图展示对应视角，禁止推测缺失结构；各视角均保留写实材质和光影，不转成线稿。'):'禁止新增未经参考图证实的侧面、背面、俯视、爆炸图或内部结构。';
   const colorLock=title==='六种颜色展示'?'本页仅允许按六色要求替换木质部分颜色，画芯与结构不变。':'保持确认样图木色不变。';
