@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {transformSync} from 'esbuild';
+const code=transformSync(readFileSync('lib/frame-structure-lock.ts','utf8'),{loader:'ts',format:'esm'}).code;
+const {frameStructureLock}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const specific=frameStructureLock('葫芦大屏风柜',3);
+assert.match(specific,/图3.*真实框架原图/);
+assert.match(specific,/五个开放格及四块内部层板/);
+assert.match(specific,/不得互换/);
+assert.match(specific,/不添加柜门、抽屉、脚轮/);
+assert.match(specific,/样图的结构错误/);
+assert.match(frameStructureLock('五斗柜',1),/图1/);
+assert.doesNotMatch(frameStructureLock('五斗柜',1),/五个开放格/);
+console.log('PASS structure reference priority and per-style rules; no generation calls.');
