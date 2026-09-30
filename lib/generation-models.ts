@@ -38,6 +38,7 @@ export const imageModels: readonly ImageModel[] = [
     endpoint: '/openapi/v2/rhart-image-g-2-official/image-to-image',
     ratios: [...commonRatios, '1:2', '2:1', '1:3', '3:1', '9:21'],
     resolutions: ['1k', '2k', '4k'], qualities: ['low', 'medium', 'high'],
+    maxImages: 10, maxPromptLength: 20000,
     source: 'https://www.runninghub.ai/runninghub-api-doc-en/api-448969336',
   },
   {

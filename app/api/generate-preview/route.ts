@@ -93,10 +93,12 @@ export async function POST(request: Request) {
       prompt=context.row.kind==='size'
         ? `${prompt}\n制作清单（以确认数据为准）：${context.row.brief}`
         : `图1是已经确认的完整新品效果，图2是原画芯。保持图1的产品结构和图案位置不变，不要重新替换到其他区域。${context.row.title==='六种颜色展示'?'仅按六色展示要求改变木质部分配色。':'保持木色不变。'}${context.row.kind==='detail'?detailProductionBrief(context.row.title,artworkRules[context.config.rule],context.config.notes,context.config.detailEvidence,context.workspace.sizes):context.row.brief}\n本次补充：${field('instruction')}`;
-        const structureFrame=await productionFrameFile(owner,context);
+        const specificationsPage=context.row.kind==='detail'&&context.row.title==='规格选择';
+        // All owned specification originals load below; avoid a redundant eleventh frame.
+        const structureFrame=specificationsPage?null:await productionFrameFile(owner,context);
         const structureIndex=context.row.kind==='size'?1:3;
-        if(context.row.kind==='size')refs[0]=structureFrame;
-        else refs.push(structureFrame);
+        if(context.row.kind==='size')refs[0]=structureFrame!;
+        else if(structureFrame)refs.push(structureFrame);
         if(context.row.kind==='detail'){
         for(const ref of await productionDetailFiles(owner,context)){refs.push(ref.file);prompt+=`\n图${refs.length}为${ref.label}，只用于对应部分，不能当作新画芯或不同产品。`;}
         if((refs as File[]).reduce((n,f)=>n+f.size,0)>20*1024*1024)throw new ProductionError('本页参考图合计超过20MB，请缩小参考图后再试。');

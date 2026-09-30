@@ -11,6 +11,7 @@ import {mainPropsBrief,type PropsMode} from '../lib/main-props';
 async function json<T>(url:string,init?:RequestInit):Promise<T>{const r=await fetch(url,init);const b=await r.json() as T&{error?:string};if(!r.ok)throw new Error(b.error||'请求未完成，请刷新核对任务。');return b;}
 export function ProductionBatch({data,plan,page,count,artworks,colors,onPrepare,onUpdate,onBusy}:{data:ProductWorkspace;plan?:ProductionPlan;page:ProductionPage;count:number;artworks:(OriginalReference&{id:string})[];colors:{id:string;name:string;color:string}[];onPrepare:(target?:ProductionPage)=>Promise<{data:ProductWorkspace;plan:ProductionPlan}>;onUpdate:(data:ProductWorkspace)=>void;onBusy:(busy:boolean)=>void}){
   const [running,setRunning]=useState(false),[message,setMessage]=useState(''),[current,setCurrent]=useState('');
+  const [failed,setFailed]=useState(false);
   const [model,setModel]=useState('gpt-image-2'),[quality,setQuality]=useState('medium');
   const stop=useRef(false),lock=useRef(false),mounted=useRef(true);
   const [preview,setPreview]=useState(''),[exporting,setExporting]=useState(false);
@@ -19,11 +20,13 @@ export function ProductionBatch({data,plan,page,count,artworks,colors,onPrepare,
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;stop.current=true;onBusy(false);};},[onBusy]);
   const items=plan?pageItems(plan,page):[],pending=plan?batchCandidates(items):[],retry=batchCandidates(items,true);
   const completed=items.filter(i=>i.task?.status==='succeeded'&&i.review!=='rework').length;
+  const savedFailure=items.find(i=>i.task?.status==='failed'&&i.task.error)?.task?.error;
+  const visibleError=failed||(!running&&!message&&!!savedFailure);
   const total=plan?items.length:count,remaining=plan?pending.length:count;
   async function refresh(){const next=await json<ProductWorkspace>(`/api/products/${encodeURIComponent(data.product.id)}/workspace`,{cache:'no-store'});if(mounted.current)onUpdate(next);return next;}
   async function exportDraft(show=false){if(!plan)return;setExporting(true);try{if(show)setPreview(URL.createObjectURL(await detailLongImage(data,plan)));else await exportDetailDraft(data,plan);}catch(e){setMessage(String(e));}finally{setExporting(false);}}
   async function start(retryOnly=false,fullSet=false){
-    if(lock.current)return;lock.current=true;stop.current=false;setRunning(true);onBusy(true);setMessage('正在准备本套制作…');
+    if(lock.current)return;lock.current=true;stop.current=false;setRunning(true);setFailed(false);onBusy(true);setMessage('正在准备本套制作…');
     try{
       if((page==='main'||page==='size'||fullSet)&&propsMode==='custom'&&!propsText.trim())throw new Error('请填写摆件要求，或选择自动搭配。');
       if(fullSet&&!data.sizes.length)throw new Error('尚未找到尺寸原图，无法制作全套；请先补充，或单独制作主图和详情。');
@@ -58,7 +61,7 @@ export function ProductionBatch({data,plan,page,count,artworks,colors,onPrepare,
         progress:async(item,task)=>{if(mounted.current){setCurrent(`${queue.indexOf(item)+1} / ${queue.length} · ${item.title} · ${generationLabels[task.status]}`);setMessage('');if(['succeeded','failed','unknown'].includes(task.status))await refresh();}},
       });
       setMessage(stop.current?'已暂停后续制作，已提交任务仍会运行。':'本套已生成，请查看结果；需要修改时在对应图片下调整。');
-    }catch(e){if(mounted.current)setMessage(e instanceof Error?e.message:'制作已暂停，请核对任务记录。');}
+    }catch(e){if(mounted.current){setFailed(true);setMessage(e instanceof Error?e.message:'制作已暂停，请核对任务记录。');}}
     finally{try{await refresh();}catch{}lock.current=false;if(mounted.current){setRunning(false);onBusy(false);setCurrent('');}}
   }
   return <section className="production-batch" aria-label="一键制作">
@@ -68,7 +71,7 @@ export function ProductionBatch({data,plan,page,count,artworks,colors,onPrepare,
     <fieldset disabled={running} className="batch-settings"><legend>主图与尺寸图摆件布置</legend><label>摆放方式<select value={propsMode} onChange={e=>setPropsMode(e.target.value as PropsMode)}><option value="auto">每个可摆放位置放一个（默认）</option><option value="none">不放摆件</option><option value="custom">填写我的摆件要求</option></select></label>{propsMode==='custom'&&<label>摆件要求<textarea value={propsText} maxLength={400} rows={3} placeholder="例如：各置物格放一个陶瓷摆件，简约自然。" onChange={e=>setPropsText(e.target.value)}/></label>}<p>主图和尺寸图均适用：只放在现有台面、层板或置物格，不改变结构、不遮挡画芯和尺寸标注。尺寸图默认采用产品放大的 SKU 构图。</p>{completed>0&&<small>修改仅用于接下来制作的图片；已完成图片不会自动重做。</small>}</fieldset>
     <details className="batch-settings"><summary>出图设置 <span>{model==='gpt-image-2'?'GPT Image 2':'GPT Image 2.5'} · 2K · {page==='detail'?'3:4':'1:1'} · {quality==='low'?'快速':quality==='high'?'精细':'标准'}</span></summary><label>生图模型<select disabled={running} value={model} onChange={e=>setModel(e.target.value)}><option value="gpt-image-2">GPT Image 2</option><option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst</option></select></label><label>画质<select disabled={running} value={quality} onChange={e=>setQuality(e.target.value)}><option value="low">快速</option><option value="medium">标准</option><option value="high">精细</option></select></label><p>整套统一：详情 3:4，主图和尺寸图 1:1，清晰度 2K。</p></details>
     <div className="product-actions">{retry.length>0&&<button disabled={running} onClick={()=>void start(true)}>重做失败或已标记图片（{retry.length}）</button>}{running&&<button onClick={()=>{stop.current=true;setMessage('已要求暂停，当前图片完成后不再提交下一张。');}}>暂停后续制作</button>}{page==='detail'&&plan&&completed===total&&total>0&&<><button disabled={running||exporting} onClick={()=>void exportDraft(true)}>预览完整长图</button><button disabled={running||exporting} onClick={()=>void exportDraft()}>下载长图和切片</button></>}</div>
-    {(message||current)&&<p role="status">{message||current}</p>}<small>本套确认一次后连续制作；请保持页面打开，刷新不会自动重复提交。</small>
+    {(message||current||savedFailure)&&<p style={visibleError?{color:'#b91c1c',fontWeight:600,background:'#fff1f2',border:'1px solid #fda4af',borderRadius:8,padding:12}:undefined} role={visibleError?'alert':'status'}>{visibleError?'制作失败：':''}{message||current||savedFailure}</p>}<small>本套确认一次后连续制作；请保持页面打开，刷新不会自动重复提交。</small>
     {preview&&<dialog open className="publication-preview" aria-label="详情长图预览"><button onClick={()=>setPreview('')}>关闭预览</button><button onClick={()=>void fetch(preview).then(r=>r.blob()).then(b=>downloadBlob(b,'详情长图_待验收.png'))}>下载长图</button><img src={preview} alt="整套详情长图"/></dialog>}
   </section>;
 }
