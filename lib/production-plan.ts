@@ -2,7 +2,7 @@ import type { FrameSize } from './frame-catalog';
 import type { GenerationTask } from './generation-types';
 import type { SizeMarks } from './production-scene';
 import { sizeProductionBrief } from './production-scene';
-import { expandedDetails, extraDetailBriefs, backArtworkBrief, validateDetailEvidence, detailMissing, type DetailEvidence } from './detail-template';
+import { expandedDetails, extraDetailBriefs, backArtworkBrief, threeViewBrief, validateDetailEvidence, detailMissing, type DetailEvidence } from './detail-template';
 
 export const artworkRules = {
   upper: '只在上方屏芯装画，柜门、抽屉和其余木质部件不加图案。',
@@ -34,7 +34,7 @@ export function detailProductionBrief(title:string,rule:string,notes:string,evid
     '木纹装饰面细节':'直接从确认样图的可见木纹装饰面取局部放大，表现纹理和边缘；不要求额外上传，不臆造内部、厚度或触感，不把木纹饰面称为实木。',
     '材质介绍':'以画芯、木纹装饰面、框架等可见部分排版介绍，描述其位置和可见外观；不推测实际材料成分或木材树种。注明“材料以商品实际说明为准”，不宣称环保、防水、承重或认证。',
     '正反对比':`正面使用确认样图，背面为同款产品的写实效果示意，两栏同等比例、相同木色和照明，标签“正面”“背面效果示意”。保留可验证的木纹、厚度、层板与底座，不增加未知背板、门抽、五金或内部结构。不能伪称实拍；底部短注“背面结构与画芯表现以实物为准”。${backArtworkBrief}`,
-    '三视图':`正面沿用确认样图，侧面和背面必须是同款产品的写实效果图，三栏同等尺度、同一基线、同一木色和照明，标签“正面”“侧面”“背面”。侧面为90度正侧视，背面展示完整产品，保留木纹、厚度、接缝和自然落地阴影，依据现有同款参考中可确认的进深和结构关系，不添加未知构件或未确认数值。禁止用轮廓线稿、技术草图、空框或几何示意替代侧面和背面，不伪称实拍；底部短注“产品效果图”。${backArtworkBrief}`,
+    '三视图':threeViewBrief(false),
   };
   const modules:Record<string,string>={
     ...extraDetailBriefs,
