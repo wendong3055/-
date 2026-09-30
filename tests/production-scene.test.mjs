@@ -20,6 +20,13 @@ for(const title of detailOptions){
  assert.match(brief,/不新增层板、不改变结构/);
 }
 const spec={widthCm:60,heightCm:200,depthCm:30,sourceIds:['representative']};
+const allWidths=[[30,70],[30,80],[30,90],[30,100],[30,110],[30,30,90],[30,30,100],[40,40,100]];
+const overviewSizes=allWidths.map((parts,i)=>({key:String(i),widthCm:parts.reduce((a,b)=>a+b,0),heightCm:200,depthCm:30,widthParts:parts,sourceIds:[String(i)],sourceUrls:[]}));
+const overview=detailProductionBrief('规格选择','','',undefined,overviewSizes);
+assert.match(overview,/全规格尺寸一览/);assert.match(overview,/全部8个规格/);
+for(const [i,s] of overviewSizes.entries())assert.ok(overview.includes(`${i+1} | ${s.widthCm} | 200 | 30 | ${s.widthParts.join('+')}`));
+assert.match(detailProductionBrief('规格选择','',''),/不得编造尺寸/);
+assert.match(detailProductionBrief('规格选择','','',undefined,[{...overviewSizes[0],depthCm:undefined}]),/1 \| 100 \| 200 \| 未提供/);
 const scene={id:'main',title:'客厅场景',kind:'main',review:'accepted',generationId:'g',task:{status:'succeeded',url:'/api/files/a',model:'gpt-image-2',resolution:'2k',aspectRatio:'1:1'}};
 const plan={config:{sceneTitle:'客厅场景'},items:[scene]};
 const item={kind:'size',spec};const workspace={sample:{recipe:{frameId:'uploaded-frame-representative'}}};
