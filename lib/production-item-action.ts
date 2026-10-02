@@ -19,7 +19,8 @@ export async function submitProductionItem(input:{data:ProductWorkspace;item:Pro
   const task=item.task,model=task?.model||'gpt-image-2',ratio=task?.aspectRatio||(item.kind==='detail'?'3:4':'1:1'),resolution=task?.resolution||'2k';
   if(input.stopped?.())return null;
   if(!confirm(`${adjust?'调整':'重做'}“${item.title}”一张，沿用原模型与出图参数。\n参考图将发送至 RunningHub，可能产生生图费用。原图和历史记录保留，不重做其他图片。`))return null;
-  const instruction=adjust?note:`按本页默认制作要求重新制作，只重做这一张，不沿用上一轮临时修改要求。${item.kind==='detail'?'':mainPropsBrief(item.kind,'auto','')}`;
+  const batchSettings=task?.recipe?.batchSettings;
+  const instruction=adjust?note:`按本页默认制作要求重新制作，只重做这一张，不沿用上一轮临时修改要求。${item.kind==='detail'?'':mainPropsBrief(item.kind,batchSettings?.propsMode||'auto',batchSettings?.propsText||'')}`;
   if(task?.status==='succeeded')await json(`/api/production/${item.id}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({generationId:item.generationId,review:'rework',note:instruction.slice(0,600)})});
   if(input.stopped?.())return null;
   const form=new FormData();form.set('artwork',artFile);form.set('frame',frameFile);

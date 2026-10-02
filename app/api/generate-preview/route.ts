@@ -17,6 +17,8 @@ import { artworkRules, detailProductionBrief } from '../../../lib/production-pla
 import { sceneSizeBrief } from '../../../lib/production-scene';
 import { latestInternationalKeyId } from '../../../db/runninghub-international';
 import { findScene, pngPixelSize, sceneReferenceBrief, sceneRequiresOpaqueBackground } from '../../../lib/scene-library';
+import { productionSample, sampleApproved, sampleMatches } from '../../../lib/production-sample';
+import { usablePlan } from '../../../lib/production-workflow';
 
 export async function POST(request: Request) {
   const owner = await generationOwner(request);
@@ -81,12 +83,37 @@ export async function POST(request: Request) {
     let prompt = compositionPrompt({ hasFrame: refs.length === 2, frameName, frameProfile: field('frameProfile'), colorId: field('colorId'), colorName, colorHex: field('colorHex'), instruction: field('instruction'), intent });
     const productionItemId=field('productionItemId');
     let productionTitle='';
+    let verifyBatchSample: (() => Promise<void>) | undefined;
     if(productionItemId) {
       const context=await productionContext(owner,productionItemId), saved=context.workspace.sample!.recipe!;
+      const batchRaw = String(form.get('batchSettings') || '');
+      let batchSettings: { propsMode: 'auto' | 'none' | 'custom'; propsText: string } | undefined;
+      if (batchRaw) {
+        if (batchRaw.length > 1800) throw new ProductionError('样稿设置无效。');
+        try { batchSettings = parseRecipe(JSON.stringify({ ...recipe, batchSettings: JSON.parse(batchRaw) }))?.batchSettings; } catch { /* Report below. */ }
+        if (!batchSettings || (batchSettings.propsMode === 'custom' && !batchSettings.propsText)) throw new ProductionError('样稿设置无效。');
+      } else batchSettings = context.workspace.plans.find(p => p.id === context.row.plan_id)?.items.find(i => i.id === productionItemId)?.task?.recipe?.batchSettings;
+      const batchSampleId = field('batchSampleId');
+      if (batchSampleId) {
+        verifyBatchSample = async () => {
+          const sampleContext = await productionContext(owner, batchSampleId);
+          const samplePlan = sampleContext.workspace.plans.find(p => p.id === sampleContext.row.plan_id);
+          const sampleItem = samplePlan?.items.find(i => i.id === batchSampleId);
+          const full = field('batchScope') === 'full';
+          const targetPage = context.row.kind === 'size' ? 'size' : context.row.kind === 'detail' ? 'detail' : 'main';
+          const validSource = samplePlan && (full
+            ? sampleContext.workspace.plans.find(p => usablePlan(p, 'main'))?.id === samplePlan.id && productionSample(samplePlan, 'main')?.id === batchSampleId
+            : samplePlan.id === context.row.plan_id && productionSample(samplePlan, targetPage)?.id === batchSampleId);
+          if (!validSource || samplePlan.config.rule !== context.config.rule || samplePlan.config.notes !== context.config.notes || sampleContext.row.product_id !== context.row.product_id || !sampleItem || !sampleApproved(sampleItem) || sampleItem.generationId !== field('batchSampleGenerationId') || !batchSettings || !sampleMatches(sampleItem, { model: model.id, quality, ...batchSettings }))
+            throw new ProductionError('样稿、清单或验收设置已变化，请刷新后重新确认；未提交下一张。', 409);
+        };
+        await verifyBatchSample();
+      }
       if(selectedScene && context.row.kind==='size') throw new ProductionError('尺寸图必须沿用本套已确认的共用场景，请勿替换为图库参考。');
       productionTitle=context.row.title;
       if(!recipe || refs.length!==2 || recipe.artworkId!==saved.artworkId || recipe.frameId!==saved.frameId || recipe.colorId!==saved.colorId) throw new ProductionError('当前搭配与此新品不一致，请从新品清单重新进入制作。');
       recipe.productionItemId=productionItemId;
+      if (batchSettings) recipe.batchSettings = batchSettings;
       if(context.row.kind==='detail')recipe.detailLayoutMode='chinese-editorial-v2';
       if(context.row.kind==='detail'&&context.row.title==='规格选择'&&(!context.workspace.sizes.length||context.workspace.unknown||context.workspace.missing))throw new ProductionError('全规格总览需要完整匹配本款尺寸原图，请先核对未识别或缺失规格，避免漏掉规格。未提交生图。');
       if(context.row.kind==='size'&&!context.config.sceneTitle)throw new ProductionError('尺寸图需要沿用本套统一场景，请先在制作清单中确认共用场景主图。');
@@ -157,6 +184,7 @@ export async function POST(request: Request) {
     connection = await runningHubConnection(owner, model.id, credentialId);
     const imageUrls: string[] = [];
     for (const file of refs) imageUrls.push(await uploadReference(file as File, connection));
+    await verifyBatchSample?.();
     if (!await claimSubmission(owner, id)) throw new RunningHubError('参考图上传已过期，请重新创建任务。');
     submitted = true;
     // Never retry this billable request automatically.

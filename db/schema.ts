@@ -106,6 +106,7 @@ export const generationTasks = sqliteTable('generation_tasks', {
   credentialId: text('credential_id'),
   prompt: text('prompt').notNull(),
   recipeJson: text('recipe_json'),
+  favorite: integer('favorite', { mode: 'boolean' }).notNull().default(false),
   aspectRatio: text('aspect_ratio').notNull(),
   resolution: text('resolution').notNull(),
   colorName: text('color_name').notNull(),

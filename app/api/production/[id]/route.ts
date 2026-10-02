@@ -10,7 +10,7 @@ export async function GET(_r:Request,c:{params:Promise<{id:string}>}) {
   try { const {row,workspace,spec,config}=await productionContext(owner,(await c.params).id);
     const plan=workspace.plans.find(p=>p.id===row.plan_id)!;
     return NextResponse.json({itemId:row.id,productId:row.product_id,planId:row.plan_id,planVersion:plan.version,
-      generationId:row.generation_id,pendingItemIds:plan.items.filter(i=>!i.generationId).map(i=>i.id),
+      generationId:row.generation_id,review:row.review,taskStatus:plan.items.find(i=>i.id===row.id)?.task?.status,pendingItemIds:plan.items.filter(i=>!i.generationId).map(i=>i.id),
       title:row.title,brief:row.kind==='size'?sizeProductionBrief(spec,artworkRules[config.rule],config.notes,config.sceneTitle):row.kind==='detail'?detailProductionBrief(row.title,artworkRules[config.rule],config.notes,config.detailEvidence,workspace.sizes):row.brief,kind:row.kind,spec,rule:config.rule,sceneTitle:config.sceneTitle,sceneUrl:sharedScene(plan)?.task?.url||null,
       sample:workspace.sample,frameUrl:spec?`/api/files/${spec.sourceIds[0]}`:`/api/files/${workspace.product.sampleAssetId}`},{headers:{'cache-control':'no-store'}});
   }catch(e){return NextResponse.json({error:e instanceof ProductionError?e.message:'制作项暂时无法读取。'},{status:e instanceof ProductionError?e.status:503});}

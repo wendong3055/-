@@ -15,6 +15,7 @@ export type GenerationTask = {
   assetId: string | null;
   remoteTaskId: string | null;
   recipe?: GenerationRecipe | null;
+  favorite?: boolean;
 };
 
 export const generationLabels: Record<GenerationStatus, string> = {

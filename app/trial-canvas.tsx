@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { generationLabels, type GenerationTask } from '../lib/generation-types';
+import { previousTrial, trialChanges, type RecipeLabel } from '../lib/trial-changes';
 
 type Props = {
   itemMode?: boolean;
@@ -22,6 +23,9 @@ type Props = {
   outputSummary: string;
   nextStep?: { onConfirm: () => void; saving: boolean };
   references: { src: string; label: string }[];
+  onFavorite?: (task: GenerationTask) => void;
+  favoriteSaving?: string[];
+  recipeLabel?: RecipeLabel;
 };
 
 function taskLabel(task: GenerationTask) {
@@ -72,8 +76,8 @@ function ImageViewport({ src, label, zoom, fit }: { src: string; label: string; 
 
 type PreviewPicture = { src: string; label: string };
 
-function PreviewWindow({ picture, selector, references, working = false, status = '' }: {
-  picture?: PreviewPicture; selector: ReactNode; references: Props['references']; working?: boolean; status?: string;
+function PreviewWindow({ picture, comparison, selector, references, working = false, status = '' }: {
+  picture?: PreviewPicture; comparison?: PreviewPicture; selector: ReactNode; references: Props['references']; working?: boolean; status?: string;
 }) {
   const [zoom, setZoom] = useState(100);
   const [fit, setFit] = useState<'contain' | 'cover'>('contain');
@@ -103,10 +107,12 @@ function PreviewWindow({ picture, selector, references, working = false, status 
     <button type="button" disabled={!hasImage} onClick={() => setZoom(100)} aria-label="恢复适配倍率">{zoom}%</button>
     <button type="button" disabled={!hasImage || zoom >= 400} onClick={() => setZoom((v) => Math.min(400, v + 25))} aria-label="预览放大">＋</button>
   </div>;
-  const pictureView = () => picture ? <div className="trial-pictures"><figure>
-    <figcaption title={picture.label}><span>{picture.label}</span></figcaption>
-    <ImageViewport key={picture.src} src={picture.src} label={picture.label} zoom={zoom} fit={fit} />
-  </figure></div> : <div className={`reference-pair-preview ${previewReferences.length > 2 ? 'with-scene-reference' : ''}`} aria-label="所选图案、框架与场景参考">
+  const pictureView = () => picture ? <div className={`trial-pictures${comparison ? ' comparing' : ''}`}>
+    {[picture, ...(comparison ? [comparison] : [])].map((p, index) => <figure key={`${index}:${p.src}`}>
+      <figcaption title={p.label}>{comparison && <b>{index === 0 ? '当前' : '对比'}</b>}<span>{p.label}</span></figcaption>
+      <ImageViewport key={p.src} src={p.src} label={p.label} zoom={zoom} fit={fit} />
+    </figure>)}
+  </div> : <div className={`reference-pair-preview ${previewReferences.length > 2 ? 'with-scene-reference' : ''}`} aria-label="所选图案、框架与场景参考">
     {previewReferences.map(({src,label}, index) => <figure key={label}>
       <figcaption>{label}</figcaption>
       {src ? <ImageViewport key={src} src={src} label={label} zoom={zoom} fit={fit} /> : <div className="reference-missing">{index === 0 ? '请选择图案' : '此框架暂无原图'}</div>}
@@ -137,24 +143,41 @@ export function TrialCanvas(props: Props) {
   // Keep the selected/last generated result visible during the next generation.
   const shown = props.importedResult ? undefined : completed.find((task) => task.id === activeTaskId) || completed[0];
   const picture: PreviewPicture | undefined = props.importedResult ? { src: props.importedResult.url, label: `本地临时预览 · ${props.importedResult.name}` } : shown ? { src: shown.url!, label: taskLabel(shown) } : undefined;
+  const [comparing, setComparing] = useState(false);
+  const [compareId, setCompareId] = useState('');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const candidates = completed.filter(task => task.id !== shown?.id);
+  const compared = comparing && shown ? candidates.find(task => task.id === compareId) || previousTrial(shown, completed) || candidates[0] : undefined;
+  const previous = shown ? previousTrial(shown, completed) : undefined;
+  const baseline = compared || previous;
+  const changes = shown ? trialChanges(shown, baseline, props.recipeLabel) : null;
+  const history = favoritesOnly ? completed.filter(task => task.favorite) : tasks;
 
   return <section className="trial-canvas single-preview-canvas" aria-label="生成效果与试稿记录">
     {props.stale && shown && <p className="generation-warning" role="status">{props.itemMode?'修改要求尚未生成，当前仍为已保存结果':'搭配已修改，右侧为上一轮结果'}</p>}
     <header className="compose-heading"><h2>生成效果</h2><span className={working ? 'trial-status working' : 'trial-status'} role="status">{working ? status : props.importedResult ? '本地图片 · 临时预览' : shown ? '已保留生成结果' : '待生成'}</span></header>
-    <PreviewWindow picture={picture} working={working} status={status} references={props.references}
-      selector={picture && <label>查看图片<select aria-label="选择预览图片" value={props.importedResult ? 'local' : shown?.id || ''} onChange={(event) => onSelect(event.target.value)} disabled={!completed.length}>
+    <PreviewWindow picture={picture} comparison={compared ? { src: compared.url!, label: taskLabel(compared) } : undefined} working={working} status={status} references={props.references}
+      selector={picture && <div className="trial-selectors"><label>查看图片<select aria-label="选择预览图片" value={props.importedResult ? 'local' : shown?.id || ''} onChange={(event) => onSelect(event.target.value)} disabled={!completed.length}>
         {props.importedResult && <option value="local">本地导入 · 临时预览</option>}
         {completed.map((task) => <option key={task.id} value={task.id}>{taskLabel(task)}</option>)}
-      </select></label>} />
+      </select></label>{shown && candidates.length > 0 && <button type="button" aria-pressed={comparing} onClick={() => setComparing(value => !value)}>{comparing ? '结束对比' : '对比两版'}</button>}
+      {compared && <label>对比图片<select aria-label="选择对比图片" value={compared.id} onChange={event => setCompareId(event.target.value)}>{candidates.map(task => <option key={task.id} value={task.id}>{taskLabel(task)}</option>)}</select></label>}</div>} />
     <div className="trial-caption"><span>放大后可拖动查看细节；填满窗口不裁切原文件。</span><a className="trial-controls-link" href="#studio-controls">{props.itemMode?'调整这张图':'返回调整搭配'}</a></div>
-    {shown && <div className="trial-result-actions">{!props.itemMode&&<button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button>}<a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
+    {shown && <div className="trial-result-actions">{props.onFavorite && <button type="button" aria-pressed={Boolean(shown.favorite)} disabled={props.favoriteSaving?.includes(shown.id)} onClick={() => props.onFavorite?.(shown)}>{props.favoriteSaving?.includes(shown.id) ? '正在保存…' : shown.favorite ? '★ 已收藏' : '☆ 收藏这版'}</button>}{!props.itemMode&&<button type="button" disabled={reuseDisabled || !shown.recipe} onClick={() => onReuse(shown)}>带入这张的设置</button>}<a href={shown.url!} target="_blank" rel="noreferrer">打开原图 ↗</a><a href={`${shown.url}${shown.url?.includes('?') ? '&' : '?'}download=1`} download>下载图片 ↓</a></div>}
+    {shown && <details className="trial-changes" open><summary>{compared ? '与对比图片的设置差异' : '这一轮改了什么'}<span>{changes ? changes.length ? changes.map(change => change.label).join('、') : '设置相同，重新试做' : baseline ? '旧记录缺少设置，无法核对' : '当前记录的第一版'}</span></summary>
+      {changes && changes.length > 0 && <div className="trial-change-list">{changes.map(change => <div key={change.label}><strong>{change.label}</strong><span>{change.before}</span><span>{change.after}</span></div>)}</div>}
+      {compared && <p>两边同步缩放；不同画幅按各自窗口适配。</p>}
+    </details>}
     {shown?.recipe && <details className="saved-brief"><summary>这张图的制作要求</summary><p>{shown.recipe.instruction || '使用默认制作要求'}</p></details>}
     {!props.itemMode && (shown && props.nextStep ? <>
       <div className="trial-next" aria-label="确认样图并进入下一步"><div><strong>下一步：制作主图、尺寸图和详情页</strong><span>{!shown.assetId || !shown.recipe ? '这张历史图缺少原始搭配记录，暂不能进入制作；原图仍可下载。' : '使用当前展示的样图进入制作清单，不会重新生成样图，也不会扣费。'}</span></div><button type="button" disabled={working || props.nextStep.saving || reuseDisabled || !shown.assetId || !shown.recipe} onClick={props.nextStep.onConfirm}>{props.nextStep.saving ? '正在进入…' : '确认样图，进入下一步'} →</button></div>
       <div className="trial-result-actions"><span>样图还不满意？</span><a href="#studio-controls">返回调整搭配</a><button type="button" disabled={!canGenerate || props.nextStep.saving} onClick={onGenerate}>{working ? '正在生成…' : '重新生成样图'}</button></div>
     </> : <div className="trial-next"><div><strong>{shown ? '继续下一轮' : '确认搭配后生成'}</strong><span>{props.outputSummary} · 1 张</span></div><button type="button" disabled={!canGenerate} onClick={onGenerate}>{generateLabel} →</button></div>)}
-    <section className="trial-history"><div className="row-label"><h3>{props.itemMode?'这张图的历史版本':'试稿记录'} <span>{completed.length} 张</span></h3>{!props.itemMode&&<button type="button" onClick={onHistory}>全部记录 →</button>}</div>
-      {loading ? <p className="trial-history-empty">正在读取记录…</p> : tasks.length ? <div className="trial-filmstrip">{tasks.slice(0, 12).map((task) => <button type="button" key={task.id} aria-pressed={shown?.id === task.id} onClick={() => task.status === 'succeeded' && task.url ? onSelect(task.id) : onHistory()} aria-label={`查看${taskLabel(task)}，${generationLabels[task.status]}`}><span className="trial-film-image">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><strong>{task.name}</strong><small>{new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {generationLabels[task.status]}</small></button>)}</div> : <p className="trial-history-empty">生成后的效果图会自动保留在这里。</p>}
+    <section className="trial-history"><div className="row-label"><h3>{props.itemMode?'这张图的历史版本':'试稿记录'} <span>{completed.length} 张</span></h3><div className="trial-history-filters"><button type="button" aria-pressed={!favoritesOnly} onClick={() => setFavoritesOnly(false)}>全部</button><button type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly(true)}>收藏 · {completed.filter(task => task.favorite).length}</button>{!props.itemMode&&<button type="button" onClick={onHistory}>全部记录 →</button>}</div></div>
+      {loading ? <p className="trial-history-empty">正在读取记录…</p> : history.length ? <div className="trial-filmstrip">{history.slice(0, favoritesOnly ? 500 : 12).map((task) => {
+        const delta = trialChanges(task, previousTrial(task, completed));
+        return <button type="button" key={task.id} aria-pressed={shown?.id === task.id} onClick={() => task.status === 'succeeded' && task.url ? onSelect(task.id) : onHistory()} aria-label={`查看${taskLabel(task)}，${generationLabels[task.status]}`}><span className="trial-film-image">{task.url ? <img src={task.url} alt="" loading="lazy" /> : <span>{generationLabels[task.status]}</span>}</span><strong>{task.favorite ? '★ ' : ''}{task.name}</strong><small>{new Date(task.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {generationLabels[task.status]}</small>{task.status === 'succeeded' && <small className="trial-delta" title={delta?.map(change => change.label).join('、')}>{delta ? delta.length ? `改动：${delta.map(change => change.label).join('、')}` : '同设置再试' : '起始记录 / 设置未记录'}</small>}</button>;
+      })}</div> : <p className="trial-history-empty">{favoritesOnly ? '还没有收藏。在满意的结果下点击“收藏这版”。' : '生成后的效果图会自动保留在这里。'}</p>}
     </section>
   </section>;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `generation_tasks` ADD `favorite` integer DEFAULT false NOT NULL;

@@ -6,7 +6,7 @@ export const studioIntents = [
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];
-export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; productionItemId?: string; sceneGenerationId?:string; sceneId?:string; sizeAnnotationMode?:'source-preserved-v1'; detailLayoutMode?:'chinese-editorial-v2' };
+export type GenerationRecipe = { artworkId: string; frameId: string; colorId: string; intent: StudioIntent; instruction: string; quality?: string; background?: string; outputFormat?: string; productionItemId?: string; sceneGenerationId?:string; sceneId?:string; sizeAnnotationMode?:'source-preserved-v1'; detailLayoutMode?:'chinese-editorial-v2'; batchSettings?: { propsMode: 'auto' | 'none' | 'custom'; propsText: string } };
 export function isStudioIntent(value: string): value is StudioIntent { return studioIntents.some((item) => item.id === value); }
 
 export function parseRecipe(value: string | null | undefined): GenerationRecipe | null {
@@ -22,6 +22,7 @@ export function parseRecipe(value: string | null | undefined): GenerationRecipe 
       ...(data.sizeAnnotationMode==='source-preserved-v1' ? {sizeAnnotationMode:data.sizeAnnotationMode}:{}),
       ...(data.detailLayoutMode==='chinese-editorial-v2' ? {detailLayoutMode:data.detailLayoutMode}:{}),
       ...(typeof data.sceneId === 'string' && /^[a-z0-9-]{1,100}$/.test(data.sceneId) ? {sceneId:data.sceneId}:{}),
+      ...(data.batchSettings && ['auto', 'none', 'custom'].includes(data.batchSettings.propsMode) && typeof data.batchSettings.propsText === 'string' && data.batchSettings.propsText.length <= 400 ? { batchSettings: { propsMode: data.batchSettings.propsMode, propsText: data.batchSettings.propsText.trim() } } : {}),
       ...(typeof data.quality === 'string' && /^[a-zA-Z0-9_-]{1,30}$/.test(data.quality) ? { quality: data.quality } : {}) };
   } catch { return null; }
 }

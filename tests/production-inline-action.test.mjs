@@ -22,3 +22,10 @@ calls.length=0;ambiguous=true;await assert.rejects(()=>submitProductionItem(inpu
 const view=readFileSync('app/product-workspace.tsx','utf8');assert.ok(!view.includes('href={`/?production='));assert.match(view,/key={item.id}/);
 const editor=readFileSync('app/production-item-actions.tsx','utf8');assert.match(editor,/重做这张图/);assert.match(editor,/按要求调整这张图/);assert.ok(!editor.includes('window.location'));
 console.log('PASS inline adjust/remake: one item, original settings, cancellation/preflight, no navigation, no billable retries. Mock calls only.');
+
+ambiguous=false;calls.length=0;
+const previousFetch=globalThis.fetch;globalThis.fetch=async(url,init)=>{const response=await previousFetch(url,init);return url==='/api/production/item'&&!init?.method?Response.json({...await response.json(),kind:'main'}):response;};
+await submitProductionItem({...input,item:{...item,kind:'main',task:{...item.task,recipe:{...item.task.recipe,batchSettings:{propsMode:'none',propsText:''}}}},adjust:false,note:''},()=>true);
+const noneInstruction=calls.find(c=>c.url==='/api/generate-preview').init.body.get('instruction');
+assert.match(noneInstruction,/摆件布置：不添加摆件/);assert.doesNotMatch(noneInstruction,/每个适合摆放/);
+console.log('PASS remake keeps saved prop-placement settings.');

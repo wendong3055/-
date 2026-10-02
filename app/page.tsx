@@ -782,6 +782,8 @@ export default function Home() {
               tasks={productionLoading?[]:scopedTasks} activeTaskId={viewedTaskId || previewTaskId || production?.generationId || ''}
               working={previewGenerating} status={previewTask ? generationLabels[previewTask.status] : '正在准备参考图'}
               loading={generations.loading} onSelect={(id) => { setImportedResult(null); setViewedTaskId(id); }} onReuse={reuseTask}
+              onFavorite={task => void generations.toggleFavorite(task)} favoriteSaving={generations.favoriteSaving}
+              recipeLabel={(kind, id) => kind === 'artwork' ? libraryItems.find(item => item.id === id)?.name || id : kind === 'frame' ? [...uploadedFrames, ...cabinetFrameStyles, ...frames].find(item => item.id === id)?.name || id : kind === 'color' ? frameColors.find(item => item.id === id)?.name || id : findScene(id)?.name || id}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
               onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
               nextStep={!production && !importedResult ? { onConfirm: createProduct, saving: productSaving } : undefined}

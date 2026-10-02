@@ -19,6 +19,8 @@ export function useGenerations() {
   const refreshSequence = useRef(0);
   const tasksRef = useRef(tasks);
   const pollingStarted = useRef(Date.now());
+  const favoriteLock = useRef(new Set<string>());
+  const [favoriteSaving, setFavoriteSaving] = useState<string[]>([]);
   tasksRef.current = tasks;
   useEffect(() => {
     if (requestId.current && tasks.some((task) => task.id === requestId.current && task.status === 'failed')) requestId.current = null;
@@ -111,7 +113,23 @@ export function useGenerations() {
     } catch { setError('解除锁定没有完成，请稍后重试。'); }
   }
 
-  return { config, configRevision, tasks, error, loading, submitting, paused, submit, resume, refresh, refreshConfig, resolveUnknown,
+  async function toggleFavorite(task: GenerationTask) {
+    if (favoriteLock.current.has(task.id)) return;
+    favoriteLock.current.add(task.id); setFavoriteSaving([...favoriteLock.current]);
+    try {
+      const response = await fetch(`/api/generations/${encodeURIComponent(task.id)}/favorite`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ favorite: !task.favorite }),
+      });
+      const result = await response.json() as { favorite: boolean; error?: string };
+      if (!response.ok) throw new Error(result.error || '收藏未保存，请重试。');
+      refreshSequence.current++;
+      setTasks(current => current.map(t => t.id === task.id ? { ...t, favorite: result.favorite } : t));
+      setError('');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '收藏未保存，请重试。'); }
+    finally { favoriteLock.current.delete(task.id); setFavoriteSaving([...favoriteLock.current]); }
+  }
+
+  return { config, configRevision, tasks, error, loading, submitting, paused, submit, resume, refresh, refreshConfig, resolveUnknown, toggleFavorite, favoriteSaving,
     busy: submitting || tasks.some((task) => isActiveGeneration(task.status) || task.status === 'unknown') };
 }
 

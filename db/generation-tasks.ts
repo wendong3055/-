@@ -9,13 +9,14 @@ export type TaskRow = {
   last_polled_at: number; created_at: number; updated_at: number;
   recipe_json?: string | null;
   credential_id?: string | null;
+  favorite?: number;
 };
 
 export function publicTask(row: TaskRow): GenerationTask {
   return { id: row.id, name: row.name, status: row.status, model: row.model,
     aspectRatio: row.aspect_ratio, resolution: row.resolution, createdAt: row.created_at,
     error: row.error, assetId: row.asset_id, url: row.asset_id ? `/api/files/${row.asset_id}` : null,
-    remoteTaskId: row.remote_task_id, recipe: parseRecipe(row.recipe_json) };
+    remoteTaskId: row.remote_task_id, recipe: parseRecipe(row.recipe_json), favorite: row.favorite === 1 };
 }
 
 export async function getTask(owner: string, id: string) {
@@ -28,7 +29,9 @@ export async function listTasks(owner: string) {
     .bind(Date.now(), owner, Date.now() - 300_000).run();
   await env.DB.prepare("UPDATE generation_tasks SET status = 'unknown', error = '提交结果尚未确认。请先在所选服务商的记录中核对，避免重复扣费。', updated_at = ? WHERE owner_id = ? AND status = 'submitting' AND updated_at < ? - CASE WHEN model LIKE 'custom-%' THEN 480000 ELSE 0 END")
     .bind(Date.now(), owner, Date.now() - 120_000).run();
-  const { results } = await env.DB.prepare('SELECT * FROM generation_tasks WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100').bind(owner).all<TaskRow>();
+  const { results } = await env.DB.prepare(`SELECT * FROM generation_tasks WHERE owner_id = ? AND
+    (favorite = 1 OR id IN (SELECT id FROM generation_tasks WHERE owner_id = ? ORDER BY created_at DESC LIMIT 100))
+    ORDER BY created_at DESC LIMIT 500`).bind(owner, owner).all<TaskRow>();
   return results;
 }
 

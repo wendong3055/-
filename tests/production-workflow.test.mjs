@@ -28,44 +28,72 @@ const view=readFileSync('app/product-workspace.tsx','utf8');
 for(const removed of ['图案放置规则','结构、颜色与排版补充要求','使用新版12页详情模板','只做整套详情','DetailEvidenceEditor','spec-editor','保存确认清单','布局参考：'])assert.ok(!view.includes(removed),removed);
 assert.match(view,/ProductionItemActions/);assert.match(view,/production-pages/);
 
-// Exercise actual rendered batch handlers with inert hooks and entirely mocked I/O.
+// Exercise sample approval and continuation with the actual rendered handlers.
 const hooks={name:'test-hooks',setup(b){b.onResolve({filter:/^react$/},a=>a.importer.endsWith('production-batch.tsx')?{path:'hooks',namespace:'test'}:undefined);b.onLoad({filter:/.*/,namespace:'test'},()=>({contents:'export const useState=x=>[x,()=>{}];export const useRef=x=>({current:x});export const useEffect=()=>{};',loader:'js'}));}};
 const {ProductionBatch}=await bundle(`export {ProductionBatch} from './app/production-batch';`,[hooks]);
 function nodes(n){return Array.isArray(n)?n.flatMap(nodes):n&&typeof n==='object'?[n,...nodes(n.props?.children)]:[];}
 function text(n){return Array.isArray(n)?n.map(text).join(''):n&&typeof n==='object'?text(n.props?.children):n==null||typeof n==='boolean'?'':String(n);}
 const originals={fetch:globalThis.fetch,window:globalThis.window,createImageBitmap:globalThis.createImageBitmap};
 try{
-  for(const scenario of ['detail','main','size','cancel','missing-frame','unknown']){
-    const page=['detail','main','size'].includes(scenario)?scenario:scenario==='missing-frame'?'size':'detail';
-    const plan=makePlan(page),ws={...data,plans:[plan]};let done=false,prepared=0,confirmed=0;const submitted=[];
-    globalThis.window={confirm:()=>{confirmed++;return scenario!=='cancel';}};
+  for(const scenario of ['detail','main','size','full','cancel','missing-frame','unknown','failed','active','stale-review','changed-plan','withdrawn','settings-change']){
+    const page=scenario==='full'?'main':['detail','main','size'].includes(scenario)?scenario:scenario==='missing-frame'?'size':'detail';
+    const plans=scenario==='full'?['main','size','detail'].map(makePlan):[makePlan(page)],plan=plans[0],ws={...data,plans};
+    let done=false,prepared=0,confirmed=0,mode='sample';const submitted=[],confirmations=[];
+    globalThis.window={confirm:message=>{confirmed++;confirmations.push(message);return scenario!=='cancel';}};
     globalThis.createImageBitmap=async()=>({width:100,height:200,close(){}});
     globalThis.fetch=async(url,init)=>{
-      if(url==='/api/generations')return Response.json([]);
+      if(url==='/api/generations')return Response.json(scenario==='active'?[{status:'unknown'}]:[]);
       if(url==='/api/products/p/workspace')return Response.json(ws);
-      if(String(url).startsWith('/api/production/')){const i=plan.items.find(i=>i.id===url.split('/').at(-1));return Response.json({planId:plan.id,productId:'p',generationId:i.generationId,kind:i.kind});}
+      if(String(url).startsWith('/api/production/')){
+        const item=plans.flatMap(p=>p.items).find(i=>i.id===url.split('/').at(-1));assert.ok(item,url);
+        if(init?.method==='POST'){const body=JSON.parse(init.body);assert.equal(body.generationId,item.generationId);item.review=body.review;return Response.json({ok:true});}
+        const ownerPlan=plans.find(p=>p.items.includes(item));
+        return Response.json({planId:ownerPlan.id,productId:'p',generationId:item.generationId,kind:item.kind,review:mode==='continue'&&scenario==='withdrawn'?'rework':item.review,taskStatus:item.task?.status});
+      }
       if(url==='/api/generate-preview'){
-        const id=init.body.get('productionItemId');submitted.push(id);const i=plan.items.find(i=>i.id===id);
-        assert.equal(init.body.get('aspectRatio'),i.kind==='detail'?'3:4':'1:1');assert.ok(init.body.get('frame') instanceof File);
+        const id=init.body.get('productionItemId');submitted.push(id);const item=plans.flatMap(p=>p.items).find(i=>i.id===id);
+        assert.equal(init.body.get('aspectRatio'),item.kind==='detail'?'3:4':'1:1');assert.ok(init.body.get('frame') instanceof File);
         const instruction=init.body.get('instruction');
-        if(i.kind==='size')assert.match(instruction,/\[尺寸图摆件\].*每个适合摆放/);
-        if(i.kind==='detail')assert.doesNotMatch(instruction,/\[尺寸图摆件\]|\[主图摆件\]/);
-        i.generationId=id;i.task={id,status:scenario==='unknown'?'unknown':'succeeded',url:scenario==='unknown'?null:'/result'};return Response.json(i.task);
+        if(item.kind==='size')assert.match(instruction,/\[尺寸图摆件\].*每个适合摆放/);
+        if(item.kind==='main')assert.match(instruction,/\[主图摆件\]/);
+        if(item.kind==='detail')assert.doesNotMatch(instruction,/\[尺寸图摆件\]|\[主图摆件\]/);
+        if(mode==='sample')assert.equal(init.body.get('batchSampleId'),null);
+        else {assert.equal(init.body.get('batchSampleId'),plan.items[0].id);assert.equal(init.body.get('batchScope'),scenario==='full'?'full':'page');}
+        item.generationId=id;item.review='pending';item.task={id,status:scenario==='unknown'?'unknown':scenario==='failed'?'failed':'succeeded',url:['unknown','failed'].includes(scenario)?null:`/api/files/${id}`,model:init.body.get('model'),resolution:'2k',recipe:{instruction,quality:init.body.get('quality'),batchSettings:JSON.parse(init.body.get('batchSettings'))}};
+        return Response.json(item.task);
       }
       if(scenario==='missing-frame'&&url==='/api/files/frame')return new Response('missing',{status:404});
-      if(url==='/original'||url==='/api/files/sample'||url==='/api/files/frame')return new Response(new Blob(['bytes'],{type:'image/png'}));
+      if(url==='/original'||String(url).startsWith('/api/files/'))return new Response(new Blob(['bytes'],{type:'image/png'}));
       throw Error(`Unexpected network path ${url}`);
     };
-    const tree=ProductionBatch({data:ws,plan,page,count:plan.items.length,artworks:[{id:'art',name:'图案',file:'/thumb',originalStatus:'verified',originalFile:'/original'}],colors:[{id:'color',name:'原木',color:'#aaa'}],onPrepare:async()=>{prepared++;return{data:ws,plan};},onUpdate(){},onBusy:b=>{if(!b)done=true;}});
-    assert.equal(prepared,0);assert.equal(submitted.length,0);
+    const props={data:ws,plan,page,count:plan.items.length,artworks:[{id:'art',name:'图案',file:'/thumb',originalStatus:'verified',originalFile:'/original'}],colors:[{id:'color',name:'原木',color:'#aaa'}],onPrepare:async target=>{prepared++;if(mode==='continue'&&scenario==='stale-review')plan.items[0].review='rework';if(mode==='continue'&&scenario==='changed-plan')return {data:ws,plan:makePlan(page)};return{data:ws,plan:plans.find(p=>p.id===target)};},onUpdate(){},onBusy:b=>{done=!b;}};
+    const tree=ProductionBatch(props);assert.equal(prepared,0);assert.equal(submitted.length,0);
     assert.ok(nodes(tree).find(n=>n.type==='details'&&n.props.className==='batch-settings'&&!n.props.open));
-    const start=nodes(tree).find(n=>n.type==='button'&&text(n)===`一键生成${page==='detail'?'详情页':page==='size'?'尺寸图':'主图'}`);assert.ok(start);
-    start.props.onClick();start.props.onClick(); // double click must not duplicate a batch
+    const buttons=nodes(tree).filter(n=>n.type==='button');
+    const start=scenario==='full'?buttons.find(n=>text(n)==='先试做一张主图'):buttons.find(n=>text(n)===(page==='detail'?'先试做一张详情样稿':page==='size'?'先试做背景样稿':'先试做一张主图'));
+    assert.ok(start,scenario);start.props.onClick();start.props.onClick();
     for(let n=0;n<100&&!done;n++)await new Promise(r=>setImmediate(r));
     assert.ok(done,scenario);assert.equal(prepared,1);
-    const expected=scenario==='cancel'||scenario==='missing-frame'?0:scenario==='unknown'?1:plan.items.length;
-    assert.equal(submitted.length,expected,scenario);assert.equal(new Set(submitted).size,submitted.length);
-    assert.equal(confirmed,scenario==='missing-frame'?0:1);
+    const expected=['cancel','missing-frame','active'].includes(scenario)?0:1;
+    assert.equal(submitted.length,expected,scenario);assert.equal(confirmed,['missing-frame','active'].includes(scenario)?0:1);
+    if(expected&&scenario!=='cancel')assert.match(confirmations[0],/只试做 1 张/);
+    if(page==='size'&&expected)assert.equal(plan.items[0].kind,'main');
+    if(['cancel','missing-frame','active','unknown','failed'].includes(scenario))continue;
+    // Rendering a saved sample does not approve it or submit another request.
+    const reviewTree=ProductionBatch(props);
+    assert.ok(nodes(reviewTree).find(n=>n.type==='button'&&text(n)===(scenario==='full'?'先验收主图样稿':'先验收样稿')&&n.props.disabled));
+    const approve=nodes(reviewTree).find(n=>n.type==='button'&&text(n)==='认可样稿');assert.ok(approve);
+    done=false;approve.props.onClick();for(let n=0;n<100&&!done;n++)await new Promise(r=>setImmediate(r));assert.ok(done);
+    assert.equal(plan.items[0].review,'accepted');assert.equal(submitted.length,1);
+    if(scenario==='settings-change')plan.items[0].task.model='different-model';
+    mode='continue';done=false;
+    const continuedTree=ProductionBatch(props);
+    const next=nodes(continuedTree).find(n=>n.type==='button'&&text(n)===(scenario==='full'?'继续制作全套余图':'继续生成剩余图片'));assert.ok(next,scenario);next.props.onClick();next.props.onClick();
+    for(let n=0;n<250&&!done;n++)await new Promise(r=>setImmediate(r));assert.ok(done,scenario);
+    const blocked=['stale-review','changed-plan','withdrawn','settings-change'].includes(scenario);
+    const expectedAll=blocked?1:scenario==='full'?22:plan.items.length;
+    assert.equal(submitted.length,expectedAll,scenario);assert.equal(new Set(submitted).size,submitted.length,scenario);
+    if(!blocked)assert.match(confirmations.at(-1),new RegExp(`制作 ${expectedAll-1} 张余图`));
   }
 }finally{Object.assign(globalThis,originals);}
-console.log('PASS one-click main/detail/size handlers, automatic defaults/background, 12 pages, preflight, cancellation, double-click lock, unknown stop, history and no mount submission. Mock calls only.');
+console.log('PASS sample-only, explicit approval/continuation, all pages/full set, accurate consent counts, cancellation, double-click, fresh-state gates, withdrawn approval, settings changes, missing references and unknown/failed stop. Mock calls only.');
