@@ -1,4 +1,23 @@
 /* Guided creation keeps the same material selectors and large result canvas. */
+.studio-draft-bar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 18px; padding:12px 16px; margin-bottom:18px; border:1px solid #d5dfd7; border-radius:9px; background:#f8faf8; }
+.studio-draft-bar > div[role=status] { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; }
+.studio-draft-bar strong { font-size:15px; color:#31543d; }
+.studio-draft-bar span { font-size:14px; line-height:1.6; color:#637366; }
+.studio-draft-bar.draft-expanded { background:#edf4ee; border-color:#bad0bf; }
+.draft-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.studio-draft-bar button,.current-task-notice button { min-height:40px; padding:8px 12px; border:1px solid #b5c9ba; border-radius:7px; color:#294f38; background:white; font-size:15px; cursor:pointer; }
+.draft-actions button:first-child { color:white; background:#31583e; border-color:#31583e; }
+.studio-draft-bar button:disabled,.current-task-notice button:disabled { opacity:.5; cursor:not-allowed; }
+.studio-draft-bar details { flex-basis:100%; font-size:14px; color:#4d6857; }
+.studio-draft-bar summary { cursor:pointer; min-height:28px; }
+.studio-draft-bar details p { white-space:pre-wrap; max-height:160px; overflow-y:auto; overflow-wrap:anywhere; line-height:1.7; margin:8px 0 0; }
+.draft-issue { flex-basis:100%; color:#775428; font-size:15px; line-height:1.6; margin:0; }
+.current-task-notice { padding:16px; margin-bottom:18px; border:1px solid #c7d6cb; border-radius:9px; background:#edf4ef; }
+.current-task-notice strong { display:block; font-size:17px; }
+.current-task-notice > span { display:block; font-size:14px; color:#6a756c; margin-top:6px; }
+.current-task-notice p { font-size:15px; color:#526657; line-height:1.7; margin:10px 0; }
+.current-task-notice > div { display:flex; flex-wrap:wrap; gap:8px; }
+.task-notice-attention,.task-notice-failed { border-color:#decfae; background:#fffaf0; }
 .studio-step-content[hidden], .scene-selection[hidden] { display:none !important; }
 .studio-mode-switch { display:flex; flex-shrink:0; gap:4px; padding:4px; border:1px solid #c8d5cb; border-radius:9px; background:#fff; }
 .studio-mode-switch button { min-height:40px; padding:8px 12px; border:0; border-radius:6px; color:#48604f; background:transparent; font-size:14px; cursor:pointer; }

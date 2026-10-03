@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { generationLabels, type GenerationTask } from '../lib/generation-types';
 import { previousTrial, trialChanges, type RecipeLabel } from '../lib/trial-changes';
+import { latestGenerationNotice } from '../lib/generation-notice';
 
 type Props = {
   itemMode?: boolean;
@@ -154,8 +155,10 @@ export function TrialCanvas(props: Props) {
   const baseline = compared || previous;
   const changes = shown ? trialChanges(shown, baseline, props.recipeLabel) : null;
   const history = favoritesOnly ? completed.filter(task => task.favorite) : tasks;
+  const taskNotice = latestGenerationNotice(tasks, activeTaskId);
 
   return <section className="trial-canvas single-preview-canvas" aria-label="生成效果与试稿记录">
+    {!loading && taskNotice && <section className={`current-task-notice task-notice-${taskNotice.kind}`} aria-label="最近任务状态" role="status"><strong>{taskNotice.title}</strong><span>{taskNotice.task.name}</span><p>{taskNotice.detail}</p><div><button type="button" onClick={onHistory}>{taskNotice.kind === 'attention' ? '查看记录并核对' : '查看任务记录'}</button>{taskNotice.kind === 'failed' && taskNotice.task.recipe && !props.itemMode && <button type="button" disabled={reuseDisabled} onClick={() => onReuse(taskNotice.task)}>带回设置修改</button>}</div></section>}
     {props.stale && shown && <p className="generation-warning" role="status">{props.itemMode?'修改要求尚未生成，当前仍为已保存结果':'搭配已修改，右侧为上一轮结果'}</p>}
     <header className="compose-heading"><h2>{picture ? '生成效果' : '参考图片'}</h2><span className={working ? 'trial-status working' : 'trial-status'} role="status">{working ? status : props.importedResult ? '本地图片 · 临时预览' : shown ? '已保留生成结果' : '还未生成'}</span></header>
     {!picture && <p className="preview-explainer">这里显示你选的图案和框架。生成后的效果图会出现在这里。</p>}

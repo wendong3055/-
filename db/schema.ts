@@ -65,6 +65,13 @@ export const runningHubCredentials = sqliteTable('runninghub_credentials', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+export const studioDrafts = sqliteTable('studio_drafts', {
+  ownerId: text('owner_id').primaryKey(),
+  dataJson: text('data_json').notNull(),
+  revision: integer('revision').notNull().default(1),
+  updatedAt: integer('updated_at').notNull(),
+});
+
 // Immutable snapshots: rotating the saved UI key never changes past task queries.
 export const runningHubInternationalKeys = sqliteTable('runninghub_international_keys', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), encryptedKey: text('encrypted_key').notNull(),

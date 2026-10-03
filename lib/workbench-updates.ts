@@ -11,6 +11,17 @@ export type WorkbenchUpdate = {
 // Keep this release history alongside the feature change that it describes.
 export const workbenchUpdates: WorkbenchUpdate[] = [
   {
+    id: '2026-10-04-drafts', date: '2026-10-04', title: '接着编辑，更容易继续试图',
+    summary: '编辑保存到账号，刷新后继续；遇到失败也知道下一步。',
+    action: { view: 'new', label: '继续制作图片' },
+    changes: [
+      { title: '自动保存当前编辑', detail: '图案、框架、木色、场景、文字要求、模型参数和所在步骤跟随账号保存。刷新或换设备后，点击“继续上次编辑”取回。' },
+      { title: '恢复前核对素材', detail: '原素材或模型不可用时明确提示，不会偷偷换成其他选项；也可选择只恢复文字要求。恢复编辑不会提交生图。' },
+      { title: '多处编辑不互相覆盖', detail: '另一页面保存了新版本时暂停覆盖，先选择继续哪份。保存失败会显示提示和重试入口。' },
+      { title: '失败与待核对分开处理', detail: '预览区直接显示最近任务状态。失败可带回设置修改；状态不明先查看记录核对，避免误点重试。' },
+    ],
+  },
+  {
     id: '2026-10-04', date: '2026-10-04', title: '让第一次使用更容易',
     summary: '从选搭配到生成第一张图，一步一步做清楚。',
     action: { view: 'new', label: '试试快速上手' },

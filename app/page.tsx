@@ -5,9 +5,11 @@ import { PromptPolish } from './prompt-polish';
 import {ReferenceCheck} from './reference-check';
 import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-category';
 import { SceneLibrary } from './scene-library';
-import { findScene, sceneRequiresOpaqueBackground } from '../lib/scene-library';
+import { findScene, sceneReferences, sceneRequiresOpaqueBackground } from '../lib/scene-library';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import { WorkbenchUpdates } from './workbench-updates';
+import { StudioDraftBar, useStudioDraft } from './studio-draft';
+import { studioDraftIssues, type StudioDraft } from '../lib/studio-draft';
 import { GenerationReadiness, StudioReview, StudioSteps } from './studio-guide';
 import { studioReadiness, type StudioStep } from '../lib/studio-onboarding';
 import RhCreator from './rh-creator';
@@ -136,6 +138,8 @@ export default function Home() {
   const lastCompletedPreview = useRef('');
   const [libraryItems, setLibraryItems] = useState(artworks);
   const [uploadedFrames, setUploadedFrames] = useState<FrameOption[]>([]);
+  const [catalogReady, setCatalogReady] = useState({hidden:false,originals:false,uploads:false});
+  const [draftRestoreIssue, setDraftRestoreIssue] = useState('');
   const [frameUploading, setFrameUploading] = useState(false);
   const [frameUploadProgress, setFrameUploadProgress] = useState('');
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
@@ -282,14 +286,14 @@ export default function Home() {
       setHiddenArtworkIds((current) => [...new Set([...current, ...artworkIds])]);
       setHiddenFrameIds((current) => [...new Set([...current, ...frameIds])]);
       await Promise.all([syncHiddenOptions('artwork', localArtworkIds), syncHiddenOptions('frame', localFrameIds)]);
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setCatalogReady(current => ({...current,hidden:true})));
     Promise.all([fetch('/library/2026-08-27-v2/library-index.json').then(response => response.ok ? response.json() : null), fetch('/library/2026-08-27-v2/originals-index.json').then(response => response.ok ? response.json() : {}).catch(() => ({}))]).then(([data, originals]) => {
       const manifest = data as { items?: Array<{ id: string; name: string; thumb: string; category: string; collection: string; date: string }> } | null;
       if (!manifest?.items || !Array.isArray(manifest.items)) return;
       const originalIndex = originals as Record<string, Partial<OriginalReference>>;
       const localItems: ArtworkOption[] = manifest.items.map(row => ({ ...originalIndex[row.id], id: row.id, name: row.name, file: row.thumb, tag: classifyArtworkCategory(row.name, row.category), ratio: row.collection, tone: row.date }));
       setLibraryItems((current) => [...localItems, ...current.filter((item) => !localItems.some((local: { id: string }) => local.id === item.id))]);
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setCatalogReady(current => ({...current,originals:true})));
     fetch('/api/library').then((response) => response.ok ? response.json() : []).then((rows) => {
       if (!Array.isArray(rows) || rows.length === 0) return;
       const frameUploads = rows.filter((row: FrameAsset) => row.category === '框架模板').map((row: FrameAsset) => {
@@ -299,7 +303,7 @@ export default function Home() {
       const uploads = rows.filter((row: { category: string }) => !row.category.startsWith('框架')).map((row: { id: string; name: string; url: string; category: string; tone: string }) => ({ id: row.id, name: row.name, file: row.url, originalFile: row.url, originalStatus: 'verified', tag: classifyArtworkCategory(row.name, row.category), ratio: '原图', tone: row.tone || '自动归类' }));
       setUploadedFrames(frameUploads);
       setLibraryItems((current) => [...uploads, ...current.filter((item) => !uploads.some((upload) => upload.id === item.id))]);
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => setCatalogReady(current => ({...current,uploads:true})));
   }, []);
 
   useEffect(() => {
@@ -319,6 +323,31 @@ export default function Home() {
   useEffect(() => {
     if (frame && frame.id !== frameId) setFrameId(frame.id);
   }, [frame, frameId]);
+
+  const catalogsLoaded = catalogReady.hidden && catalogReady.originals && catalogReady.uploads;
+  const draftSnapshot: StudioDraft = { artworkId:selected?.id || '', frameId:frame?.id || '', colorId:frameColorId, sceneId,
+    intent, instruction, modelId, aspectRatio, resolution, quality, background, outputFormat, step:quickStep };
+  const editingDraft = activeNav === 'new' && !production && !productionLoading && catalogsLoaded;
+  const draft = useStudioDraft(editingDraft, draftSnapshot);
+  function restoreDraft(textOnly = false) {
+    const saved = draft.pending?.data;
+    if (!saved || !catalogsLoaded || previewGenerating || generations.busy || submitGuard.current || production) return;
+    if (!textOnly) {
+      const issues = studioDraftIssues(saved, { artworkIds:visibleLibraryItems.map(item=>item.id),frameIds:visibleFrameOptions.map(item=>item.id),colorIds:frameColors.map(item=>item.id),sceneIds:sceneReferences.map(item=>item.id),models:availableModels });
+      if (issues.length) { setDraftRestoreIssue(issues.join('；') + '。可以保留当前搭配，只恢复文字要求。'); return; }
+    }
+    resetPreview();
+    setInstruction(saved.instruction); setPreviousInstruction(null);
+    if (!textOnly) {
+      setSelectedId(saved.artworkId); setFrameId(saved.frameId); setFrameColorId(saved.colorId); setSceneId(saved.sceneId);
+      setIntent(saved.intent); setModelId(saved.modelId); setAspectRatio(saved.aspectRatio); setResolution(saved.resolution);
+      setQuality(saved.quality); setBackground(saved.background); setOutputFormat(saved.outputFormat);
+    }
+    goToStep(textOnly ? 'brief' : saved.step);
+    setDraftRestoreIssue(''); draft.accept();
+    setNotice(textOnly ? '已恢复文字要求，保留本页搭配。尚未提交生图。' : '已恢复上次编辑，核对后再生成。');
+    window.setTimeout(() => setNotice(''),3500);
+  }
 
   async function createProduct() {
     if (productSaving || previewGenerating || generations.busy || production || importedResult) return;
@@ -371,6 +400,8 @@ export default function Home() {
       setNotice('这组设置中的图案或框架当前不可选，请先在素材库恢复或重新选择。');
       return;
     }
+    const savedModel = availableModels.find(item => item.id === task.model);
+    if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
     resetPreview();
     setSelectedId(recipe.artworkId);
     setFrameId(recipe.frameId);
@@ -379,8 +410,6 @@ export default function Home() {
     setSceneId(findScene(recipe.sceneId)?.id || '');
     setInstruction(recipe.instruction);
     setPreviousInstruction(null);
-    const savedModel = availableModels.find(item => item.id === task.model);
-    if (!savedModel) { setNotice('这张图使用的模型已不可用，请手动选择模型，不会自动替换。'); return; }
     setModelId(savedModel.id);
     setAspectRatio(savedModel.ratios.includes(task.aspectRatio) ? task.aspectRatio : savedModel.ratios[0] || '16:9');
     setResolution(savedModel.resolutions.includes(task.resolution) ? task.resolution : savedModel.resolutions[0] || '2k');
@@ -392,7 +421,8 @@ export default function Home() {
       setPreviewTaskId(task.id);
       setPreviewReady(true);
     }
-    setActiveNav('new');
+    navigateView('new');
+    if (simpleMode) goToStep('review');
     setNotice('已带入搭配和出图参数，核对后点击生成，不会自动提交。');
     window.setTimeout(() => setNotice(''), 4000);
   }
@@ -726,6 +756,7 @@ export default function Home() {
         </header>
 
         {activeNav === 'new' && !production && !productionLoading && <div className="studio-intro"><div><h2>先做一张满意的效果图</h2><p>选好搭配，试一张；满意后再制作主图、尺寸图和详情页。</p></div><div className="studio-mode-switch" role="group" aria-label="操作界面"><button type="button" aria-pressed={simpleMode} onClick={() => changeMode(true)}>快速上手</button><button type="button" aria-pressed={!simpleMode} onClick={() => changeMode(false)}>完整设置</button></div></div>}
+        {activeNav === 'new' && !production && !productionLoading && <StudioDraftBar draft={draft} busy={!catalogsLoaded || previewGenerating || generations.busy} restoreIssue={draftRestoreIssue} onRestore={() => restoreDraft()} onTextOnly={() => restoreDraft(true)} onUseCurrent={() => { setDraftRestoreIssue(''); draft.accept(); }} />}
         {activeNav === 'new' && !production && !productionLoading && !modelConfigured && generations.config && <div className="setup-nudge"><span>第一次使用？先选搭配也可以，生成前需要连接生图服务。</span><button type="button" onClick={() => navigateView('settings')}>去连接 →</button></div>}
         {activeNav === 'new' && production && <div className="production-context"><strong>当前调整：{production.title}</strong><span>只调整这一张，保留同款产品搭配和历史结果。</span><a href={`/?product=${production.productId}&studio=${production.kind}`}>返回整套{production.kind==='size'?'尺寸图':production.kind==='detail'?'详情页':'主图'}</a></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
