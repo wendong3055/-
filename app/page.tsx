@@ -7,6 +7,7 @@ import { artworkCategories, classifyArtworkCategory } from '../lib/artwork-categ
 import { SceneLibrary } from './scene-library';
 import { findScene, sceneRequiresOpaqueBackground } from '../lib/scene-library';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
+import { WorkbenchUpdates } from './workbench-updates';
 import RhCreator from './rh-creator';
 import type { CustomImageConfig } from '../lib/custom-image-config';
 import { TrialCanvas } from './trial-canvas';
@@ -104,6 +105,7 @@ const navItems = [
   ['jobs', '生成任务', '03'],
   ['delivery', '交付中心', '12'],
   ['settings', '连接设置', ''],
+  ['updates', '优化记录', ''],
 ];
 
 
@@ -144,6 +146,13 @@ export default function Home() {
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
+  function navigateView(view: string) {
+    setActiveNav(view);
+    const url = new URL(window.location.href);
+    if (view === 'updates') url.searchParams.set('view', 'updates');
+    else url.searchParams.delete('view');
+    window.history.replaceState(null, '', url);
+  }
   const [productId, setProductId] = useState('');
   const [production, setProduction] = useState<{itemId:string;productId:string;planId:string;planVersion:number;generationId:string|null;pendingItemIds:string[];title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask;sceneTitle?:string;sceneUrl?:string|null}|null>(null);
   const [productionConsent,setProductionConsent] = useState<ProductionConsent|null>(null);
@@ -192,7 +201,9 @@ export default function Home() {
   useEffect(() => () => { if (importedResult) URL.revokeObjectURL(importedResult.url); }, [importedResult]);
   useEffect(() => {
     const query=new URLSearchParams(window.location.search), item=query.get('production'), saved=query.get('product');
-    if(saved){setProductId(saved);setActiveNav('products');}
+    const showUpdates = query.get('view') === 'updates';
+    if (showUpdates) setActiveNav('updates');
+    if(saved){setProductId(saved);if(!showUpdates)setActiveNav('products');}
     if(!item)return;
     const controller=new AbortController();setProductionLoading(true);
     fetch(`/api/production/${encodeURIComponent(item)}`,{signal:controller.signal}).then(async r=>{const b=await r.json() as NonNullable<typeof production>&{error?:string};if(!r.ok||!b.sample?.recipe)throw new Error(b.error||'制作项信息不完整。');return b;}).then(b=>{
@@ -201,7 +212,7 @@ export default function Home() {
       setInstruction('');setViewedTaskId(b.generationId || '');setIntent(b.kind==='main'&&b.title.includes('场景')?'interior':'catalog');
       // The sample locks the product, not obsolete 4K/PRO generation parameters.
       setModelId(defaultImageModel.id);setAspectRatio(b.kind==='detail'?(b.title==='完整详情长图'?'1:3':'3:4'):'1:1');setResolution('2k');setQuality('medium');
-      setActiveNav('new');
+      if(!showUpdates)setActiveNav('new');
     }).catch(e=>{if(!controller.signal.aborted)setPreviewError(e instanceof Error?e.message:'制作项读取失败。');}).finally(()=>{if(!controller.signal.aborted)setProductionLoading(false);});
     return()=>controller.abort();
   },[]);
@@ -637,7 +648,7 @@ export default function Home() {
         <nav className="side-nav" aria-label="工作台导航">
           <p className="nav-label">工作流</p>
           {navItems.map(([id, label]) => (
-            <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(id)}>
+            <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => navigateView(id)}>
               <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
               <span>{label}</span>
               <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : id === 'colors' ? frameColors.length : id === 'jobs' ? generations.tasks.length : ''}</em>
@@ -649,7 +660,7 @@ export default function Home() {
         <section className="storage-card">
           <div className="storage-title"><span>生图接口</span><b>{customConfig?.name || 'RunningHub API'}</b></div>
           <p>{generations.config ? modelConfigured ? '当前通道已配置' : '当前通道待配置' : '正在检查当前通道'}</p>
-          <button onClick={() => setActiveNav('settings')}>配置 API →</button>
+          <button onClick={() => navigateView('settings')}>配置 API →</button>
         </section>
         <div className="profile-row">
           <span className="avatar">徐</span>
@@ -665,7 +676,7 @@ export default function Home() {
           </div>
           <div className="top-actions">
             <span className="sync-state">{customConfig?.name || 'RunningHub'} 图像生成</span>
-            <button className="ghost-button" onClick={() => setActiveNav(activeNav === 'new' ? 'jobs' : 'new')}>{activeNav === 'new' ? '查看生成记录' : '返回组合生图'}</button>
+            <button className="ghost-button" onClick={() => navigateView(activeNav === 'new' ? 'jobs' : 'new')}>{activeNav === 'new' ? '查看生成记录' : '返回组合生图'}</button>
           </div>
         </header>
 
@@ -824,7 +835,8 @@ export default function Home() {
 
       {(activeNav === 'products' || activeNav === 'delivery') && <ProductWorkspaceView key={`${activeNav}:${productId}`} productId={productId} delivery={activeNav==='delivery'} artworks={libraryItems} colors={frameColors} onOpen={setProductId} onNew={()=>setActiveNav('new')}/>}
       {activeNav === 'scenes' && <SceneLibrary selectedId={sceneId} disabled={previewGenerating||generations.busy||production?.kind==='size'} onSelect={id=>{if(previewGenerating||generations.busy||production?.kind==='size')return;setSceneId(id);chooseIntent('interior');setBackground('auto');resetPreview();setActiveNav('new');setNotice('已添加场景参考，点击生成才会提交。');}} />}
-      {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask}/></div>}
+      {activeNav === 'updates' && <WorkbenchUpdates onNavigate={navigateView} />}
+      {activeNav === 'jobs' && <div className="history-workspace"><GenerationHistory tasks={generations.tasks} loading={generations.loading} error={generations.error} paused={generations.paused} onRefresh={generations.resume} onResolve={generations.resolveUnknown} onReuse={reuseTask} onFavorite={task => void generations.toggleFavorite(task)} favoriteSaving={generations.favoriteSaving}/></div>}
       </section>
 
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
