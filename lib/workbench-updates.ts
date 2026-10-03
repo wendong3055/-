@@ -4,14 +4,28 @@ export type WorkbenchUpdate = {
   time?: string;
   title: string;
   summary: string;
+  action: { view: 'new' | 'jobs'; label: string };
   changes: { title: string; detail: string }[];
 };
 
 // Keep this release history alongside the feature change that it describes.
 export const workbenchUpdates: WorkbenchUpdate[] = [
   {
+    id: '2026-10-04', date: '2026-10-04', title: '让第一次使用更容易',
+    summary: '从选搭配到生成第一张图，一步一步做清楚。',
+    action: { view: 'new', label: '试试快速上手' },
+    changes: [
+      { title: '三步完成一张图', detail: '首页默认快速上手：选搭配、写要求、核对并生图。也可切回完整设置，当前选择与文字保留。' },
+      { title: '减少第一眼的选项', detail: '模型参数和辅助工具按需展开；素材管理收纳到侧栏分组。常用框架先显示四款，完整框架库仍可进入。' },
+      { title: '缺什么就指向哪里', detail: '连接未配置、图案缺少原图、框架未选好或已有任务待处理时，显示原因和对应入口。首次载入优先选择有原图的图案。' },
+      { title: '连接步骤直接可见', detail: '保存密钥、启用密钥分成两步，并提供返回制作和检查连接的入口。' },
+      { title: '看清参考与结果', detail: '没有生成图片时明确显示“参考图片”，核对页列出本次搭配与制作要求。切换步骤不会提交生图任务。' },
+    ],
+  },
+  {
     id: '2026-10-03', date: '2026-10-03', title: '优化记录与试稿查找',
     summary: '每次改动有处可查，满意的试稿更容易找回。',
+    action: { view: 'jobs', label: '查找我的试稿' },
     changes: [
       { title: '网页内查看优化记录', detail: '侧栏新增“优化记录”，按日期查看本轮与 10 月 2 日更新的具体内容。' },
       { title: '组合筛选生成记录', detail: '按关键词、任务状态、时间范围和模型查找，也可以只看已收藏的结果。' },
@@ -21,6 +35,7 @@ export const workbenchUpdates: WorkbenchUpdate[] = [
   {
     id: '2026-10-02', date: '2026-10-02', time: '23:56', title: '两版对比与样稿验收',
     summary: '对照每轮变化，再决定是否继续批量制作。',
+    action: { view: 'new', label: '去预览区试用' },
     changes: [
       { title: '预览区对比两版', detail: '选择两张已完成图片，共享缩放倍率、显示方式和全屏视图。' },
       { title: '看清每轮改了什么', detail: '根据保存的图案、框架、木色、要求和出图设置显示差异。相同设置标为重新试做，旧记录缺少设置时明确提示。' },

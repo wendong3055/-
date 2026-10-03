@@ -14,7 +14,7 @@ async function api(url: string, init?: RequestInit): Promise<any> {
   if (!response.ok) throw new Error(typeof payload.error === 'string' ? payload.error : '请求暂时失败，请稍后重试。');
   return payload;
 }
-export default function RhCreator() {
+export default function RhCreator({ onSaved }: { onSaved?: () => void } = {}) {
   const [configured, setConfigured] = useState(false);
   const [internationalConfigured, setInternationalConfigured] = useState(false);
   const [canSave, setCanSave] = useState(false);
@@ -43,7 +43,8 @@ export default function RhCreator() {
     try {
       await api('/api/rh-creator', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'key', apiKey: key }) });
       setKey(''); await refresh();
-      setNotice('Key 已加密保存。请在下方「原有新品制作连接」里确认接入，不会自动生成。');
+      setNotice('密钥已保存。请继续下方第 2 步，启用这份密钥。');
+      onSaved?.();
       setShowKey(false);
     } catch (error) { setNotice((error as Error).message); }
     finally { guard.current = false; setBusy(false); }
@@ -51,20 +52,21 @@ export default function RhCreator() {
   const blocked = busy || activeTask;
   return <div className="rh-creator" aria-label="RunningHub 国际站 Key">
     <section className="rh-connect">
-      <div><h3>连接 RunningHub 国际站</h3><span className="rh-state">{loading ? '读取中…' : configured ? 'Key 已保存' : '请先配置 Key'}</span></div>
-      <p>{internationalConfigured ? '已接入新品制作。' : '尚未接入新品制作：保存后请在下方「原有新品制作连接」里确认接入。'}</p>
-      <p>这里保存的 Key 就是新品制作使用的国际站（runninghub.ai）Key；中国站节点已不再使用。</p>
+      <div><h3>RunningHub 国际站</h3><span className="rh-state">{loading ? '读取中…' : configured ? '密钥已保存' : '还未保存密钥'}</span></div>
+      <p>{internationalConfigured ? '已有密钥接入制作。更换密钥后，请重新完成第 2 步。' : '保存密钥后，请继续下方第 2 步。'}</p>
+      <p>API Key 就是允许工作台使用你账户生图的连接密钥。</p>
       {(!configured || showKey) && <>
         <ol><li><a href="https://www.runninghub.ai/" target="_blank" rel="noreferrer">打开 RunningHub 国际站</a>，登录后创建 API Key。</li><li>复制 Key，粘贴到下面并保存。不要发在聊天里。</li></ol>
         <label>RunningHub 国际站 API Key<input type="password" autoComplete="off" spellCheck={false} value={key} maxLength={512} onChange={(event) => setKey(event.target.value)} placeholder="在此粘贴 Key" disabled={blocked} /></label>
-        <button className="rh-primary" disabled={!canSave || key.trim().length < 16 || blocked} onClick={() => void saveKey()}>加密保存 Key</button>
+        <button className="rh-primary" disabled={!canSave || key.trim().length < 16 || blocked} onClick={() => void saveKey()}>{busy ? '正在保存…' : '保存密钥，继续第 2 步'}</button>
         {!canSave && !loading && <p>安全存储尚未就绪，请联系工作台管理员。</p>}
       </>}
       <div className="rh-actions">
-        {configured && <button disabled={blocked} onClick={() => setShowKey(!showKey)}>{showKey ? '收起' : '更换 Key'}</button>}
+        {configured && <button disabled={blocked} onClick={() => setShowKey(!showKey)}>{showKey ? '收起' : '更换密钥'}</button>}
         <button disabled={busy} onClick={() => void refresh()}>刷新状态</button>
       </div>
-      <small>保存不会生成作品，也不会校验额度；检查连接请用下方「原有新品制作连接」。密钥加密保存在服务端，仅供当前账号使用。</small>
+      {activeTask && <p role="status">当前有任务进行中或待核对，完成后才能更换密钥。</p>}
+      <small>密钥加密保存。保存不会生图，也不会校验余额；可在第 2 步检查连接。</small>
     </section>
     {notice && <p className="rh-notice" role="status">{notice}</p>}
   </div>;

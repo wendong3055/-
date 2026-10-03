@@ -1,8 +1,8 @@
 const productRequirements = '将画芯替换为所选图案，框架改为所选颜色，保持原有结构不变。';
 export const studioIntents = [
-  { id: 'composition', name: '组合确认图', subtitle: '先看画芯、框架和木色是否合适', label: '确认组合', instruction: productRequirements },
-  { id: 'catalog', name: '电商白底图', subtitle: '突出完整产品，便于上架展示', label: '白底主图', instruction: `${productRequirements} 白底，完整展示产品。` },
-  { id: 'interior', name: '家居场景图', subtitle: '把屏风放进真实的家居空间', label: '家居场景', instruction: `${productRequirements} 搭配自然家居场景，突出产品。` },
+  { id: 'composition', name: '先看搭配效果', subtitle: '检查图案、框架和木色是否合适', label: '搭配效果', instruction: productRequirements },
+  { id: 'catalog', name: '做白底商品图', subtitle: '完整展示产品，方便放到商品页面', label: '白底商品图', instruction: `${productRequirements} 白底，完整展示产品。` },
+  { id: 'interior', name: '放进家居场景', subtitle: '看看产品摆在房间里的样子', label: '家居场景', instruction: `${productRequirements} 搭配自然家居场景，突出产品。` },
 ] as const;
 
 export type StudioIntent = typeof studioIntents[number]['id'];

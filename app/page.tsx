@@ -8,6 +8,8 @@ import { SceneLibrary } from './scene-library';
 import { findScene, sceneRequiresOpaqueBackground } from '../lib/scene-library';
 import { GenerationHistory, RunningHubSettings, useGenerations } from './generation-studio';
 import { WorkbenchUpdates } from './workbench-updates';
+import { GenerationReadiness, StudioReview, StudioSteps } from './studio-guide';
+import { studioReadiness, type StudioStep } from '../lib/studio-onboarding';
 import RhCreator from './rh-creator';
 import type { CustomImageConfig } from '../lib/custom-image-config';
 import { TrialCanvas } from './trial-canvas';
@@ -96,15 +98,15 @@ const cabinetFrameStyles: FrameOption[] = [
 ];
 
 const navItems = [
-  ['new', '新品项目', '08'],
-  ['products', '我的新品', ''],
-  ['gallery', '图库收纳', '128'],
+  ['new', '制作一张图', '08'],
+  ['products', '我的产品', ''],
+  ['gallery', '图案库', '128'],
   ['scenes', '场景图库', ''],
   ['frames', '框架库', '10'],
   ['colors', '颜色库', '06'],
-  ['jobs', '生成任务', '03'],
+  ['jobs', '生成记录', '03'],
   ['delivery', '交付中心', '12'],
-  ['settings', '连接设置', ''],
+  ['settings', '生图连接', ''],
   ['updates', '优化记录', ''],
 ];
 
@@ -137,7 +139,7 @@ export default function Home() {
   const [frameUploading, setFrameUploading] = useState(false);
   const [frameUploadProgress, setFrameUploadProgress] = useState('');
   const [homeSampleIds, setHomeSampleIds] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState('mist');
+  const [selectedId, setSelectedId] = useState('');
   const [frameId, setFrameId] = useState('ruyi-walnut');
   const [frameColorId, setFrameColorId] = useState('walnut');
   const [previewReady, setPreviewReady] = useState(false);
@@ -146,6 +148,27 @@ export default function Home() {
   const [hiddenArtworkIds, setHiddenArtworkIds] = useState<string[]>([]);
   const [hiddenFrameIds, setHiddenFrameIds] = useState<string[]>([]);
   const [activeNav, setActiveNav] = useState('new');
+  const [simpleMode, setSimpleMode] = useState(true);
+  const [quickStep, setQuickStep] = useState<StudioStep>('materials');
+  const [materialsOpen, setMaterialsOpen] = useState(false);
+  useEffect(() => { try { setSimpleMode(localStorage.getItem('studio-simple-mode') !== 'full'); } catch { /* Optional display preference. */ } }, []);
+  function changeMode(simple: boolean) {
+    setSimpleMode(simple);
+    try { localStorage.setItem('studio-simple-mode', simple ? 'simple' : 'full'); } catch { /* Keep working without storage. */ }
+  }
+  function goToStep(step: StudioStep) {
+    setQuickStep(step);
+    window.requestAnimationFrame(() => {
+      const panel = document.getElementById('studio-controls');
+      panel?.scrollTo({ top: 0 });
+      document.getElementById('studio-step-title')?.focus({ preventScroll: true });
+      if (window.matchMedia('(max-width: 1060px)').matches) panel?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }
+  function requestGeneration() {
+    if (simpleMode && !production && quickStep !== 'review') { goToStep('review'); return; }
+    void generatePreview();
+  }
   function navigateView(view: string) {
     setActiveNav(view);
     const url = new URL(window.location.href);
@@ -157,6 +180,7 @@ export default function Home() {
   const [production, setProduction] = useState<{itemId:string;productId:string;planId:string;planVersion:number;generationId:string|null;pendingItemIds:string[];title:string;brief:string;kind:string;frameUrl:string;sample:GenerationTask;sceneTitle?:string;sceneUrl?:string|null}|null>(null);
   const [productionConsent,setProductionConsent] = useState<ProductionConsent|null>(null);
   const [productionLoading, setProductionLoading] = useState(false);
+  const guided = simpleMode && !production && !productionLoading;
   const [notice, setNotice] = useState('');
   const visibleLibraryItems = useMemo(() => libraryItems.filter((item) => !hiddenArtworkIds.includes(item.id)), [hiddenArtworkIds, libraryItems]);
   const visibleCabinetFrames = useMemo(() => groupFrameOptions([...uploadedFrames, ...cabinetFrameStyles], hiddenFrameIds), [hiddenFrameIds, uploadedFrames]);
@@ -165,7 +189,7 @@ export default function Home() {
   // grouping path is unchanged.
   const visibleScreenFrames = useMemo(() => groupFrameOptions(frames, hiddenFrameIds), [hiddenFrameIds]);
   const visibleFrameOptions = [...visibleCabinetFrames, ...visibleScreenFrames];
-  const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems[0];
+  const selected = visibleLibraryItems.find((item) => item.id === selectedId) ?? visibleLibraryItems.find(item => item.originalStatus === 'verified' && item.originalFile) ?? visibleLibraryItems[0];
   const frame: FrameOption = visibleFrameOptions.find((item) => item.id === frameId) ?? visibleFrameOptions[0];
   const frameColor = frameColors.find((item) => item.id === frameColorId) ?? frameColors[0];
   const homeArtworks = [selected, ...homeSampleIds.filter((id) => id !== selected?.id).map((id) => visibleLibraryItems.find((item) => item.id === id))].filter((item): item is typeof artworks[number] => Boolean(item)).slice(0, 3);
@@ -178,8 +202,15 @@ export default function Home() {
   const modelConfigured = modelId.startsWith('custom-') ? Boolean(customConfig) : Boolean(generations.config?.regions?.international);
   const sceneInUse = production?.kind === 'size' ? undefined : scene;
   const staleResult = isPreviousResult(displayedTask, { artworkId: selected?.id || '', frameId: frame?.id || '', colorId: frameColor.id, instruction, intent, sceneId: sceneInUse?.id });
-  const canGenerate = Boolean(selected && frame) && !productionLoading && !previewGenerating && !generations.busy && modelConfigured && (!production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId));
-  const generateLabel = previewGenerating ? '正在生成…' : generations.busy ? '请先处理已有任务' : !modelConfigured ? '请先完成后台连接' : '在工作台生成效果图';
+  const readiness = studioReadiness({
+    working: previewGenerating, loading: productionLoading || generations.loading || (!generations.config && !generations.error),
+    busy: generations.busy, configured: modelConfigured,
+    originalReady: Boolean(selected?.originalStatus === 'verified' && selected?.originalFile),
+    frameReady: Boolean(production?.frameUrl || frame?.file),
+    productionMatches: !production || (selected?.id === production.sample.recipe?.artworkId && frame?.id === production.sample.recipe?.frameId && frameColor.id === production.sample.recipe?.colorId),
+  });
+  const canGenerate = readiness.ready;
+  const generateLabel = previewGenerating ? '正在生成…' : canGenerate ? '生成 1 张效果图' : '完成上方准备后生成';
   const confirmationSettings = consentSettings({model:model.id,providerRevision:customConfig?.revision || '',ratio:aspectRatio,resolution,quality,
     sceneId:sceneInUse?.id || '',
     ...(model.backgrounds?.length ? {background}:{}), ...(model.outputFormats?.length ? {outputFormat}:{})});
@@ -282,7 +313,7 @@ export default function Home() {
   }, [visibleLibraryItems]);
 
   useEffect(() => {
-    if (selected && selected.id !== selectedId) setSelectedId(selected.id);
+    if (selected && selected.id !== selectedId && (selectedId || (selected.originalStatus === 'verified' && selected.originalFile))) setSelectedId(selected.id);
   }, [selected, selectedId]);
 
   useEffect(() => {
@@ -634,8 +665,23 @@ export default function Home() {
     window.setTimeout(() => setNotice(''), 5200);
   }
 
+  const outputSettings = <details className="studio-output-panel" aria-label="出图设置">
+              <summary><strong>更多设置 · 模型与清晰度</strong><span>{model.name} · {aspectRatio === 'auto' ? '自动画幅' : aspectRatio} · {resolution === 'auto' ? '自动清晰度' : resolution.toUpperCase()}{model.qualities.length ? ` · ${qualityLabels[quality] || quality}` : ''}</span></summary>
+              <div className="row-label"><span>展开调整参数，不会自动生图</span><button type="button" onClick={() => navigateView('settings')}>生图连接 →</button></div>
+              <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
+                <legend className="sr-only">选择生成模型和图片参数</legend>
+                <ImageModelPicker value={modelId} onChange={chooseModel} scene={Boolean(production?.sceneTitle)} />
+                {customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio==='auto'?'由模型决定':ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item==='auto'?'由模型决定':item.toUpperCase()}</option>)}</select></label></div>}
+                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
+                {!!model.backgrounds?.length && <label>输出背景<select value={background} onChange={event => { setBackground(event.target.value); if(event.target.value==='transparent' && outputFormat==='jpeg')setOutputFormat('png'); resetPreview(); }}>{model.backgrounds.map(item => <option key={item} value={item} disabled={sceneRequiresOpaqueBackground(Boolean(production?.sceneTitle)||Boolean(sceneInUse), item)}>{backgroundLabels[item] || item}</option>)}</select></label>}
+                {!!model.outputFormats?.length && <label>图片格式<select value={outputFormat} onChange={event => { setOutputFormat(event.target.value); resetPreview(); }}>{model.outputFormats.map(item => <option key={item} value={item} disabled={background==='transparent' && item==='jpeg'}>{item.toUpperCase()}</option>)}</select></label>}
+                {model.note && <p className="home-gallery-note">{model.note}</p>}
+                {!modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => navigateView('settings')}>前往生图连接 →</button></div>}
+              </fieldset>
+            </details>;
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${guided ? 'guided-workbench' : ''}`}>
       <aside className="sidebar">
         <div className="brand-lockup">
           <div className="brand-mark"><span>屏</span></div>
@@ -646,21 +692,20 @@ export default function Home() {
         </div>
 
         <nav className="side-nav" aria-label="工作台导航">
-          <p className="nav-label">工作流</p>
-          {navItems.map(([id, label]) => (
-            <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => navigateView(id)}>
-              <span className={`nav-icon nav-icon-${id}`} aria-hidden="true" />
-              <span>{label}</span>
-              <em>{id === 'gallery' ? visibleLibraryItems.length : id === 'frames' ? visibleFrameOptions.length : id === 'colors' ? frameColors.length : id === 'jobs' ? generations.tasks.length : ''}</em>
-            </button>
-          ))}
+          <p className="nav-label">开始制作</p>
+          {navItems.filter(([id]) => ['new','products','jobs','delivery'].includes(id)).map(([id, label]) => <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => navigateView(id)}><span className={`nav-icon nav-icon-${id}`} aria-hidden="true" /><span>{label}</span><em>{id === 'jobs' ? generations.tasks.length : ''}</em></button>)}
+          <details className="material-navigation" open={materialsOpen || ['gallery','frames','colors','scenes'].includes(activeNav)} onToggle={event => setMaterialsOpen(event.currentTarget.open)}>
+            <summary>素材管理</summary>
+            {navItems.filter(([id]) => ['gallery','frames','colors','scenes'].includes(id)).map(([id, label]) => <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => navigateView(id)}><span className={`nav-icon nav-icon-${id}`} aria-hidden="true" /><span>{label}</span></button>)}
+          </details>
+          {navItems.filter(([id]) => ['settings','updates'].includes(id)).map(([id, label]) => <button key={id} title={label} aria-current={activeNav === id ? 'page' : undefined} className={activeNav === id ? 'nav-item active' : 'nav-item'} onClick={() => navigateView(id)}><span className={`nav-icon nav-icon-${id}`} aria-hidden="true" /><span>{label}</span></button>)}
         </nav>
 
         <div className="sidebar-spacer" />
         <section className="storage-card">
-          <div className="storage-title"><span>生图接口</span><b>{customConfig?.name || 'RunningHub API'}</b></div>
+          <div className="storage-title"><span>生图服务</span><b>{customConfig?.name || 'RunningHub'}</b></div>
           <p>{generations.config ? modelConfigured ? '当前通道已配置' : '当前通道待配置' : '正在检查当前通道'}</p>
-          <button onClick={() => navigateView('settings')}>配置 API →</button>
+          <button onClick={() => navigateView('settings')}>连接设置 →</button>
         </section>
         <div className="profile-row">
           <span className="avatar">徐</span>
@@ -672,7 +717,7 @@ export default function Home() {
         <header className="topbar">
           <div>
             <p className="eyebrow">PRODUCT STUDIO / 徐艺木业</p>
-            <h1>{activeNav==='new'&&production?`${production.kind==='size'?'尺寸图':production.kind==='detail'?'详情图':'主图'}调整` : navItems.find(([id]) => id === activeNav)?.[1] || '新品项目'}</h1>
+            <h1>{activeNav==='new'&&production?`${production.kind==='size'?'尺寸图':production.kind==='detail'?'详情图':'主图'}调整` : navItems.find(([id]) => id === activeNav)?.[1] || '制作一张图'}</h1>
           </div>
           <div className="top-actions">
             <span className="sync-state">{customConfig?.name || 'RunningHub'} 图像生成</span>
@@ -680,36 +725,23 @@ export default function Home() {
           </div>
         </header>
 
-        {activeNav === 'new' && !production && !productionLoading && <div className="studio-intro"><div><h2>搭配你的下一款新品</h2><p>选图案、框架与颜色，确认后再生成。每轮结果都会保留。</p></div><span>拖动中间分隔线，可调整预览宽度</span></div>}
+        {activeNav === 'new' && !production && !productionLoading && <div className="studio-intro"><div><h2>先做一张满意的效果图</h2><p>选好搭配，试一张；满意后再制作主图、尺寸图和详情页。</p></div><div className="studio-mode-switch" role="group" aria-label="操作界面"><button type="button" aria-pressed={simpleMode} onClick={() => changeMode(true)}>快速上手</button><button type="button" aria-pressed={!simpleMode} onClick={() => changeMode(false)}>完整设置</button></div></div>}
+        {activeNav === 'new' && !production && !productionLoading && !modelConfigured && generations.config && <div className="setup-nudge"><span>第一次使用？先选搭配也可以，生成前需要连接生图服务。</span><button type="button" onClick={() => navigateView('settings')}>去连接 →</button></div>}
         {activeNav === 'new' && production && <div className="production-context"><strong>当前调整：{production.title}</strong><span>只调整这一张，保留同款产品搭配和历史结果。</span><a href={`/?product=${production.productId}&studio=${production.kind}`}>返回整套{production.kind==='size'?'尺寸图':production.kind==='detail'?'详情页':'主图'}</a></div>}
         <ResizableWorkspace hidden={activeNav !== 'new'}>
           <section className="library-panel" id="studio-controls">
-            <details className="studio-output-panel" aria-label="出图设置">
-              <summary><strong>出图设置</strong><span>{model.name} · {aspectRatio === 'auto' ? '自动画幅' : aspectRatio} · {resolution === 'auto' ? '自动清晰度' : resolution.toUpperCase()}{model.qualities.length ? ` · ${qualityLabels[quality] || quality}` : ''}</span></summary>
-              <div className="row-label"><span>展开调整参数，不会自动生图</span><button type="button" onClick={() => setActiveNav('settings')}>后台设置 →</button></div>
-              <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
-                <legend className="sr-only">选择生成模型和图片参数</legend>
-                <ImageModelPicker value={modelId} onChange={chooseModel} scene={Boolean(production?.sceneTitle)} />
-                {customConfig ? <div className="output-fields"><label>图片尺寸（像素）<select value={resolution} onChange={e => { setResolution(e.target.value); resetPreview(); }}>{customConfig.sizes.map(size => <option key={size} value={size}>{size === 'auto' ? '自动 · 由模型决定' : size.replace('x',' × ')}</option>)}</select></label><p>画幅比例由所选尺寸决定，不额外发送 RunningHub 参数。</p></div> : <div className="output-fields"><label>图片比例<select value={aspectRatio} onChange={(event) => { setAspectRatio(event.target.value); resetPreview(); }}>{model.ratios.map((ratio) => <option key={ratio} value={ratio}>{ratio==='auto'?'由模型决定':ratio}{ratio === '1:1' ? ' · 正方形' : ratio === '3:4' ? ' · 竖版主图' : ratio === '16:9' ? ' · 横版场景' : ratio === '9:16' ? ' · 竖版全景' : ''}</option>)}</select></label><label>清晰度 / 分辨率<select value={resolution} onChange={(event) => { setResolution(event.target.value); resetPreview(); }}>{model.resolutions.map((item) => <option key={item} value={item}>{item==='auto'?'由模型决定':item.toUpperCase()}</option>)}</select></label></div>}
-                {model.qualities.length > 0 && <label>生成质量<select value={quality} onChange={(event) => { setQuality(event.target.value); resetPreview(); }}>{model.qualities.map((item) => <option key={item} value={item}>{qualityLabels[item] || item}</option>)}</select></label>}
-                {!!model.backgrounds?.length && <label>输出背景<select value={background} onChange={event => { setBackground(event.target.value); if(event.target.value==='transparent' && outputFormat==='jpeg')setOutputFormat('png'); resetPreview(); }}>{model.backgrounds.map(item => <option key={item} value={item} disabled={sceneRequiresOpaqueBackground(Boolean(production?.sceneTitle)||Boolean(sceneInUse), item)}>{backgroundLabels[item] || item}</option>)}</select></label>}
-                {!!model.outputFormats?.length && <label>图片格式<select value={outputFormat} onChange={event => { setOutputFormat(event.target.value); resetPreview(); }}>{model.outputFormats.map(item => <option key={item} value={item} disabled={background==='transparent' && item==='jpeg'}>{item.toUpperCase()}</option>)}</select></label>}
-                {model.note && <p className="home-gallery-note">{model.note}</p>}
-                {!modelConfigured && <div className="output-setup-notice"><span>当前接口尚未连接。</span><button type="button" onClick={() => setActiveNav('settings')}>前往后台设置 →</button></div>}
-              </fieldset>
-            </details>
-            {!production && !productionLoading && <><fieldset className="intent-picker" disabled={previewGenerating}>
-              <legend>这次想做什么图？</legend>
-              <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
-            </fieldset>
-            <section className="choice-section artwork-choice-section">
+            {(production || productionLoading) && outputSettings}
+            {!production && !productionLoading && <>
+              {guided && <StudioSteps step={quickStep} onChange={goToStep} />}
+              <div className="studio-step-content" hidden={guided && quickStep !== 'materials'}>
+                <section className="choice-section artwork-choice-section">
               <div className="section-heading">
-                <div><p>ARTWORK OPTIONS</p><h2>图案选项</h2></div>
+                <div><h2>选图案</h2></div>
                 <button className="upload-button" onClick={() => setActiveNav('gallery')}>更多图案 <span>→</span></button>
               </div>
 
-              <p className="home-gallery-note">已选图案固定在首位，也可以直接上传新的画芯。</p>
-              {selected && <p className={selected.originalStatus === 'verified' ? 'home-gallery-note' : 'generation-warning'} role="status">{selected.originalStatus === 'verified' ? `生成使用原图${selected.originalWidth ? ` · ${selected.originalWidth} × ${selected.originalHeight} 像素` : ' · 上传文件原始内容'}；下方卡片仅用于浏览。` : '当前图案缺少已核对的原图，请补充原图后生成，不会用缩略图替代。'}</p>}
+              <p className="home-gallery-note">已选图案固定在首位，也可以直接上传自己的图案。</p>
+              {selected && <p className={selected.originalStatus === 'verified' ? 'home-gallery-note' : 'generation-warning'} role="status">{selected.originalStatus === 'verified' ? `已备好清晰原图${selected.originalWidth ? ` · ${selected.originalWidth} × ${selected.originalHeight} 像素` : ' · 上传文件原始内容'}。` : '当前图案缺少已核对的原图，请补充原图后生成，不会用缩略图替代。'}</p>}
               <div className="gallery-grid home-gallery-grid">
                 {(homeArtworks.length ? homeArtworks : visibleLibraryItems.slice(0, 3)).map((item) => (
                   <div className="option-card-wrap" key={item.id}>
@@ -724,17 +756,17 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="home-library-footer"><span>当前可选 {visibleLibraryItems.length} 张图案</span><label className="inline-upload">＋ 上传画芯<input type="file" accept="image/png,image/jpeg,image/webp" disabled={previewGenerating} onChange={(event) => { void uploadAsset(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label><button onClick={() => setActiveNav('gallery')}>从图库选择 →</button></div>
+              <div className="home-library-footer"><span>当前可选 {visibleLibraryItems.length} 张图案</span><label className="inline-upload">＋ 上传图案<input type="file" accept="image/png,image/jpeg,image/webp" disabled={previewGenerating} onChange={(event) => { void uploadAsset(event.target.files?.[0]); event.currentTarget.value = ''; }} /></label><button onClick={() => setActiveNav('gallery')}>从图库选择 →</button></div>
             </section>
 
             <section className="choice-section frame-choice-section">
               <div className="section-heading">
-                <div><p>FRAME OPTIONS</p><h2>框架选项</h2></div>
+                <div><h2>选框架</h2></div>
                 <button className="upload-button" onClick={() => setActiveNav('frames')}>更多框架 <span>→</span></button>
               </div>
-              <p className="home-gallery-note">可选 {homeFrames.length} 款框架，每款展示一个合并框架；点击图片选择，查看原图可放大检查完整结构。</p>
+              <p className="home-gallery-note">点击图片选择款式，再在下方挑选木色。</p>
               <div className="home-frame-grid">
-                {homeFrames.map((item) => <div className="option-card-wrap" key={item.id}>
+                {(guided ? homeFrames.slice(0, 4) : homeFrames).map((item) => <div className="option-card-wrap" key={item.id}>
                   <button className={frameId === item.id ? 'home-frame-card selected' : 'home-frame-card'} onClick={() => selectFrame(item.id)}>
                     {item.file ? <span className="home-frame-thumb image-frame-thumb"><img src={item.file} alt={`${item.name}标准合并框架`} /></span> : <span className="home-frame-thumb"><i style={{ '--swatch': item.color } as React.CSSProperties}><em /></i></span>}
                     <span><strong>{item.name}</strong><small>{item.tone}</small></span>
@@ -752,22 +784,40 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="scene-selection" aria-label="场景参考选择"><div><strong>场景参考 · 可选</strong><button type="button" onClick={()=>setActiveNav('scenes')}>从场景图库选择</button></div>{sceneInUse?<><p>{sceneInUse.name} · 作为独立参考图随本次生成提交</p><img src={sceneInUse.image} alt={`已选场景：${sceneInUse.name}`} /><div><span>只参考空间，不改变画芯与框架</span><button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{setSceneId('');resetPreview();}}>取消场景</button></div></>:<p>未指定场景，按制作要求生成；选择场景不会自动出图。</p>}</section>
-            <section className="generation-parameters" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generatePreview(); } }}>
-              <div className="row-label"><label htmlFor="generation-instruction">制作要求</label><b>{currentIntent.label}</b></div>
-              <p className="brief-help">说清楚想保留什么、调整什么；图案、框架和木色会自动带入。</p>
-              <div className="brief-tools"><button disabled={previewGenerating} onClick={() => { if (!instruction.trim() || instruction === currentIntent.instruction || window.confirm('用整理好的默认要求替换当前文字？替换后可撤回。')) changeInstruction(currentIntent.instruction); }}>填入我的默认要求</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
-              <ReferenceCheck art={selected} frameUrl={frame?.file} disabled={previewGenerating}/>
-              <PromptPolish text={instruction} context={JSON.stringify({artwork:selected?.name,frame:frame?.name,color:frameColor.name,intent:currentIntent.label})} disabled={previewGenerating} onApply={changeInstruction}/>
+
+              </div>
+              <div className="studio-step-content" hidden={guided && quickStep !== 'brief'}>
+                <fieldset className="intent-picker" disabled={previewGenerating}>
+              <legend>这次想做什么图？</legend>
+              <div className="intent-options">{studioIntents.map((item) => <label key={item.id} className={intent === item.id ? 'intent-option selected' : 'intent-option'}><input type="radio" name="studio-intent" value={item.id} checked={intent === item.id} onChange={() => chooseIntent(item.id)} /><strong>{item.name}</strong><small>{item.subtitle}</small></label>)}</div>
+            </fieldset>
+                            <section hidden={guided && intent !== 'interior'} className="scene-selection" aria-label="场景参考选择"><div><strong>场景参考 · 可选</strong><button type="button" onClick={()=>setActiveNav('scenes')}>从场景图库选择</button></div>{sceneInUse?<><p>{sceneInUse.name} · 作为独立参考图随本次生成提交</p><img src={sceneInUse.image} alt={`已选场景：${sceneInUse.name}`} /><div><span>只参考空间，不改变画芯与框架</span><button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{setSceneId('');resetPreview();}}>取消场景</button></div></>:<p>未指定场景，按制作要求生成；选择场景不会自动出图。</p>}</section>
+
+                            <section className="generation-parameters" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); requestGeneration(); } }}>
+              <div className="row-label"><label htmlFor="generation-instruction">补充要求 · 可不改</label><b>{currentIntent.label}</b></div>
+              <p className="brief-help">默认已写好。不知道怎么写，可以直接进入下一步。</p>
+              <div className="brief-tools"><button disabled={previewGenerating} onClick={() => { if (!instruction.trim() || instruction === currentIntent.instruction || window.confirm('用整理好的默认要求替换当前文字？替换后可撤回。')) changeInstruction(currentIntent.instruction); }}>恢复默认要求</button><button disabled={previewGenerating || previousInstruction === null} onClick={() => { if (previousInstruction !== null) { setInstruction(previousInstruction); setPreviousInstruction(null); resetPreview(); } }}>撤回修改</button><span>{instruction.length}/1500</span></div>
               <textarea id="generation-instruction" value={instruction} maxLength={1500} disabled={previewGenerating} onChange={(event) => changeInstruction(event.target.value)} placeholder="例如：画芯居中完整，木纹清晰，主体不要被背景家具遮挡。" rows={4} />
               <p className="brief-rules">默认要求：保留产品结构 · 保留画芯内容 · 使用所选木色</p>
-              {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-              <p className="generation-privacy">生成时将发送所选参考图与制作要求，按当前应用权益与费用规则计费。</p>
-              {production&&<div className="production-confirmation" role="status"><strong>{consentActive?'本套已确认 · 不再逐张弹窗':'本套只需确认一次'}</strong><p>此浏览器记住同一版本、同一模型参数的首次制作确认。点击生成才会提交；重做另行确认，刷新不会自动扣费。</p>{productionConsent&&<button type="button" disabled={previewGenerating||generations.busy} onClick={()=>{storeProductionConsent(null);setNotice('已撤销本套确认。不会撤回或取消已经提交的任务。');}}>撤销本套确认</button>}</div>}
-              <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{generateLabel} <span>→</span></button>
-              <p className="generation-shortcut">Ctrl / ⌘ + Enter 生成 · 不跳转官网 · 每轮结果自动保留</p>
-              {generations.busy && !previewGenerating && <button className="open-color-library" onClick={() => setActiveNav('jobs')}>查看待处理任务 →</button>}
+
+              <details className="optional-studio-tools"><summary>辅助检查与整理要求 · 可选</summary>              <ReferenceCheck art={selected} frameUrl={frame?.file} disabled={previewGenerating}/>
+              <PromptPolish text={instruction} context={JSON.stringify({artwork:selected?.name,frame:frame?.name,color:frameColor.name,intent:currentIntent.label})} disabled={previewGenerating} onApply={changeInstruction}/>
+</details>
             </section>
+
+              </div>
+              <div className="studio-step-content" hidden={guided && quickStep !== 'review'} onKeyDown={event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); requestGeneration(); } }}>
+                <StudioReview artwork={selected?.name} frame={frame?.name} color={frameColor.name} purpose={currentIntent.name} instruction={instruction} scene={sceneInUse?.name} onEdit={guided ? goToStep : undefined} />
+                {outputSettings}
+                <GenerationReadiness state={readiness} onNavigate={navigateView} />
+                {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
+                <button className="combine-button" disabled={!canGenerate} onClick={requestGeneration}>{generateLabel} <span>→</span></button>
+                <p className="generation-privacy">点击生成会发送所选参考图和要求，并按 RunningHub 的规则计费。结果自动保存。</p>
+              </div>
+              {guided && <div className="studio-step-actions">
+                {quickStep !== 'materials' && <button type="button" onClick={() => goToStep(quickStep === 'review' ? 'brief' : 'materials')}>← 上一步</button>}
+                {quickStep !== 'review' && <button type="button" className="step-continue" onClick={() => goToStep(quickStep === 'materials' ? 'brief' : 'review')}>{quickStep === 'materials' ? '下一步：写要求' : '下一步：核对并生图'} →</button>}
+              </div>}
             </>}
             {productionLoading && <p role="status">正在读取当前图片…</p>}
             {production && <section className="generation-parameters">
@@ -780,6 +830,7 @@ export default function Home() {
               <ReferenceCheck art={selected} frameUrl={production.frameUrl} disabled={previewGenerating}/>
               <PromptPolish text={instruction} context={JSON.stringify({artwork:selected?.name,frame:frame?.name,color:frameColor.name,intent:production.kind==='size'?'电商SKU尺寸图':production.title})} disabled={previewGenerating} onApply={changeInstruction}/>
               {generations.error&&<p role="alert">{generations.error}</p>}
+              <GenerationReadiness state={readiness} onNavigate={navigateView} />
               <button className="combine-button" disabled={!canGenerate} onClick={generatePreview}>{previewGenerating?'正在生成…':production.generationId?'重新生成这张':'生成这张'}</button>
               <p className="generation-privacy">点击后才提交生图并按接口计费，历史图片保留。</p>
             </section>}
@@ -796,7 +847,9 @@ export default function Home() {
               onFavorite={task => void generations.toggleFavorite(task)} favoriteSaving={generations.favoriteSaving}
               recipeLabel={(kind, id) => kind === 'artwork' ? libraryItems.find(item => item.id === id)?.name || id : kind === 'frame' ? [...uploadedFrames, ...cabinetFrameStyles, ...frames].find(item => item.id === id)?.name || id : kind === 'color' ? frameColors.find(item => item.id === id)?.name || id : findScene(id)?.name || id}
               reuseDisabled={generations.busy || previewGenerating} onHistory={() => setActiveNav('jobs')}
-              onGenerate={generatePreview} canGenerate={canGenerate} generateLabel={generateLabel}
+              onGenerate={requestGeneration} canGenerate={canGenerate} generateLabel={generateLabel}
+              reviewFirst={guided && quickStep !== 'review' ? () => goToStep('review') : undefined}
+              onEdit={guided ? () => goToStep('materials') : undefined}
               nextStep={!production && !importedResult ? { onConfirm: createProduct, saving: productSaving } : undefined}
               outputSummary={`${model.name} · ${aspectRatio === 'auto' ? '应用画幅' : aspectRatio} · ${resolution === 'auto' ? '应用清晰度' : resolution.toUpperCase()}`}
               references={[...(selected?.file ? [{ src: selected.originalFile || selected.file, label: selected.originalStatus === 'verified' ? '图案原图' : '图案预览（原图待补充）' }] : []), ...(production?.frameUrl || frame?.file ? [{ src: production?.frameUrl || frame.file!, label: production ? '本项确认参考图' : '框架原图' }] : []),...(production?.kind==='size'&&production.sceneUrl?[{src:production.sceneUrl,label:'与主图共用的场景背景'}]:[]),...(sceneInUse?[{src:sceneInUse.image,label:`场景参考 · ${sceneInUse.name}`}]:[])]}
@@ -817,18 +870,13 @@ export default function Home() {
           </aside>
         </ResizableWorkspace>
 
-        {activeNav === 'settings' && <section className="backend-settings-view" aria-label="后台设置">
-          <header><h2>RunningHub 连接设置</h2><p>只需要配置 RunningHub 国际站，不用填写接口地址、传输格式或域名。</p></header>
-          <RhCreator />
-          <details><summary>原有新品制作连接（已配置通常不用改）</summary>
-          <fieldset className="image-output-options" disabled={previewGenerating || generations.busy}>
-            <legend>当前调用应用</legend>
-            <label className="model-select">RunningHub 模型 / 应用<select value={modelId} onChange={event => chooseModel(event.target.value)}>{imageModels.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-          </fieldset>
-          {!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} busy={generations.busy || previewGenerating} />}
-          {model.note && <p className="generation-warning">{model.note}</p>}
+        {activeNav === 'settings' && <section className="backend-settings-view" aria-label="生图连接设置">
+          <header><h2>连接生图服务</h2><p>只在第一次使用或更换密钥时设置。完成下面两步，就能返回制作图片。</p></header>
+          {modelConfigured && <div className="connection-ready"><strong>生图连接已配置</strong><span>如果已能正常生图，不需要重复填写。</span><button type="button" onClick={() => navigateView('new')}>返回制作图片 →</button></div>}
+          <section className="connection-step"><h3><span>1</span> 保存 RunningHub 密钥</h3><RhCreator onSaved={generations.refreshConfig} /></section>
+          <section className="connection-step"><h3><span>2</span> 启用这份密钥</h3><p>确认密钥来自 runninghub.ai 国际站，然后点击启用。</p>{!customConfig && <RunningHubSettings config={generations.config} onRefresh={generations.refreshConfig} busy={generations.busy || previewGenerating} expanded />}</section>
           {generations.error && <p className="generation-warning" role="status">{generations.error}</p>}
-          </details><footer><span>Key 加密保存在当前账号下，历史作品不受影响。</span></footer>
+          <footer><span>设置不会生成图片。连接已配置也不代表额度充足，可以检查连接后再试做。</span><button type="button" className="primary-button" onClick={() => { navigateView('new'); if (simpleMode) goToStep(modelConfigured ? 'review' : 'materials'); }}>{modelConfigured ? '连接已配置，返回制作' : '先返回选择搭配'} →</button></footer>
         </section>}
 
         {['gallery','frames','colors'].includes(activeNav) && <SecondaryView view={activeNav} libraryItems={visibleLibraryItems} selectedArtworkId={selectedId} onSelectArtwork={selectArtwork} onDeleteArtwork={removeArtwork} onDeleteArtworks={removeArtworksBulk} onRestoreArtworks={restoreArtworks} hiddenArtworkCount={hiddenArtworkIds.length} onUploadArtwork={uploadAsset} frameId={frameId} frameStyles={visibleCabinetFrames} onSelectFrame={selectFrame} onDeleteFrame={removeFrame} onRestoreFrames={restoreFrames} hiddenFrameCount={hiddenFrameIds.length} onUploadFrame={uploadFrame} frameUploading={frameUploading} frameUploadProgress={frameUploadProgress} frameColorId={frameColorId} onSelectFrameColor={selectFrameColor} onCreate={() => setActiveNav('new')} />}
@@ -911,13 +959,13 @@ function SecondaryView({ view, libraryItems, selectedArtworkId, onSelectArtwork,
     setBulkIds([]);
   }
   const headings: Record<string, [string, string]> = {
-    gallery: ['图库收纳', '仅收纳原始画芯图案；背景参考请到场景图库'],
+    gallery: ['图案库', '仅收纳原始画芯图案；背景参考请到场景图库'],
     frames: ['框架库', '按框型、木色和结构选择真实产品模板'],
     colors: ['颜色库', '独立管理框架材质与六种标准颜色'],
-    jobs: ['生成任务', '样图审批通过后，自动推进批量任务'],
+    jobs: ['生成记录', '样图审批通过后，自动推进批量任务'],
     delivery: ['交付中心', '按新品版本汇总主图、尺寸图、详情页与 QA 文件'],
   };
-  const [title, description] = headings[view] ?? ['新品项目', '管理所有新品制作进度'];
+  const [title, description] = headings[view] ?? ['制作一张图', '管理所有新品制作进度'];
   return (
     <section className="secondary-view">
       <header className="secondary-head"><div>{view !== 'frames' && <><p className="eyebrow">WORKSPACE LIBRARY</p><h2>{title}</h2></>}<span>{description}</span></div><button className="primary-button" onClick={onCreate}>＋ 创建新品</button></header>

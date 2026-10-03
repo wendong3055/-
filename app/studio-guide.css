@@ -1,0 +1,89 @@
+/* Guided creation keeps the same material selectors and large result canvas. */
+.studio-step-content[hidden], .scene-selection[hidden] { display:none !important; }
+.studio-mode-switch { display:flex; flex-shrink:0; gap:4px; padding:4px; border:1px solid #c8d5cb; border-radius:9px; background:#fff; }
+.studio-mode-switch button { min-height:40px; padding:8px 12px; border:0; border-radius:6px; color:#48604f; background:transparent; font-size:14px; cursor:pointer; }
+.studio-mode-switch button[aria-pressed=true] { background:#294e39; color:white; }
+.setup-nudge { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px 16px; margin:0 0 18px; padding:12px 16px; background:#e8f0e9; border:1px solid #c9dacc; border-radius:9px; color:#385b42; font-size:15px; line-height:1.6; }
+.setup-nudge button { border:0; padding:6px 0; min-height:40px; background:transparent; color:#245439; font-size:16px; font-weight:600; cursor:pointer; }
+.studio-guide { margin-bottom:24px; }
+.studio-guide ol { list-style:none; display:grid; grid-template-columns:1fr 1fr 1.4fr; gap:6px; margin:0 0 24px; padding:0; }
+.studio-guide li { min-width:0; }
+.studio-guide nav button { display:flex; align-items:center; justify-content:center; width:100%; gap:6px; min-height:48px; padding:8px 4px; border:1px solid #d8e1d9; border-radius:8px; background:#f8faf8; color:#526358; font-size:14px; cursor:pointer; }
+.studio-guide nav button span { flex:none; display:grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#e7ede8; font-size:13px; }
+.studio-guide nav button[aria-current=step] { border-color:#3f684d; color:#254b35; background:#edf4ee; font-weight:650; }
+.studio-guide nav button[aria-current=step] span { color:white; background:#365d42; }
+.studio-guide h2 { font-size:23px; margin:0 0 8px; outline-offset:5px; }
+.studio-guide > p { color:#56695c; font-size:16px; line-height:1.7; margin:0; }
+.guided-workbench .content-grid .choice-section .section-heading h2 { font-size:18px; }
+.guided-workbench .content-grid .choice-section { margin-top:0; }
+.guided-workbench .content-grid .artwork-choice-section { padding-top:0; }
+.guided-workbench .content-grid > .library-panel { display:flex; flex-direction:column; height:min(850px,calc(100dvh - 205px)); min-height:500px; overflow:hidden; }
+.guided-workbench .studio-guide,.guided-workbench .studio-step-actions { flex:none; }
+.guided-workbench .studio-step-content { flex:1; min-height:0; overflow-y:auto; padding-right:6px; }
+.guided-workbench .content-grid .home-frame-grid { padding:2px; }
+.guided-workbench .content-grid .frame-color-picker { margin-bottom:0; }
+.guided-workbench .content-grid .intent-options { grid-template-columns:1fr; }
+.guided-workbench .content-grid .intent-option { min-height:70px; padding:14px 14px 14px 40px; text-align:left; align-items:flex-start; }
+.guided-workbench .content-grid .intent-option input { top:18px; left:14px; right:auto; }
+.guided-workbench .content-grid .intent-option strong { font-size:16px; }
+.guided-workbench .content-grid .intent-option small { font-size:14px; }
+.studio-step-actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-top:22px; padding-top:18px; border-top:1px solid #d8e1d9; }
+.studio-step-actions button,.review-edit-actions button,.generation-readiness button,.connection-ready button { min-height:44px; padding:10px 13px; border:1px solid #b6cbbc; border-radius:8px; background:#fff; color:#285239; font-size:16px; cursor:pointer; }
+.studio-step-actions .step-continue { margin-left:auto; background:#2c553c; border-color:#2c553c; color:white; }
+.studio-step-actions button:hover,.review-edit-actions button:hover { filter:brightness(.96); }
+.studio-review { padding:18px; margin-bottom:18px; background:#f4f7f4; border:1px solid #d6e0d7; border-radius:10px; }
+.studio-review h3 { margin:0 0 14px; font-size:18px; }
+.studio-review dl { display:grid; gap:10px; margin:0; }
+.studio-review dl > div { display:grid; grid-template-columns:42px minmax(0,1fr); gap:12px; font-size:16px; line-height:1.6; }
+.studio-review dt { color:#687b6c; }
+.studio-review dd { margin:0; overflow-wrap:anywhere; }
+.studio-review > p { margin:14px 0 0; padding-top:14px; border-top:1px solid #d8e1d9; color:#536658; font-size:15px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; max-height:180px; overflow-y:auto; }
+.review-edit-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+.review-edit-actions button { font-size:14px; min-height:40px; padding:7px 11px; }
+.generation-readiness { display:flex; align-items:flex-start; flex-direction:column; gap:12px; margin:18px 0; padding:16px; border-radius:9px; border:1px solid #dccb9e; background:#fffaf0; }
+.generation-readiness strong { font-size:16px; }
+.generation-readiness p { color:#655f50; font-size:15px; line-height:1.7; margin:5px 0 0; }
+.generation-readiness.is-ready { border-color:#c4d9c9; background:#f0f7f1; }
+.generation-readiness.is-ready p { color:#4b6753; }
+.studio-step-content > .combine-button { width:100%; min-height:52px; font-size:17px; margin:0; }
+.studio-step-content > .studio-output-panel { padding:14px; margin-bottom:18px; }
+.optional-studio-tools { margin-top:18px; padding:12px; border:1px solid #dae2dc; border-radius:8px; }
+.optional-studio-tools > summary { cursor:pointer; font-size:14px; color:#526c59; min-height:26px; }
+.optional-studio-tools[open] > summary { margin-bottom:14px; }
+.preview-explainer { color:#5e7264; font-size:15px; line-height:1.7; margin:0 0 16px; }
+.material-navigation { margin:10px 0; padding:8px 0; border-top:1px solid #ffffff24; border-bottom:1px solid #ffffff24; }
+.material-navigation > summary { min-height:44px; padding:12px; font-size:14px; color:#d6e3d9; cursor:pointer; }
+.material-navigation[open] > summary { margin-bottom:6px; }
+.material-navigation .nav-item { width:100%; }
+.connection-step { border-top:1px solid #d8e1d9; padding-top:20px; margin-top:24px; }
+.connection-step > h3 { display:flex; align-items:center; gap:10px; margin:0 0 12px; font-size:20px; }
+.connection-step > h3 > span { display:grid; place-items:center; width:28px; height:28px; flex:none; border-radius:50%; background:#2c553c; color:white; font-size:15px; }
+.connection-step > p { font-size:16px; color:#596c60; line-height:1.7; }
+.connection-step .rh-connection-body > div { flex-direction:column; align-items:flex-start; }
+.connection-step .rh-connection-body label { display:flex; align-items:flex-start; gap:8px; font-size:16px; line-height:1.6; }
+.connection-step .rh-connection-body input[type=checkbox] { width:18px; height:18px; margin-top:4px; flex:none; accent-color:#2c553c; }
+.connection-step .rh-connection-body button { min-height:44px; padding:8px 14px; border:1px solid #b6cbbc; border-radius:7px; background:white; text-decoration:none; font-size:16px; }
+.connection-step .rh-connection-body button:disabled { opacity:.55; cursor:not-allowed; }
+.connection-step .rh-creator { margin-top:0; }
+.connection-ready { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-top:20px; padding:16px; background:#eef5ef; border:1px solid #c4d9c9; border-radius:9px; font-size:16px; }
+.connection-ready span { color:#4d6855; flex:1 1 250px; font-size:15px; }
+.backend-settings-view .primary-button { display:inline-flex; align-items:center; }
+@media(max-width:1060px) {
+  .studio-intro { align-items:flex-start; flex-wrap:wrap; gap:16px; }
+  .guided-workbench .content-grid > .library-panel { height:auto; min-height:0; overflow:visible; }
+  .guided-workbench .studio-step-content { overflow:visible; padding-right:0; }
+}
+@media(max-width:760px) {
+  .studio-mode-switch { width:100%; }
+  .studio-mode-switch button { flex:1; }
+  .side-nav .material-navigation { flex-basis:100%; margin:2px 0; }
+  .material-navigation[open] { display:flex; flex-wrap:wrap; gap:6px; }
+  .material-navigation > summary { width:100%; padding:10px; }
+  .material-navigation .nav-item { width:auto; }
+  .studio-guide { margin-bottom:20px; }
+  .studio-guide ol { margin-bottom:20px; }
+  .studio-guide nav button { flex-direction:column; gap:5px; min-height:66px; font-size:14px; }
+  .studio-step-actions .step-continue { flex:1; }
+  .studio-review { padding:14px; }
+  .connection-step > h3 { font-size:18px; }
+}
